@@ -22,3 +22,9 @@
 [submodule "external/ghc-filesystem"]
 	path = external/ghc-filesystem
 	url = https://github.com/gulrak/filesystem.git
+[submodule "external/randomx"]
+	path = external/randomx
+	url = https://github.com/Xmonero/RandomX
+[submodule "external/loki-mq"]
+	path = external/loki-mq
+	url = https://github.com/Xmonero/oxen-mq
