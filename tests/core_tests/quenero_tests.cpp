@@ -28,15 +28,15 @@
 // 
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
-#include "oxen_tests.h"
+#include "quenero_tests.h"
 #include "common/string_util.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_basic/tx_extra.h"
 #include "cryptonote_config.h"
-#include "cryptonote_core/oxen_name_system.h"
-#include "cryptonote_core/service_node_list.h"
+#include "cryptonote_core/quenero_name_system.h"
+#include "cryptonote_core/masternode_list.h"
 #include "cryptonote_core/uptime_proof.h"
-#include "oxen_economy.h"
+#include "quenero_economy.h"
 #include "common/random.h"
 
 extern "C"
@@ -44,7 +44,7 @@ extern "C"
 #include <sodium.h>
 };
 
-static void add_service_nodes(oxen_chain_generator &gen, size_t count)
+static void add_masternodes(quenero_chain_generator &gen, size_t count)
 {
   std::vector<cryptonote::transaction> registration_txs(count);
   for (auto i = 0u; i < count; ++i)
@@ -52,8 +52,8 @@ static void add_service_nodes(oxen_chain_generator &gen, size_t count)
   gen.create_and_add_next_block(registration_txs);
 }
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "sn_core_tests"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "sn_core_tests"
 
 // Suppose we have checkpoint and alt block at height 40 and the main chain is at height 40 with a differing block.
 // Main chain receives checkpoints for height 40 on the alt chain via votes and reorgs back to height 39.
@@ -67,28 +67,28 @@ static void add_service_nodes(oxen_chain_generator &gen, size_t count)
 // it saves us from having to delete our alt_blocks and have to re-receive the
 // block over P2P again "just so that it can go through the normal block added
 // code path" again
-bool oxen_checkpointing_alt_chain_handle_alt_blocks_at_tip::generate(std::vector<test_event_entry>& events)
+bool quenero_checkpointing_alt_chain_handle_alt_blocks_at_tip::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::CHECKPOINT_QUORUM_SIZE);
+  add_masternodes(gen, masternodes::CHECKPOINT_QUORUM_SIZE);
 
   // NOTE: Create next block on checkpoint boundary and add checkpoiont
 
-  oxen_chain_generator fork = gen;
+  quenero_chain_generator fork = gen;
   gen.add_blocks_until_next_checkpointable_height();
   fork.add_blocks_until_next_checkpointable_height();
-  fork.add_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  fork.add_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   // NOTE: Though we receive a checkpoint via votes, the alt block is still in
   // the alt db because we don't trigger a chain switch until we receive a 2nd
   // block that confirms the alt block.
   uint64_t curr_height   = gen.height();
   crypto::hash curr_hash = get_block_hash(gen.top().block);
-  oxen_register_callback(events, "check_alt_block_count", [curr_height, curr_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_alt_block_count", [curr_height, curr_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_alt_block_count");
 
@@ -106,13 +106,13 @@ bool oxen_checkpointing_alt_chain_handle_alt_blocks_at_tip::generate(std::vector
   // now same difficulty but more checkpoints, causing a chain switch at this point.
   gen.add_blocks_until_next_checkpointable_height();
   fork.add_blocks_until_next_checkpointable_height();
-  fork.add_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  fork.add_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   gen.create_and_add_next_block();
   fork.create_and_add_next_block();
 
   crypto::hash expected_top_hash = cryptonote::get_block_hash(fork.top().block);
-  oxen_register_callback(events, "check_chain_reorged", [expected_top_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_chain_reorged", [expected_top_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_chain_reorged");
     CHECK_EQ(c.get_blockchain_storage().get_alternative_blocks_count(), 0);
@@ -126,30 +126,30 @@ bool oxen_checkpointing_alt_chain_handle_alt_blocks_at_tip::generate(std::vector
 }
 
 // NOTE: - Checks that a chain with a checkpoint but less PoW is preferred over a chain that is longer with more PoW but no checkpoints
-bool oxen_checkpointing_alt_chain_more_service_node_checkpoints_less_pow_overtakes::generate(std::vector<test_event_entry>& events)
+bool quenero_checkpointing_alt_chain_more_masternode_checkpoints_less_pow_overtakes::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  int constexpr NUM_SERVICE_NODES = service_nodes::CHECKPOINT_QUORUM_SIZE;
-  std::vector<cryptonote::transaction> registration_txs(NUM_SERVICE_NODES);
-  for (auto i = 0u; i < NUM_SERVICE_NODES; ++i)
+  int constexpr NUM_MASTERNODES = masternodes::CHECKPOINT_QUORUM_SIZE;
+  std::vector<cryptonote::transaction> registration_txs(NUM_MASTERNODES);
+  for (auto i = 0u; i < NUM_MASTERNODES; ++i)
     registration_txs[i] = gen.create_and_add_registration_tx(gen.first_miner());
   gen.create_and_add_next_block(registration_txs);
 
   gen.add_blocks_until_next_checkpointable_height();
-  oxen_chain_generator fork_with_more_checkpoints = gen;
+  quenero_chain_generator fork_with_more_checkpoints = gen;
   gen.add_n_blocks(60); // Add blocks so that this chain has more PoW
 
-  cryptonote::checkpoint_t checkpoint = fork_with_more_checkpoints.create_service_node_checkpoint(fork_with_more_checkpoints.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  cryptonote::checkpoint_t checkpoint = fork_with_more_checkpoints.create_masternode_checkpoint(fork_with_more_checkpoints.height(), masternodes::CHECKPOINT_MIN_VOTES);
   fork_with_more_checkpoints.create_and_add_next_block({}, &checkpoint);
   uint64_t const fork_top_height   = cryptonote::get_block_height(fork_with_more_checkpoints.top().block);
   crypto::hash const fork_top_hash = cryptonote::get_block_hash(fork_with_more_checkpoints.top().block);
 
-  oxen_register_callback(events, "check_switched_to_alt_chain", [fork_top_hash, fork_top_height](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_switched_to_alt_chain", [fork_top_hash, fork_top_height](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_switched_to_alt_chain");
     uint64_t top_height;
@@ -163,26 +163,26 @@ bool oxen_checkpointing_alt_chain_more_service_node_checkpoints_less_pow_overtak
 }
 
 // NOTE: - A chain that receives checkpointing votes sufficient to form a checkpoint should reorg back accordingly
-bool oxen_checkpointing_alt_chain_receive_checkpoint_votes_should_reorg_back::generate(std::vector<test_event_entry>& events)
+bool quenero_checkpointing_alt_chain_receive_checkpoint_votes_should_reorg_back::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  int constexpr NUM_SERVICE_NODES = service_nodes::CHECKPOINT_QUORUM_SIZE;
-  std::vector<cryptonote::transaction> registration_txs(NUM_SERVICE_NODES);
-  for (auto i = 0u; i < NUM_SERVICE_NODES; ++i)
+  int constexpr NUM_MASTERNODES = masternodes::CHECKPOINT_QUORUM_SIZE;
+  std::vector<cryptonote::transaction> registration_txs(NUM_MASTERNODES);
+  for (auto i = 0u; i < NUM_MASTERNODES; ++i)
     registration_txs[i] = gen.create_and_add_registration_tx(gen.first_miner());
   gen.create_and_add_next_block(registration_txs);
 
-  gen.add_event_msg("Add blocks until we get to the first height that has a checkpointing quorum AND there are service nodes in the quorum.");
+  gen.add_event_msg("Add blocks until we get to the first height that has a checkpointing quorum AND there are masternodes in the quorum.");
   gen.add_blocks_until_next_checkpointable_height();
 
-  gen.add_event_msg("Diverge the two chains in tandem, so they have the same PoW and generate alt service node states, but still remain on the mainchain due to PoW");
-  oxen_chain_generator fork = gen;
-  for (size_t i = 0; i < service_nodes::CHECKPOINT_INTERVAL; i++)
+  gen.add_event_msg("Diverge the two chains in tandem, so they have the same PoW and generate alt masternode states, but still remain on the mainchain due to PoW");
+  quenero_chain_generator fork = gen;
+  for (size_t i = 0; i < masternodes::CHECKPOINT_INTERVAL; i++)
   {
     gen.create_and_add_next_block();
     fork.create_and_add_next_block();
@@ -192,33 +192,33 @@ bool oxen_checkpointing_alt_chain_receive_checkpoint_votes_should_reorg_back::ge
   uint64_t first_checkpointed_height    = fork.height();
   uint64_t first_checkpointed_height_hf = fork.top().block.major_version;
   crypto::hash first_checkpointed_hash  = cryptonote::get_block_hash(fork.top().block);
-  std::shared_ptr<const service_nodes::quorum> first_quorum = fork.get_quorum(service_nodes::quorum_type::checkpointing, gen.height());
+  std::shared_ptr<const masternodes::quorum> first_quorum = fork.get_quorum(masternodes::quorum_type::checkpointing, gen.height());
 
-  for (size_t i = 0; i < service_nodes::CHECKPOINT_INTERVAL; i++)
+  for (size_t i = 0; i < masternodes::CHECKPOINT_INTERVAL; i++)
   {
     gen.create_and_add_next_block();
     fork.create_and_add_next_block();
   }
 
   gen.add_event_msg(
-      "Fork generates service node votes, upon sending them over and the main chain collecting them validly (they "
+      "Fork generates masternode votes, upon sending them over and the main chain collecting them validly (they "
       "should be able to verify signatures because we store alt quorums) it should generate a checkpoint belonging to "
       "the forked chain- which should cause it to detach back to the checkpoint height");
 
   gen.add_event_msg(
       "Then we send the votes for the 2nd newest checkpoint. We don't reorg back until we receive a block confirming "
       "this checkpoint.");
-  for (size_t i = 0; i < service_nodes::CHECKPOINT_MIN_VOTES; i++)
+  for (size_t i = 0; i < masternodes::CHECKPOINT_MIN_VOTES; i++)
   {
     auto keys = gen.get_cached_keys(first_quorum->validators[i]);
-    service_nodes::quorum_vote_t fork_vote = service_nodes::make_checkpointing_vote(first_checkpointed_height_hf, first_checkpointed_hash, first_checkpointed_height, i, keys);
-    events.push_back(oxen_blockchain_addable<service_nodes::quorum_vote_t>(fork_vote, true/*can_be_added_to_blockchain*/, "A first_checkpoint vote from the forked chain should be accepted since we should be storing alternative service node states and quorums"));
+    masternodes::quorum_vote_t fork_vote = masternodes::make_checkpointing_vote(first_checkpointed_height_hf, first_checkpointed_hash, first_checkpointed_height, i, keys);
+    events.push_back(quenero_blockchain_addable<masternodes::quorum_vote_t>(fork_vote, true/*can_be_added_to_blockchain*/, "A first_checkpoint vote from the forked chain should be accepted since we should be storing alternative masternode states and quorums"));
   }
 
   gen.add_event_msg("Upon adding the last block, we should now switch to our forked chain");
   fork.create_and_add_next_block({});
   crypto::hash const fork_top_hash = cryptonote::get_block_hash(fork.top().block);
-  oxen_register_callback(events, "check_switched_to_alt_chain", [fork_top_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_switched_to_alt_chain", [fork_top_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_switched_to_alt_chain");
     uint64_t top_height;
@@ -230,30 +230,30 @@ bool oxen_checkpointing_alt_chain_receive_checkpoint_votes_should_reorg_back::ge
   return true;
 }
 
-bool oxen_checkpointing_alt_chain_too_old_should_be_dropped::generate(std::vector<test_event_entry> &events)
+bool quenero_checkpointing_alt_chain_too_old_should_be_dropped::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  int constexpr NUM_SERVICE_NODES = service_nodes::CHECKPOINT_QUORUM_SIZE;
-  std::vector<cryptonote::transaction> registration_txs(NUM_SERVICE_NODES);
-  for (auto i = 0u; i < NUM_SERVICE_NODES; ++i)
+  int constexpr NUM_MASTERNODES = masternodes::CHECKPOINT_QUORUM_SIZE;
+  std::vector<cryptonote::transaction> registration_txs(NUM_MASTERNODES);
+  for (auto i = 0u; i < NUM_MASTERNODES; ++i)
     registration_txs[i] = gen.create_and_add_registration_tx(gen.first_miner());
   gen.create_and_add_next_block(registration_txs);
 
-  oxen_chain_generator fork = gen;
+  quenero_chain_generator fork = gen;
   gen.add_blocks_until_next_checkpointable_height();
   fork.add_blocks_until_next_checkpointable_height();
-  gen.add_service_node_checkpoint(gen.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  gen.add_masternode_checkpoint(gen.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   gen.add_blocks_until_next_checkpointable_height();
   fork.add_blocks_until_next_checkpointable_height();
-  gen.add_service_node_checkpoint(gen.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  gen.add_masternode_checkpoint(gen.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   gen.add_blocks_until_next_checkpointable_height();
-  gen.add_service_node_checkpoint(gen.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  gen.add_masternode_checkpoint(gen.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   // NOTE: We now have 3 checkpoints. Extending this alt-chain is no longer
   // possible because this alt-chain starts before the immutable height, it
@@ -265,14 +265,14 @@ bool oxen_checkpointing_alt_chain_too_old_should_be_dropped::generate(std::vecto
 // NOTE: - Checks that an alt chain eventually takes over the main chain with
 // only 1 checkpoint, by progressively adding 2 more checkpoints at the next
 // available checkpoint heights whilst maintaining equal heights with the main chain
-bool oxen_checkpointing_alt_chain_with_increasing_service_node_checkpoints::generate(std::vector<test_event_entry>& events)
+bool quenero_checkpointing_alt_chain_with_increasing_masternode_checkpoints::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::CHECKPOINT_QUORUM_SIZE);
+  add_masternodes(gen, masternodes::CHECKPOINT_QUORUM_SIZE);
 
   gen.add_blocks_until_next_checkpointable_height();
 
@@ -282,15 +282,15 @@ bool oxen_checkpointing_alt_chain_with_increasing_service_node_checkpoints::gene
   // Main chain   C B B B B
   // Fork chain   B B B B C
 
-  oxen_chain_generator fork = gen;
-  gen.add_service_node_checkpoint(gen.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  quenero_chain_generator fork = gen;
+  gen.add_masternode_checkpoint(gen.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   gen.add_blocks_until_next_checkpointable_height();
   fork.add_blocks_until_next_checkpointable_height();
-  fork.add_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  fork.add_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   crypto::hash const gen_top_hash = cryptonote::get_block_hash(gen.top().block);
-  oxen_register_callback(events, "check_still_on_main_chain", [gen_top_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_still_on_main_chain", [gen_top_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_still_on_main_chain");
     uint64_t top_height;
@@ -307,11 +307,11 @@ bool oxen_checkpointing_alt_chain_with_increasing_service_node_checkpoints::gene
   gen.create_and_add_next_block();
 
   fork.add_blocks_until_next_checkpointable_height();
-  cryptonote::checkpoint_t fork_second_checkpoint = fork.create_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  cryptonote::checkpoint_t fork_second_checkpoint = fork.create_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
   fork.create_and_add_next_block({}, &fork_second_checkpoint);
 
   crypto::hash const fork_top_hash = cryptonote::get_block_hash(fork.top().block);
-  oxen_register_callback(events, "check_switched_to_alt_chain", [fork_top_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_switched_to_alt_chain", [fork_top_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_switched_to_alt_chain");
     uint64_t top_height;
@@ -325,48 +325,48 @@ bool oxen_checkpointing_alt_chain_with_increasing_service_node_checkpoints::gene
 
 // NOTE: - Checks checkpoints aren't generated until there are enough votes sitting in the vote pool
 //       - Checks invalid vote (signature or key) is not accepted due to not being part of the quorum
-bool oxen_checkpointing_service_node_checkpoint_from_votes::generate(std::vector<test_event_entry>& events)
+bool quenero_checkpointing_masternode_checkpoint_from_votes::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::CHECKPOINT_QUORUM_SIZE);
+  add_masternodes(gen, masternodes::CHECKPOINT_QUORUM_SIZE);
 
-  // NOTE: Generate service node votes
+  // NOTE: Generate masternode votes
   gen.add_blocks_until_next_checkpointable_height();
   uint64_t checkpointed_height                                = gen.height();
   crypto::hash checkpointed_hash                              = cryptonote::get_block_hash(gen.top().block);
-  std::shared_ptr<const service_nodes::quorum> quorum = gen.get_quorum(service_nodes::quorum_type::checkpointing, gen.height());
-  std::vector<service_nodes::quorum_vote_t> checkpoint_votes(service_nodes::CHECKPOINT_MIN_VOTES);
-  for (size_t i = 0; i < service_nodes::CHECKPOINT_MIN_VOTES; i++)
+  std::shared_ptr<const masternodes::quorum> quorum = gen.get_quorum(masternodes::quorum_type::checkpointing, gen.height());
+  std::vector<masternodes::quorum_vote_t> checkpoint_votes(masternodes::CHECKPOINT_MIN_VOTES);
+  for (size_t i = 0; i < masternodes::CHECKPOINT_MIN_VOTES; i++)
   {
     auto keys = gen.get_cached_keys(quorum->validators[i]);
-    checkpoint_votes[i] = service_nodes::make_checkpointing_vote(gen.top().block.major_version, checkpointed_hash, checkpointed_height, i, keys);
+    checkpoint_votes[i] = masternodes::make_checkpointing_vote(gen.top().block.major_version, checkpointed_hash, checkpointed_height, i, keys);
   }
 
-  // NOTE: Submit invalid vote using service node keys not in the quorum
+  // NOTE: Submit invalid vote using masternode keys not in the quorum
   {
     const cryptonote::keypair invalid_kp{hw::get_device("default")};
-    service_nodes::service_node_keys invalid_keys;
+    masternodes::masternode_keys invalid_keys;
     invalid_keys.pub = invalid_kp.pub;
     invalid_keys.key = invalid_kp.sec;
 
-    service_nodes::quorum_vote_t invalid_vote = service_nodes::make_checkpointing_vote(gen.top().block.major_version, checkpointed_hash, checkpointed_height, 0, invalid_keys);
-    gen.events_.push_back(oxen_blockchain_addable<decltype(invalid_vote)>(
+    masternodes::quorum_vote_t invalid_vote = masternodes::make_checkpointing_vote(gen.top().block.major_version, checkpointed_hash, checkpointed_height, 0, invalid_keys);
+    gen.events_.push_back(quenero_blockchain_addable<decltype(invalid_vote)>(
         invalid_vote,
         false /*can_be_added_to_blockchain*/,
-        "Can not add a vote that uses a service node key not part of the quorum"));
+        "Can not add a vote that uses a masternode key not part of the quorum"));
   }
 
-  // NOTE: Add insufficient service node votes and check that no checkpoint is generated yet
-  for (size_t i = 0; i < service_nodes::CHECKPOINT_MIN_VOTES - 1; i++)
-    gen.events_.push_back(oxen_blockchain_addable<service_nodes::quorum_vote_t>(checkpoint_votes[i]));
+  // NOTE: Add insufficient masternode votes and check that no checkpoint is generated yet
+  for (size_t i = 0; i < masternodes::CHECKPOINT_MIN_VOTES - 1; i++)
+    gen.events_.push_back(quenero_blockchain_addable<masternodes::quorum_vote_t>(checkpoint_votes[i]));
 
-  oxen_register_callback(events, "check_service_node_checkpoint_rejected_insufficient_votes", [checkpointed_height](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_masternode_checkpoint_rejected_insufficient_votes", [checkpointed_height](cryptonote::core &c, size_t ev_index)
   {
-    DEFINE_TESTS_ERROR_CONTEXT("check_service_node_checkpoint_rejected_insufficient_votes");
+    DEFINE_TESTS_ERROR_CONTEXT("check_masternode_checkpoint_rejected_insufficient_votes");
     cryptonote::Blockchain const &blockchain = c.get_blockchain_storage();
     cryptonote::checkpoint_t real_checkpoint;
     CHECK_TEST_CONDITION(blockchain.get_checkpoint(checkpointed_height, real_checkpoint) == false);
@@ -375,9 +375,9 @@ bool oxen_checkpointing_service_node_checkpoint_from_votes::generate(std::vector
 
   // NOTE: Add last vote and check checkpoint has been generated
   gen.events_.push_back(checkpoint_votes.back());
-  oxen_register_callback(events, "check_service_node_checkpoint_accepted", [checkpointed_height](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_masternode_checkpoint_accepted", [checkpointed_height](cryptonote::core &c, size_t ev_index)
   {
-    DEFINE_TESTS_ERROR_CONTEXT("check_service_node_checkpoint_accepted");
+    DEFINE_TESTS_ERROR_CONTEXT("check_masternode_checkpoint_accepted");
     cryptonote::Blockchain const &blockchain = c.get_blockchain_storage();
     cryptonote::checkpoint_t real_checkpoint;
     CHECK_TEST_CONDITION(blockchain.get_checkpoint(checkpointed_height, real_checkpoint));
@@ -389,41 +389,41 @@ bool oxen_checkpointing_service_node_checkpoint_from_votes::generate(std::vector
 
 // NOTE: - Checks you can't add blocks before the first 2 checkpoints
 //       - Checks you can add a block after the 1st checkpoint out of 2 checkpoints.
-bool oxen_checkpointing_service_node_checkpoints_check_reorg_windows::generate(std::vector<test_event_entry>& events)
+bool quenero_checkpointing_masternode_checkpoints_check_reorg_windows::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::CHECKPOINT_QUORUM_SIZE);
+  add_masternodes(gen, masternodes::CHECKPOINT_QUORUM_SIZE);
 
-  // NOTE: Add blocks until we get to the first height that has a checkpointing quorum AND there are service nodes in the quorum.
+  // NOTE: Add blocks until we get to the first height that has a checkpointing quorum AND there are masternodes in the quorum.
   int const MAX_TRIES = 16;
   int tries           = 0;
   for (; tries < MAX_TRIES; tries++)
   {
     gen.add_blocks_until_next_checkpointable_height();
-    std::shared_ptr<const service_nodes::quorum> quorum = gen.get_quorum(service_nodes::quorum_type::checkpointing, gen.height());
+    std::shared_ptr<const masternodes::quorum> quorum = gen.get_quorum(masternodes::quorum_type::checkpointing, gen.height());
     if (quorum && quorum->validators.size()) break;
   }
   assert(tries != MAX_TRIES);
 
   gen.add_event_msg("Mine up until 1 block before the next checkpointable height, fork the chain.");
-  gen.add_n_blocks(service_nodes::CHECKPOINT_INTERVAL - 1);
-  oxen_chain_generator fork_1_block_before_checkpoint = gen;
+  gen.add_n_blocks(masternodes::CHECKPOINT_INTERVAL - 1);
+  quenero_chain_generator fork_1_block_before_checkpoint = gen;
 
   gen.add_event_msg("Mine one block and fork the chain before we add the checkpoint.");
   gen.create_and_add_next_block();
-  gen.add_service_node_checkpoint(gen.height(), service_nodes::CHECKPOINT_MIN_VOTES);
-  oxen_chain_generator fork_1_block_after_checkpoint = gen;
+  gen.add_masternode_checkpoint(gen.height(), masternodes::CHECKPOINT_MIN_VOTES);
+  quenero_chain_generator fork_1_block_after_checkpoint = gen;
 
-  gen.add_event_msg("Add the next service node checkpoints on the main chain to lock in the chain preceeding the first checkpoint");
-  gen.add_n_blocks(service_nodes::CHECKPOINT_INTERVAL - 1);
-  oxen_chain_generator fork_1_block_before_second_checkpoint = gen;
+  gen.add_event_msg("Add the next masternode checkpoints on the main chain to lock in the chain preceeding the first checkpoint");
+  gen.add_n_blocks(masternodes::CHECKPOINT_INTERVAL - 1);
+  quenero_chain_generator fork_1_block_before_second_checkpoint = gen;
 
   gen.create_and_add_next_block();
-  gen.add_service_node_checkpoint(gen.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  gen.add_masternode_checkpoint(gen.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   gen.add_event_msg("Try add a block before first checkpoint, should fail because we are already 2 checkpoints deep.");
   fork_1_block_before_checkpoint.create_and_add_next_block({}, nullptr /*checkpoint*/, false /*can_be_added_to_blockchain*/, "Can NOT add a block if the height would equal the immutable height");
@@ -436,10 +436,10 @@ bool oxen_checkpointing_service_node_checkpoints_check_reorg_windows::generate(s
   return true;
 }
 
-bool oxen_core_block_reward_unpenalized_pre_pulse::generate(std::vector<test_event_entry>& events)
+bool quenero_core_block_reward_unpenalized_pre_pulse::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table(cryptonote::network_version_16_pulse - 1);
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table(cryptonote::network_version_16_pulse - 1);
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
 
   uint8_t newest_hf = hard_forks.back().first;
@@ -456,9 +456,9 @@ bool oxen_core_block_reward_unpenalized_pre_pulse::generate(std::vector<test_eve
 
   gen.create_and_add_next_block(txs);
   uint64_t unpenalized_block_reward     = cryptonote::block_reward_unpenalized_formula_v8(gen.height());
-  uint64_t expected_service_node_reward = cryptonote::service_node_reward_formula(unpenalized_block_reward, newest_hf);
+  uint64_t expected_masternode_reward = cryptonote::masternode_reward_formula(unpenalized_block_reward, newest_hf);
 
-  oxen_register_callback(events, "check_block_rewards", [unpenalized_block_reward, expected_service_node_reward](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_block_rewards", [unpenalized_block_reward, expected_masternode_reward](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_block_rewards");
     uint64_t top_height;
@@ -470,16 +470,16 @@ bool oxen_core_block_reward_unpenalized_pre_pulse::generate(std::vector<test_eve
     CHECK_TEST_CONDITION(c.get_block_by_hash(top_hash, top_block, &orphan));
     CHECK_TEST_CONDITION(orphan == false);
     CHECK_TEST_CONDITION_MSG(top_block.miner_tx.vout[0].amount < unpenalized_block_reward, "We should add enough transactions that the penalty is realised on the base block reward");
-    CHECK_EQ(top_block.miner_tx.vout[1].amount, expected_service_node_reward);
+    CHECK_EQ(top_block.miner_tx.vout[1].amount, expected_masternode_reward);
     return true;
   });
   return true;
 }
 
-bool oxen_core_block_reward_unpenalized_post_pulse::generate(std::vector<test_event_entry>& events)
+bool quenero_core_block_reward_unpenalized_post_pulse::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table(cryptonote::network_version_count -1, 150 /*Proof Of Stake Delay*/);
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table(cryptonote::network_version_count -1, 150 /*Proof Of Stake Delay*/);
+  quenero_chain_generator gen(events, hard_forks);
 
   uint8_t const newest_hf = hard_forks.back().first;
   assert(newest_hf >= cryptonote::network_version_13_enforce_checkpoints);
@@ -498,8 +498,8 @@ bool oxen_core_block_reward_unpenalized_post_pulse::generate(std::vector<test_ev
   }
   gen.create_and_add_next_block(txs);
 
-  uint64_t unpenalized_reward = cryptonote::service_node_reward_formula(BLOCK_REWARD_HF17, newest_hf);
-  oxen_register_callback(events, "check_block_rewards", [unpenalized_reward, tx_fee](cryptonote::core &c, size_t ev_index)
+  uint64_t unpenalized_reward = cryptonote::masternode_reward_formula(BLOCK_REWARD_HF17, newest_hf);
+  quenero_register_callback(events, "check_block_rewards", [unpenalized_reward, tx_fee](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_block_rewards");
     uint64_t top_height;
@@ -513,9 +513,9 @@ bool oxen_core_block_reward_unpenalized_post_pulse::generate(std::vector<test_ev
     CHECK_TEST_CONDITION(orphan == false);
 
     uint64_t rewards_from_fee = top_block.miner_tx.vout[0].amount;
-    CHECK_TEST_CONDITION_MSG(top_block.miner_tx.vout.size() == 2, "1 for miner, 1 for service node");
+    CHECK_TEST_CONDITION_MSG(top_block.miner_tx.vout.size() == 2, "1 for miner, 1 for masternode");
     CHECK_TEST_CONDITION_MSG(rewards_from_fee > 0 && rewards_from_fee < tx_fee, "Block producer should receive a penalised tx fee less than " << cryptonote::print_money(tx_fee) << "received, " << cryptonote::print_money(rewards_from_fee) << "");
-    CHECK_TEST_CONDITION_MSG(top_block.miner_tx.vout[1].amount == unpenalized_reward, "Service Node should receive full reward " << unpenalized_reward);
+    CHECK_TEST_CONDITION_MSG(top_block.miner_tx.vout[1].amount == unpenalized_reward, "Masternode should receive full reward " << unpenalized_reward);
 
     MGINFO("rewards_from_fee: "   << cryptonote::print_money(rewards_from_fee));
     MGINFO("tx_fee: "             << cryptonote::print_money(tx_fee));
@@ -525,10 +525,10 @@ bool oxen_core_block_reward_unpenalized_post_pulse::generate(std::vector<test_ev
   return true;
 }
 
-bool oxen_core_fee_burning::generate(std::vector<test_event_entry>& events)
+bool quenero_core_fee_burning::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
 
   uint8_t newest_hf = hard_forks.back().first;
@@ -550,7 +550,7 @@ bool oxen_core_fee_burning::generate(std::vector<test_event_entry>& events)
     transaction tx = gen.create_tx(gen.first_miner_, dummy.get_keys().m_account_address, send, fee);
     std::vector<uint8_t> burn_extra;
     add_burned_amount_to_tx_extra(burn_extra, burn);
-    oxen_tx_builder(events, tx, gen.blocks().back().block, gen.first_miner_, dummy.get_keys().m_account_address, send, newest_hf).with_fee(fee).with_extra(burn_extra).build();
+    quenero_tx_builder(events, tx, gen.blocks().back().block, gen.first_miner_, dummy.get_keys().m_account_address, send, newest_hf).with_fee(fee).with_extra(burn_extra).build();
     gen.add_tx(tx);
     return tx;
   };
@@ -564,11 +564,11 @@ bool oxen_core_fee_burning::generate(std::vector<test_event_entry>& events)
   uint64_t good_miner_reward;
 
   {
-    oxen_block_reward_context ctx{};
+    quenero_block_reward_context ctx{};
     ctx.height = get_block_height(gen.blocks().back().block);
     ctx.fee = send_fee_burn[0][1] + send_fee_burn[1][1] - send_fee_burn[0][2] - send_fee_burn[1][2];
     block_reward_parts reward_parts;
-    cryptonote::get_oxen_block_reward(0, 0, 1 /*already generated, needs to be >0 to avoid premine*/, newest_hf, reward_parts, ctx);
+    cryptonote::get_quenero_block_reward(0, 0, 1 /*already generated, needs to be >0 to avoid premine*/, newest_hf, reward_parts, ctx);
     good_miner_reward = reward_parts.miner_fee + reward_parts.base_miner;
   }
 
@@ -577,16 +577,16 @@ bool oxen_core_fee_burning::generate(std::vector<test_event_entry>& events)
   txs.push_back(add_burning_tx(send_fee_burn[2]));
 
   {
-    oxen_create_block_params block_params = gen.next_block_params();
+    quenero_create_block_params block_params = gen.next_block_params();
     block_params.total_fee = send_fee_burn[2][1] - send_fee_burn[2][2] + 2;
 
-    oxen_blockchain_entry next = {};
+    quenero_blockchain_entry next = {};
     bool created = gen.create_block(next, block_params, txs);
     assert(created);
     gen.add_block(next, false, "Invalid miner reward");
   }
 
-  oxen_register_callback(events, "check_fee_burned", [good_hash, good_miner_reward](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_fee_burned", [good_hash, good_miner_reward](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_fee_burned");
     uint64_t top_height;
@@ -607,9 +607,9 @@ bool oxen_core_fee_burning::generate(std::vector<test_event_entry>& events)
   return true;
 }
 
-bool oxen_core_governance_batched_reward::generate(std::vector<test_event_entry>& events)
+bool quenero_core_governance_batched_reward::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table(cryptonote::network_version_10_bulletproofs);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table(cryptonote::network_version_10_bulletproofs);
 
   uint64_t hf10_height = 0;
   for (std::pair<uint8_t, uint64_t> hf_pair : hard_forks)
@@ -623,7 +623,7 @@ bool oxen_core_governance_batched_reward::generate(std::vector<test_event_entry>
   assert(hf10_height != 0);
 
   uint64_t expected_total_governance_paid = 0;
-  oxen_chain_generator batched_governance_generator(events, hard_forks);
+  quenero_chain_generator batched_governance_generator(events, hard_forks);
   {
     batched_governance_generator.add_blocks_until_version(cryptonote::network_version_10_bulletproofs);
     constexpr auto& network = cryptonote::get_config(cryptonote::FAKECHAIN);
@@ -632,25 +632,25 @@ bool oxen_core_governance_batched_reward::generate(std::vector<test_event_entry>
   }
 
   {
-    // NOTE(oxen): Since hard fork 8 we have an emissions curve change, so if
+    // NOTE(quenero): Since hard fork 8 we have an emissions curve change, so if
     // you don't atleast progress and generate blocks from hf8 you will run into
     // problems
     std::vector<std::pair<uint8_t, uint64_t>> other_hard_forks = {
         std::make_pair(cryptonote::network_version_7, 0),
         std::make_pair(cryptonote::network_version_8, 1),
-        std::make_pair(cryptonote::network_version_9_service_nodes, hf10_height)};
+        std::make_pair(cryptonote::network_version_9_masternodes, hf10_height)};
 
     std::vector<test_event_entry> unused_events;
-    oxen_chain_generator no_batched_governance_generator(unused_events, other_hard_forks);
+    quenero_chain_generator no_batched_governance_generator(unused_events, other_hard_forks);
     no_batched_governance_generator.add_blocks_until_version(other_hard_forks.back().first);
 
     while(no_batched_governance_generator.height() < batched_governance_generator.height())
       no_batched_governance_generator.create_and_add_next_block();
 
-    // NOTE(oxen): Skip the last block as that is the batched payout height, we
+    // NOTE(quenero): Skip the last block as that is the batched payout height, we
     // don't include the governance reward of that height, that gets picked up
     // in the next batch.
-    const std::vector<oxen_blockchain_entry>& blockchain = no_batched_governance_generator.blocks();
+    const std::vector<quenero_blockchain_entry>& blockchain = no_batched_governance_generator.blocks();
     for (size_t block_height = hf10_height; block_height < blockchain.size() - 1; ++block_height)
     {
       const cryptonote::block &block = blockchain[block_height].block;
@@ -658,7 +658,7 @@ bool oxen_core_governance_batched_reward::generate(std::vector<test_event_entry>
     }
   }
 
-  oxen_register_callback(events, "check_batched_governance_amount_matches", [hf10_height, expected_total_governance_paid](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_batched_governance_amount_matches", [hf10_height, expected_total_governance_paid](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_batched_governance_amount_matches");
 
@@ -682,13 +682,13 @@ bool oxen_core_governance_batched_reward::generate(std::vector<test_event_entry>
   return true;
 }
 
-bool oxen_core_block_rewards_lrc6::generate(std::vector<test_event_entry>& events)
+bool quenero_core_block_rewards_lrc6::generate(std::vector<test_event_entry>& events)
 {
   constexpr auto& network = cryptonote::get_config(cryptonote::FAKECHAIN);
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table(cryptonote::network_version_15_ons);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table(cryptonote::network_version_15_ons);
   hard_forks.emplace_back(cryptonote::network_version_16_pulse, hard_forks.back().second + network.GOVERNANCE_REWARD_INTERVAL_IN_BLOCKS + 10);
   hard_forks.emplace_back(cryptonote::network_version_17, hard_forks.back().second + network.GOVERNANCE_REWARD_INTERVAL_IN_BLOCKS);
-  oxen_chain_generator batched_governance_generator(events, hard_forks);
+  quenero_chain_generator batched_governance_generator(events, hard_forks);
   batched_governance_generator.add_blocks_until_version(cryptonote::network_version_17);
   batched_governance_generator.add_n_blocks(network.GOVERNANCE_REWARD_INTERVAL_IN_BLOCKS);
 
@@ -703,7 +703,7 @@ bool oxen_core_block_rewards_lrc6::generate(std::vector<test_event_entry>& event
       hf17_height = hf.second;
   }
 
-  oxen_register_callback(events, "check_lrc6_7_block_rewards", [hf15_height, hf16_height, hf17_height, interval=network.GOVERNANCE_REWARD_INTERVAL_IN_BLOCKS](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_lrc6_7_block_rewards", [hf15_height, hf16_height, hf17_height, interval=network.GOVERNANCE_REWARD_INTERVAL_IN_BLOCKS](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_lrc6_7_block_rewards");
 
@@ -766,16 +766,16 @@ bool oxen_core_block_rewards_lrc6::generate(std::vector<test_event_entry>& event
   return true;
 }
 
-bool oxen_core_test_deregister_preferred::generate(std::vector<test_event_entry> &events)
+bool quenero_core_test_deregister_preferred::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   const auto miner                 = gen.first_miner();
   const auto alice                 = gen.add_account();
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_n_blocks(10); /// give miner some outputs to spend and unlock them
-  add_service_nodes(gen, 12);
+  add_masternodes(gen, 12);
   gen.add_mined_money_unlock_blocks();
 
   /// generate high fee transactions with huge fees to fill up txpool entirely. This pushes all the
@@ -791,10 +791,10 @@ bool oxen_core_test_deregister_preferred::generate(std::vector<test_event_entry>
   /// generate two deregisters
   const auto deregister_pub_key_1 = gen.top_quorum().obligations->workers[0];
   const auto deregister_pub_key_2 = gen.top_quorum().obligations->workers[1];
-  gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, deregister_pub_key_1, 0, 0);
-  gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, deregister_pub_key_2, 0, 0);
+  gen.create_and_add_state_change_tx(masternodes::new_state::deregister, deregister_pub_key_1, 0, 0);
+  gen.create_and_add_state_change_tx(masternodes::new_state::deregister, deregister_pub_key_2, 0, 0);
 
-  oxen_register_callback(events, "check_prefer_deregisters", [&events, miner](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_prefer_deregisters", [&events, miner](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_prefer_deregisters");
     const auto tx_count = c.get_pool().get_transactions_count();
@@ -829,15 +829,15 @@ bool oxen_core_test_deregister_preferred::generate(std::vector<test_event_entry>
 // Test if a person registers onto the network and they get included in the nodes to test (i.e. heights 0, 5, 10). If
 // they get deregistered in the nodes to test, height 5, and rejoin the network before height 10 (and are in the nodes
 // to test), they don't get deregistered.
-bool oxen_core_test_deregister_safety_buffer::generate(std::vector<test_event_entry> &events)
+bool quenero_core_test_deregister_safety_buffer::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   const auto miner = gen.first_miner();
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::STATE_CHANGE_QUORUM_SIZE * 2 + 1);
+  add_masternodes(gen, masternodes::STATE_CHANGE_QUORUM_SIZE * 2 + 1);
   gen.add_n_blocks(1);
 
   const auto height_a                      = gen.height();
@@ -857,7 +857,7 @@ bool oxen_core_test_deregister_safety_buffer::generate(std::vector<test_event_en
 
   const auto deregister_pub_key = quorum_intersection[0];
   {
-    const auto dereg_tx = gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, deregister_pub_key, 0, 0, height_a);
+    const auto dereg_tx = gen.create_and_add_state_change_tx(masternodes::new_state::deregister, deregister_pub_key, 0, 0, height_a);
     gen.create_and_add_next_block({dereg_tx});
   }
 
@@ -870,29 +870,29 @@ bool oxen_core_test_deregister_safety_buffer::generate(std::vector<test_event_en
   }
 
   /// Try to deregister the node again for heightB (should fail)
-  const auto dereg_tx = gen.create_state_change_tx(service_nodes::new_state::deregister, deregister_pub_key, 0, 0, height_b);
-  gen.add_tx(dereg_tx, false /*can_be_added_to_blockchain*/, "After a Service Node has deregistered, it can NOT be deregistered from the result of a quorum preceeding the height that the Service Node re-registered as.");
+  const auto dereg_tx = gen.create_state_change_tx(masternodes::new_state::deregister, deregister_pub_key, 0, 0, height_b);
+  gen.add_tx(dereg_tx, false /*can_be_added_to_blockchain*/, "After a Masternode has deregistered, it can NOT be deregistered from the result of a quorum preceeding the height that the Masternode re-registered as.");
   return true;
 
 }
 
 // Daemon A has a deregistration TX (X) in the pool. Daemon B creates a block before receiving X.
 // Daemon A accepts the block without X. Now X is too old and should not be added in future blocks.
-bool oxen_core_test_deregister_too_old::generate(std::vector<test_event_entry>& events)
+bool quenero_core_test_deregister_too_old::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
 
   /// generate some outputs and unlock them
   gen.add_n_blocks(20);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, 11);
+  add_masternodes(gen, 11);
   gen.add_n_blocks(1);
 
   const auto pk       = gen.top_quorum().obligations->workers[0];
-  const auto dereg_tx = gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, pk, 0, 0);
-  gen.add_n_blocks(service_nodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS); /// create enough blocks to make deregistrations invalid (60 blocks)
+  const auto dereg_tx = gen.create_and_add_state_change_tx(masternodes::new_state::deregister, pk, 0, 0);
+  gen.add_n_blocks(masternodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS); /// create enough blocks to make deregistrations invalid (60 blocks)
 
   /// In the real world, this transaction should not make it into a block, but in this case we do try to add it (as in
   /// tests we must add specify transactions manually), which should exercise the same validation code and reject the
@@ -904,41 +904,41 @@ bool oxen_core_test_deregister_too_old::generate(std::vector<test_event_entry>& 
   return true;
 }
 
-bool oxen_core_test_deregister_zero_fee::generate(std::vector<test_event_entry> &events)
+bool quenero_core_test_deregister_zero_fee::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  size_t const NUM_SERVICE_NODES = 11;
-  std::vector<cryptonote::transaction> reg_txs(NUM_SERVICE_NODES);
-  for (auto i = 0u; i < NUM_SERVICE_NODES; ++i)
+  size_t const NUM_MASTERNODES = 11;
+  std::vector<cryptonote::transaction> reg_txs(NUM_MASTERNODES);
+  for (auto i = 0u; i < NUM_MASTERNODES; ++i)
     reg_txs[i] = gen.create_and_add_registration_tx(gen.first_miner_);
 
   gen.create_and_add_next_block(reg_txs);
   const auto deregister_pub_key = gen.top_quorum().obligations->workers[0];
   cryptonote::transaction const invalid_deregister =
-      gen.create_state_change_tx(service_nodes::new_state::deregister, deregister_pub_key, 0, 0, -1 /*height*/, {} /*voters*/, MK_COINS(1) /*fee*/);
+      gen.create_state_change_tx(masternodes::new_state::deregister, deregister_pub_key, 0, 0, -1 /*height*/, {} /*voters*/, MK_COINS(1) /*fee*/);
   gen.add_tx(invalid_deregister, false /*can_be_added_to_blockchain*/, "Deregister transactions with non-zero fee can NOT be added to the blockchain");
   return true;
 }
 
 // Test a chain that is equal up to a certain point, splits, and 1 of the chains forms a block that has a deregister
-// for Service Node A. Chain 2 receives a deregister for Service Node A with a different permutation of votes than
+// for Masternode A. Chain 2 receives a deregister for Masternode A with a different permutation of votes than
 // the one known in Chain 1 and is sitting in the mempool. On reorg, Chain 2 should become the canonical chain and
 // those sitting on Chain 1 should not have problems switching over.
-bool oxen_core_test_deregister_on_split::generate(std::vector<test_event_entry> &events)
+bool quenero_core_test_deregister_on_split::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
  
-  add_service_nodes(gen, service_nodes::CHECKPOINT_QUORUM_SIZE + 1);
-  gen.create_and_add_next_block(); // Can't change service node state on the same height it was registered in
+  add_masternodes(gen, masternodes::CHECKPOINT_QUORUM_SIZE + 1);
+  gen.create_and_add_next_block(); // Can't change masternode state on the same height it was registered in
   auto fork = gen;
 
   gen.add_event_msg("public key of the node to deregister (valid at the height of the pivot block)");
@@ -947,11 +947,11 @@ bool oxen_core_test_deregister_on_split::generate(std::vector<test_event_entry> 
 
   gen.add_event_msg("create deregistration A");
   std::vector<uint64_t> const quorum_indexes = {1, 2, 3, 4, 5, 6, 7};
-  const auto dereg_a                         = gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, pk, 0, 0, split_height, quorum_indexes);
+  const auto dereg_a                         = gen.create_and_add_state_change_tx(masternodes::new_state::deregister, pk, 0, 0, split_height, quorum_indexes);
 
   gen.add_event_msg("create deregistration on alt chain (B)");
   std::vector<uint64_t> const fork_quorum_indexes = {1, 3, 4, 5, 6, 7, 8};
-  const auto dereg_b            = fork.create_and_add_state_change_tx(service_nodes::new_state::deregister, pk, 0, 0, split_height, fork_quorum_indexes, 0 /*fee*/, true /*kept_by_block*/);
+  const auto dereg_b            = fork.create_and_add_state_change_tx(masternodes::new_state::deregister, pk, 0, 0, split_height, fork_quorum_indexes, 0 /*fee*/, true /*kept_by_block*/);
   crypto::hash expected_tx_hash = cryptonote::get_transaction_hash(dereg_b);
   size_t dereg_index            = gen.event_index();
 
@@ -959,17 +959,17 @@ bool oxen_core_test_deregister_on_split::generate(std::vector<test_event_entry> 
   gen.create_and_add_next_block({dereg_a});
 
   fork.add_event_msg("continue alt chain with deregister B");
-  oxen_blockchain_entry entry = fork.create_and_add_next_block({dereg_b});
+  quenero_blockchain_entry entry = fork.create_and_add_next_block({dereg_b});
   crypto::hash const expected_block_hash = cryptonote::get_block_hash(entry.block);
 
   fork.add_event_msg("add 2 consecutive check points to switch over");
   fork.add_blocks_until_next_checkpointable_height();
-  fork.add_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  fork.add_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
   fork.add_blocks_until_next_checkpointable_height();
-  fork.add_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  fork.add_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
 
-  oxen_register_callback(events, "test_on_split", [expected_tx_hash, expected_block_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "test_on_split", [expected_tx_hash, expected_block_hash](cryptonote::core &c, size_t ev_index)
   {
     /// Check that the deregister transaction is the one from the alternative branch
     DEFINE_TESTS_ERROR_CONTEXT("test_on_split");
@@ -989,25 +989,25 @@ bool oxen_core_test_deregister_on_split::generate(std::vector<test_event_entry> 
   return true;
 }
 
-bool oxen_core_test_state_change_ip_penalty_disallow_dupes::generate(std::vector<test_event_entry> &events)
+bool quenero_core_test_state_change_ip_penalty_disallow_dupes::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  add_service_nodes(gen, service_nodes::STATE_CHANGE_QUORUM_SIZE + 1);
-  gen.create_and_add_next_block(); // Can't change service node state on the same height it was registered in
+  add_masternodes(gen, masternodes::STATE_CHANGE_QUORUM_SIZE + 1);
+  gen.create_and_add_next_block(); // Can't change masternode state on the same height it was registered in
 
   const auto pub_key                         = gen.top_quorum().obligations->workers[0];
   std::vector<uint64_t> const quorum_indexes = {1, 2, 3, 4, 5, 6, 7};
-  const auto state_change_1                  = gen.create_and_add_state_change_tx(service_nodes::new_state::ip_change_penalty, pub_key, 0, 0, gen.height(), quorum_indexes);
+  const auto state_change_1                  = gen.create_and_add_state_change_tx(masternodes::new_state::ip_change_penalty, pub_key, 0, 0, gen.height(), quorum_indexes);
 
   // NOTE: Try duplicate state change with different quorum indexes
   {
     std::vector<uint64_t> const alt_quorum_indexes = {1, 3, 4, 5, 6, 7, 8};
-    const auto state_change_2 = gen.create_state_change_tx(service_nodes::new_state::ip_change_penalty, pub_key, 0, 0, gen.height(), alt_quorum_indexes);
+    const auto state_change_2 = gen.create_state_change_tx(masternodes::new_state::ip_change_penalty, pub_key, 0, 0, gen.height(), alt_quorum_indexes);
     gen.add_tx(state_change_2, false /*can_be_added_to_blockchain*/, "Can't add a state change with different permutation of votes than previously submitted");
 
     // NOTE: Try same duplicate state change on a new height
@@ -1051,10 +1051,10 @@ static bool verify_ons_mapping_record(char const *perr_context,
   return true;
 }
 
-bool oxen_name_system_disallow_reserved_type::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_disallow_reserved_type::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   gen.add_blocks_until_version(hard_forks.back().first);
@@ -1065,7 +1065,7 @@ bool oxen_name_system_disallow_reserved_type::generate(std::vector<test_event_en
 
   auto unusable_type = static_cast<ons::mapping_type>(-1);
   assert(!ons::mapping_type_allowed(gen.hardfork(), unusable_type));
-  cryptonote::transaction tx1 = gen.create_oxen_name_system_tx(miner, gen.hardfork(), unusable_type, "FriendlyName", mapping_value);
+  cryptonote::transaction tx1 = gen.create_quenero_name_system_tx(miner, gen.hardfork(), unusable_type, "FriendlyName", mapping_value);
   gen.add_tx(tx1, false /*can_be_added_to_blockchain*/, "Can't create a ONS TX that requests a ONS type that is unused but reserved by the protocol");
   return true;
 }
@@ -1108,10 +1108,10 @@ uint64_t lokinet_expiry(ons::mapping_type type) {
   return *exp;
 }
 
-bool oxen_name_system_expiration::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_expiration::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   cryptonote::account_base miner = gen.first_miner_;
 
   gen.add_blocks_until_version(hard_forks.back().first);
@@ -1125,7 +1125,7 @@ bool oxen_name_system_expiration::generate(std::vector<test_event_entry> &events
     std::string const name     = "mydomain.loki";
     if (ons::mapping_type_allowed(gen.hardfork(), mapping_type))
     {
-      cryptonote::transaction tx = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), mapping_type, name, miner_key.lokinet_value);
+      cryptonote::transaction tx = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), mapping_type, name, miner_key.lokinet_value);
       gen.create_and_add_next_block({tx});
       crypto::hash tx_hash = cryptonote::get_transaction_hash(tx);
 
@@ -1133,7 +1133,7 @@ bool oxen_name_system_expiration::generate(std::vector<test_event_entry> &events
       uint64_t expected_expiry_block = height_of_ons_entry + lokinet_expiry(mapping_type);
       std::string name_hash = ons::name_to_base64_hash(name);
 
-      oxen_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
       {
         DEFINE_TESTS_ERROR_CONTEXT("check_ons_entries");
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1152,12 +1152,12 @@ bool oxen_name_system_expiration::generate(std::vector<test_event_entry> &events
       while (gen.height() <= expected_expiry_block)
         gen.create_and_add_next_block();
 
-      oxen_register_callback(events, "check_expired", [=, blockchain_height = gen.chain_height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_expired", [=, blockchain_height = gen.chain_height()](cryptonote::core &c, size_t ev_index)
       {
         DEFINE_TESTS_ERROR_CONTEXT("check_expired");
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
 
-        // TODO(oxen): We should probably expire owners that no longer have any mappings remaining
+        // TODO(quenero): We should probably expire owners that no longer have any mappings remaining
         ons::owner_record owner = ons_db.get_owner_by_key(miner_key.owner);
         CHECK_EQ(owner.loaded, true);
         CHECK_EQ(owner.id, 1);
@@ -1173,17 +1173,17 @@ bool oxen_name_system_expiration::generate(std::vector<test_event_entry> &events
     }
     else
     {
-      cryptonote::transaction tx = gen.create_oxen_name_system_tx(miner, gen.hardfork(), mapping_type, name, miner_key.lokinet_value);
+      cryptonote::transaction tx = gen.create_quenero_name_system_tx(miner, gen.hardfork(), mapping_type, name, miner_key.lokinet_value);
       gen.add_tx(tx, false /*can_be_added_to_blockchain*/, "Can not add ONS TX that uses disallowed type");
     }
   }
   return true;
 }
 
-bool oxen_name_system_get_mappings_by_owner::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_get_mappings_by_owner::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   cryptonote::account_base bob   = gen.add_account();
@@ -1210,8 +1210,8 @@ bool oxen_name_system_get_mappings_by_owner::generate(std::vector<test_event_ent
   std::string session_name_hash2  = "pwlWkoJq8LXb6Y2ILlCXNvfyBQBt71XWz3c7rkt6myM=";
   crypto::hash session_name1_txid = {}, session_name2_txid = {};
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name1, bob_key.session_value);
-    cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name2, bob_key.session_value, &bob_key.owner);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name1, bob_key.session_value);
+    cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name2, bob_key.session_value, &bob_key.owner);
     gen.create_and_add_next_block({tx1, tx2});
     session_name1_txid = get_transaction_hash(tx1);
     session_name2_txid = get_transaction_hash(tx2);
@@ -1226,8 +1226,8 @@ bool oxen_name_system_get_mappings_by_owner::generate(std::vector<test_event_ent
   crypto::hash lokinet_name1_txid = {}, lokinet_name2_txid = {};
   if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::lokinet))
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::lokinet, lokinet_name1, bob_key.lokinet_value);
-    cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet_5years, lokinet_name2, bob_key.lokinet_value, &bob_key.owner);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::lokinet, lokinet_name1, bob_key.lokinet_value);
+    cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet_5years, lokinet_name2, bob_key.lokinet_value, &bob_key.owner);
     gen.create_and_add_next_block({tx1, tx2});
     lokinet_name1_txid = get_transaction_hash(tx1);
     lokinet_name2_txid = get_transaction_hash(tx2);
@@ -1243,15 +1243,15 @@ bool oxen_name_system_get_mappings_by_owner::generate(std::vector<test_event_ent
   if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::wallet))
   {
     std::string bob_addr = cryptonote::get_account_address_as_str(cryptonote::FAKECHAIN, false, bob.get_keys().m_account_address);
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::wallet, wallet_name1, bob_key.wallet_value);
-    cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::wallet, wallet_name2, bob_key.wallet_value, &bob_key.owner);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::wallet, wallet_name1, bob_key.wallet_value);
+    cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::wallet, wallet_name2, bob_key.wallet_value, &bob_key.owner);
     gen.create_and_add_next_block({tx1, tx2});
     wallet_name1_txid = get_transaction_hash(tx1);
     wallet_name2_txid = get_transaction_hash(tx2);
   }
   uint64_t wallet_height = gen.height();
 
-  oxen_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
   {
     const char* perr_context = "check_ons_entries";
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1297,10 +1297,10 @@ bool oxen_name_system_get_mappings_by_owner::generate(std::vector<test_event_ent
   return true;
 }
 
-bool oxen_name_system_get_mappings_by_owners::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_get_mappings_by_owners::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   cryptonote::account_base bob   = gen.add_account();
@@ -1320,7 +1320,7 @@ bool oxen_name_system_get_mappings_by_owners::generate(std::vector<test_event_en
   std::string session_name1 = "MyName";
   crypto::hash session_tx_hash1;
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name1, bob_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name1, bob_key.session_value);
     session_tx_hash1 = cryptonote::get_transaction_hash(tx1);
     gen.create_and_add_next_block({tx1});
   }
@@ -1330,7 +1330,7 @@ bool oxen_name_system_get_mappings_by_owners::generate(std::vector<test_event_en
   std::string session_name2 = "MyName2";
   crypto::hash session_tx_hash2;
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name2, bob_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name2, bob_key.session_value);
     session_tx_hash2 = cryptonote::get_transaction_hash(tx1);
     gen.create_and_add_next_block({tx1});
   }
@@ -1340,14 +1340,14 @@ bool oxen_name_system_get_mappings_by_owners::generate(std::vector<test_event_en
   std::string session_name3 = "MyName3";
   crypto::hash session_tx_hash3;
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name3, miner_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name3, miner_key.session_value);
     session_tx_hash3 = cryptonote::get_transaction_hash(tx1);
     gen.create_and_add_next_block({tx1});
   }
   uint64_t session_height3 = gen.height();
   gen.add_n_blocks(10);
 
-  oxen_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_ons_entries");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1367,10 +1367,10 @@ bool oxen_name_system_get_mappings_by_owners::generate(std::vector<test_event_en
   return true;
 }
 
-bool oxen_name_system_get_mappings::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_get_mappings::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   cryptonote::account_base bob   = gen.add_account();
@@ -1389,13 +1389,13 @@ bool oxen_name_system_get_mappings::generate(std::vector<test_event_entry> &even
   std::string session_name1 = "MyName";
   crypto::hash session_tx_hash;
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name1, bob_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name1, bob_key.session_value);
     session_tx_hash = cryptonote::get_transaction_hash(tx1);
     gen.create_and_add_next_block({tx1});
   }
   uint64_t session_height = gen.height();
 
-  oxen_register_callback(events, "check_ons_entries", [bob_key, session_height, session_name1, session_tx_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_ons_entries", [bob_key, session_height, session_name1, session_tx_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_ons_entries");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1409,10 +1409,10 @@ bool oxen_name_system_get_mappings::generate(std::vector<test_event_entry> &even
   return true;
 }
 
-bool oxen_name_system_handles_duplicate_in_ons_db::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_handles_duplicate_in_ons_db::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   cryptonote::account_base bob   = gen.add_account();
@@ -1432,7 +1432,7 @@ bool oxen_name_system_handles_duplicate_in_ons_db::generate(std::vector<test_eve
   crypto::hash session_tx_hash = {}, lokinet_tx_hash = {};
   {
     // NOTE: Allow duplicates with the same name but different type
-    cryptonote::transaction bar = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
+    cryptonote::transaction bar = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
     session_tx_hash = get_transaction_hash(bar);
 
     std::vector<cryptonote::transaction> txs;
@@ -1440,7 +1440,7 @@ bool oxen_name_system_handles_duplicate_in_ons_db::generate(std::vector<test_eve
 
     if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::lokinet))
     {
-      cryptonote::transaction bar3 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet_2years, session_name, miner_key.lokinet_value);
+      cryptonote::transaction bar3 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet_2years, session_name, miner_key.lokinet_value);
       txs.push_back(bar3);
       lokinet_tx_hash = get_transaction_hash(bar3);
     }
@@ -1450,11 +1450,11 @@ bool oxen_name_system_handles_duplicate_in_ons_db::generate(std::vector<test_eve
   uint64_t height_of_ons_entry = gen.height();
 
   {
-    cryptonote::transaction bar6 = gen.create_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
+    cryptonote::transaction bar6 = gen.create_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
     gen.add_tx(bar6, false /*can_be_added_to_blockchain*/, "Duplicate name requested by new owner: original already exists in ons db");
   }
 
-  oxen_register_callback(events, "check_ons_entries", [=, blockchain_height=gen.chain_height()](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_ons_entries", [=, blockchain_height=gen.chain_height()](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_ons_entries");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1486,10 +1486,10 @@ bool oxen_name_system_handles_duplicate_in_ons_db::generate(std::vector<test_eve
   return true;
 }
 
-bool oxen_name_system_handles_duplicate_in_tx_pool::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_handles_duplicate_in_tx_pool::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   cryptonote::account_base bob   = gen.add_account();
@@ -1508,22 +1508,22 @@ bool oxen_name_system_handles_duplicate_in_tx_pool::generate(std::vector<test_ev
   auto custom_type = static_cast<ons::mapping_type>(3928);
   {
     // NOTE: Allow duplicates with the same name but different type
-    cryptonote::transaction bar = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
+    cryptonote::transaction bar = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
 
     if (ons::mapping_type_allowed(gen.hardfork(), custom_type))
-      cryptonote::transaction bar2 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), custom_type, session_name, bob_key.session_value);
+      cryptonote::transaction bar2 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), custom_type, session_name, bob_key.session_value);
 
     // NOTE: Make duplicate in the TX pool, this should be rejected
-    cryptonote::transaction bar4 = gen.create_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
+    cryptonote::transaction bar4 = gen.create_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, session_name, bob_key.session_value);
     gen.add_tx(bar4, false /*can_be_added_to_blockchain*/, "Duplicate name requested by new owner: original already exists in tx pool");
   }
   return true;
 }
 
-bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_invalid_tx_extra_params::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   gen.add_blocks_until_version(hard_forks.back().first);
@@ -1532,10 +1532,10 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
   ons_keys_t miner_key = make_ons_keys(miner);
   // Manually construct transaction with invalid tx extra
   {
-    auto make_ons_tx_with_custom_extra = [&](oxen_chain_generator &gen,
+    auto make_ons_tx_with_custom_extra = [&](quenero_chain_generator &gen,
                                              std::vector<test_event_entry> &events,
                                              cryptonote::account_base const &src,
-                                             cryptonote::tx_extra_oxen_name_system &data,
+                                             cryptonote::tx_extra_quenero_name_system &data,
                                              bool valid,
                                              char const *reason) -> void {
       uint64_t new_height    = cryptonote::get_block_height(gen.top().block) + 1;
@@ -1543,12 +1543,12 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
       uint64_t burn_requirement = ons::burn_needed(new_hf_version, static_cast<ons::mapping_type>(data.type));
 
       std::vector<uint8_t> extra;
-      cryptonote::add_oxen_name_system_to_tx_extra(extra, data);
+      cryptonote::add_quenero_name_system_to_tx_extra(extra, data);
       cryptonote::add_burned_amount_to_tx_extra(extra, burn_requirement);
 
       cryptonote::transaction tx = {};
-      oxen_tx_builder(events, tx, gen.top().block, src /*from*/, src.get_keys().m_account_address, 0, new_hf_version)
-          .with_tx_type(cryptonote::txtype::oxen_name_system)
+      quenero_tx_builder(events, tx, gen.top().block, src /*from*/, src.get_keys().m_account_address, 0, new_hf_version)
+          .with_tx_type(cryptonote::txtype::quenero_name_system)
           .with_extra(extra)
           .with_fee(burn_requirement + TESTS_DEFAULT_FEE)
           .build();
@@ -1557,7 +1557,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
     };
 
     std::string name = "my_ons_name";
-    cryptonote::tx_extra_oxen_name_system valid_data = {};
+    cryptonote::tx_extra_quenero_name_system valid_data = {};
     valid_data.fields |= ons::extra_field::buy_no_backup;
     valid_data.owner = miner_key.owner;
     valid_data.type  = ons::mapping_type::wallet;
@@ -1569,7 +1569,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
       valid_data.type = ons::mapping_type::wallet;
       // Blockchain name empty
       {
-        cryptonote::tx_extra_oxen_name_system data = valid_data;
+        cryptonote::tx_extra_quenero_name_system data = valid_data;
         data.name_hash                             = {};
         data.encrypted_value                       = miner_key.wallet_value.make_encrypted("").to_string();
         make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Blockchain) Empty wallet name in ONS is invalid");
@@ -1577,7 +1577,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
 
       // Blockchain value (wallet address) is invalid, too short
       {
-        cryptonote::tx_extra_oxen_name_system data = valid_data;
+        cryptonote::tx_extra_quenero_name_system data = valid_data;
         data.encrypted_value                       = miner_key.wallet_value.make_encrypted(name).to_string();
         data.encrypted_value.resize(data.encrypted_value.size() - 1);
         make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Blockchain) Wallet value in ONS too long");
@@ -1585,7 +1585,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
 
       // Blockchain value (wallet address) is invalid, too long
       {
-        cryptonote::tx_extra_oxen_name_system data = valid_data;
+        cryptonote::tx_extra_quenero_name_system data = valid_data;
         data.encrypted_value                       = miner_key.wallet_value.make_encrypted(name).to_string();
         data.encrypted_value.resize(data.encrypted_value.size() + 1);
         make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Blockchain) Wallet value in ONS too long");
@@ -1597,7 +1597,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
       valid_data.type = ons::mapping_type::lokinet;
       // Lokinet name empty
       {
-        cryptonote::tx_extra_oxen_name_system data = valid_data;
+        cryptonote::tx_extra_quenero_name_system data = valid_data;
         data.name_hash                             = {};
         data.encrypted_value                       = miner_key.lokinet_value.make_encrypted("").to_string();
         make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Lokinet) Empty domain name in ONS is invalid");
@@ -1605,7 +1605,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
 
       // Lokinet value too short
       {
-        cryptonote::tx_extra_oxen_name_system data = valid_data;
+        cryptonote::tx_extra_quenero_name_system data = valid_data;
         data.encrypted_value                       = miner_key.lokinet_value.make_encrypted(name).to_string();
         data.encrypted_value.resize(data.encrypted_value.size() - 1);
         make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Lokinet) Domain value in ONS too long");
@@ -1613,7 +1613,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
 
       // Lokinet value too long
       {
-        cryptonote::tx_extra_oxen_name_system data = valid_data;
+        cryptonote::tx_extra_quenero_name_system data = valid_data;
         data.encrypted_value                       = miner_key.lokinet_value.make_encrypted(name).to_string();
         data.encrypted_value.resize(data.encrypted_value.size() + 1);
         make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Lokinet) Domain value in ONS too long");
@@ -1626,7 +1626,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
     name                 = "new_friendly_name";
     valid_data.name_hash = ons::name_to_hash(name);
     {
-      cryptonote::tx_extra_oxen_name_system data = valid_data;
+      cryptonote::tx_extra_quenero_name_system data = valid_data;
       data.encrypted_value                       = miner_key.session_value.make_encrypted(name).to_string();
       data.encrypted_value.resize(data.encrypted_value.size() - 1);
       make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Session) User id, value too short");
@@ -1634,7 +1634,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
 
     // Session value too long
     {
-      cryptonote::tx_extra_oxen_name_system data = valid_data;
+      cryptonote::tx_extra_quenero_name_system data = valid_data;
       data.encrypted_value                       = miner_key.session_value.make_encrypted(name).to_string();
       data.encrypted_value.resize(data.encrypted_value.size() + 1);
       make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Session) User id, value too long");
@@ -1642,7 +1642,7 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
 
     // Session name empty
     {
-      cryptonote::tx_extra_oxen_name_system data = valid_data;
+      cryptonote::tx_extra_quenero_name_system data = valid_data;
       data.name_hash                             = {};
       data.encrypted_value                       = miner_key.session_value.make_encrypted("").to_string();
       make_ons_tx_with_custom_extra(gen, events, miner, data, false, "(Session) Name empty");
@@ -1651,10 +1651,10 @@ bool oxen_name_system_invalid_tx_extra_params::generate(std::vector<test_event_e
   return true;
 }
 
-bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_large_reorg::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base const miner = gen.first_miner_;
   cryptonote::account_base const bob   = gen.add_account();
@@ -1679,20 +1679,20 @@ bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &event
     // NOTE: Generate and add the (transactions + block) to the blockchain
     {
       std::vector<cryptonote::transaction> txs;
-      cryptonote::transaction session_tx = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name1, miner_key.session_value);
+      cryptonote::transaction session_tx = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name1, miner_key.session_value);
       session_tx_hash1 = get_transaction_hash(session_tx);
       txs.push_back(session_tx);
 
       if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::wallet))
       {
-        cryptonote::transaction wallet_tx = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::wallet, wallet_name1, miner_key.wallet_value);
+        cryptonote::transaction wallet_tx = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::wallet, wallet_name1, miner_key.wallet_value);
         txs.push_back(wallet_tx);
         wallet_tx_hash1 = get_transaction_hash(wallet_tx);
       }
 
       if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::lokinet_10years))
       {
-        cryptonote::transaction lokinet_tx = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet_10years, lokinet_name1, miner_key.lokinet_value);
+        cryptonote::transaction lokinet_tx = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet_10years, lokinet_name1, miner_key.lokinet_value);
         txs.push_back(lokinet_tx);
         lokinet_tx_hash1 = get_transaction_hash(lokinet_tx);
       }
@@ -1700,7 +1700,7 @@ bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &event
     }
     first_ons_height = gen.height();
 
-    oxen_register_callback(events, "check_first_ons_entries", [=](cryptonote::core &c, size_t ev_index)
+    quenero_register_callback(events, "check_first_ons_entries", [=](cryptonote::core &c, size_t ev_index)
     {
       DEFINE_TESTS_ERROR_CONTEXT("check_first_ons_entries");
       ons::name_system_db &ons_db        = c.get_blockchain_storage().name_system_db();
@@ -1738,23 +1738,23 @@ bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &event
     crypto::hash session_tx_hash2 = {}, lokinet_tx_hash2 = {}, session_tx_hash3;
     {
       std::vector<cryptonote::transaction> txs;
-      txs.push_back(gen.create_and_add_oxen_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, bob_session_name1, bob_key.session_value));
+      txs.push_back(gen.create_and_add_quenero_name_system_tx(bob, gen.hardfork(), ons::mapping_type::session, bob_session_name1, bob_key.session_value));
       session_tx_hash2 = cryptonote::get_transaction_hash(txs[0]);
 
       if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::lokinet))
       {
-        txs.push_back(gen.create_and_add_oxen_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_5years, lokinet_name1));
+        txs.push_back(gen.create_and_add_quenero_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_5years, lokinet_name1));
         lokinet_tx_hash2 = cryptonote::get_transaction_hash(txs.back());
       }
 
-      txs.push_back(gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, session_name1, &other_key.session_value));
+      txs.push_back(gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, session_name1, &other_key.session_value));
       session_tx_hash3 = cryptonote::get_transaction_hash(txs.back());
 
       gen.create_and_add_next_block(txs);
     }
     second_ons_height = gen.height();
 
-    oxen_register_callback(events, "check_second_ons_entries", [=](cryptonote::core &c, size_t ev_index)
+    quenero_register_callback(events, "check_second_ons_entries", [=](cryptonote::core &c, size_t ev_index)
     {
       DEFINE_TESTS_ERROR_CONTEXT("check_second_ons_entries");
       ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1789,7 +1789,7 @@ bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &event
     });
   }
 
-  oxen_register_callback(events, "trigger_blockchain_detach", [=](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "trigger_blockchain_detach", [=](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("trigger_blockchain_detach");
     cryptonote::Blockchain &blockchain = c.get_blockchain_storage();
@@ -1836,7 +1836,7 @@ bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &event
     return true;
   });
 
-  oxen_register_callback(events, "trigger_blockchain_detach_all_records_gone", [miner_key, first_ons_height](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "trigger_blockchain_detach_all_records_gone", [miner_key, first_ons_height](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_second_ons_entries");
     cryptonote::Blockchain &blockchain = c.get_blockchain_storage();
@@ -1861,10 +1861,10 @@ bool oxen_name_system_large_reorg::generate(std::vector<test_event_entry> &event
   return true;
 }
 
-bool oxen_name_system_name_renewal::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_name_renewal::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   cryptonote::account_base miner = gen.first_miner_;
 
   if (!ons::mapping_type_allowed(hard_forks.back().first, ons::mapping_type::lokinet))
@@ -1877,13 +1877,13 @@ bool oxen_name_system_name_renewal::generate(std::vector<test_event_entry> &even
 
   ons_keys_t miner_key = make_ons_keys(miner);
   std::string const name    = "mydomain.loki";
-  cryptonote::transaction tx = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet, name, miner_key.lokinet_value);
+  cryptonote::transaction tx = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet, name, miner_key.lokinet_value);
   gen.create_and_add_next_block({tx});
   crypto::hash prev_txid = get_transaction_hash(tx);
 
   uint64_t height_of_ons_entry = gen.height();
 
-  oxen_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_ons_entries", [=](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_ons_entries");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1904,18 +1904,18 @@ bool oxen_name_system_name_renewal::generate(std::vector<test_event_entry> &even
   gen.create_and_add_next_block();
 
   // Renew the lokinet entry a few times
-  cryptonote::transaction renew_tx = gen.create_and_add_oxen_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_5years, name);
+  cryptonote::transaction renew_tx = gen.create_and_add_quenero_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_5years, name);
   gen.create_and_add_next_block({renew_tx});
-  renew_tx = gen.create_and_add_oxen_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_10years, name);
+  renew_tx = gen.create_and_add_quenero_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_10years, name);
   gen.create_and_add_next_block({renew_tx});
-  renew_tx = gen.create_and_add_oxen_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_2years, name);
+  renew_tx = gen.create_and_add_quenero_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet_2years, name);
   gen.create_and_add_next_block({renew_tx});
-  renew_tx = gen.create_and_add_oxen_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet, name);
+  renew_tx = gen.create_and_add_quenero_name_system_tx_renew(miner, gen.hardfork(), ons::mapping_type::lokinet, name);
   gen.create_and_add_next_block({renew_tx});
   crypto::hash txid       = cryptonote::get_transaction_hash(renew_tx);
   uint64_t renewal_height = gen.height();
 
-  oxen_register_callback(events, "check_renewed", [=](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_renewed", [=](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_renewed");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -1944,30 +1944,30 @@ bool oxen_name_system_name_renewal::generate(std::vector<test_event_entry> &even
   return true;
 }
 
-bool oxen_name_system_name_value_max_lengths::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_name_value_max_lengths::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  auto make_ons_tx_with_custom_extra = [&](oxen_chain_generator &gen,
+  auto make_ons_tx_with_custom_extra = [&](quenero_chain_generator &gen,
                                            std::vector<test_event_entry> &events,
                                            cryptonote::account_base const &src,
-                                           cryptonote::tx_extra_oxen_name_system const &data) -> void {
+                                           cryptonote::tx_extra_quenero_name_system const &data) -> void {
 
     uint64_t new_height    = cryptonote::get_block_height(gen.top().block) + 1;
     uint8_t new_hf_version = gen.get_hf_version_at(new_height);
     uint64_t burn_requirement = ons::burn_needed(new_hf_version, static_cast<ons::mapping_type>(data.type));
     std::vector<uint8_t> extra;
-    cryptonote::add_oxen_name_system_to_tx_extra(extra, data);
+    cryptonote::add_quenero_name_system_to_tx_extra(extra, data);
     cryptonote::add_burned_amount_to_tx_extra(extra, burn_requirement);
 
     cryptonote::transaction tx = {};
-    oxen_tx_builder(events, tx, gen.top().block, src /*from*/, src.get_keys().m_account_address, 0, new_hf_version)
-        .with_tx_type(cryptonote::txtype::oxen_name_system)
+    quenero_tx_builder(events, tx, gen.top().block, src /*from*/, src.get_keys().m_account_address, 0, new_hf_version)
+        .with_tx_type(cryptonote::txtype::quenero_name_system)
         .with_extra(extra)
         .with_fee(burn_requirement + TESTS_DEFAULT_FEE)
         .build();
@@ -1976,7 +1976,7 @@ bool oxen_name_system_name_value_max_lengths::generate(std::vector<test_event_en
   };
 
   ons_keys_t miner_key = make_ons_keys(miner);
-  cryptonote::tx_extra_oxen_name_system data = {};
+  cryptonote::tx_extra_quenero_name_system data = {};
   data.fields |= ons::extra_field::buy_no_backup;
   data.owner = miner_key.owner;
 
@@ -2014,10 +2014,10 @@ bool oxen_name_system_name_value_max_lengths::generate(std::vector<test_event_en
   return true;
 }
 
-bool oxen_name_system_update_mapping_after_expiry_fails::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_update_mapping_after_expiry_fails::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   cryptonote::account_base miner = gen.first_miner_;
 
   gen.add_blocks_until_version(hard_forks.back().first);
@@ -2027,7 +2027,7 @@ bool oxen_name_system_update_mapping_after_expiry_fails::generate(std::vector<te
   if (ons::mapping_type_allowed(gen.hardfork(), ons::mapping_type::lokinet))
   {
     std::string const name     = "mydomain.loki";
-    cryptonote::transaction tx = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet, name, miner_key.lokinet_value);
+    cryptonote::transaction tx = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::lokinet, name, miner_key.lokinet_value);
     crypto::hash tx_hash = cryptonote::get_transaction_hash(tx);
     gen.create_and_add_next_block({tx});
 
@@ -2039,11 +2039,11 @@ bool oxen_name_system_update_mapping_after_expiry_fails::generate(std::vector<te
 
     {
       ons_keys_t bob_key = make_ons_keys(gen.add_account());
-      cryptonote::transaction tx1 = gen.create_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::lokinet, name, &bob_key.lokinet_value);
+      cryptonote::transaction tx1 = gen.create_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::lokinet, name, &bob_key.lokinet_value);
       gen.add_tx(tx1, false /*can_be_added_to_blockchain*/, "Can not update a ONS record that is already expired");
     }
 
-    oxen_register_callback(events, "check_still_expired", [=, blockchain_height=gen.chain_height()](cryptonote::core &c, size_t ev_index)
+    quenero_register_callback(events, "check_still_expired", [=, blockchain_height=gen.chain_height()](cryptonote::core &c, size_t ev_index)
     {
       DEFINE_TESTS_ERROR_CONTEXT("check_still_expired");
       ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2066,12 +2066,12 @@ bool oxen_name_system_update_mapping_after_expiry_fails::generate(std::vector<te
   return true;
 }
 
-uint8_t oxen_name_system_update_mapping::hf() { return cryptonote::network_version_count - 1; }
-uint8_t oxen_name_system_update_mapping_argon2::hf() { return cryptonote::network_version_15_ons; }
-bool oxen_name_system_update_mapping::generate(std::vector<test_event_entry> &events)
+uint8_t quenero_name_system_update_mapping::hf() { return cryptonote::network_version_count - 1; }
+uint8_t quenero_name_system_update_mapping_argon2::hf() { return cryptonote::network_version_15_ons; }
+bool quenero_name_system_update_mapping::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table(hf());
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table(hf());
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
@@ -2083,13 +2083,13 @@ bool oxen_name_system_update_mapping::generate(std::vector<test_event_entry> &ev
   crypto::hash session_tx_hash1;
   std::string session_name1 = "myname";
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name1, miner_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, session_name1, miner_key.session_value);
     session_tx_hash1 = cryptonote::get_transaction_hash(tx1);
     gen.create_and_add_next_block({tx1});
   }
   uint64_t register_height = gen.height();
 
-  oxen_register_callback(events, "check_registered", [=](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_registered", [=](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_registered");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2104,18 +2104,18 @@ bool oxen_name_system_update_mapping::generate(std::vector<test_event_entry> &ev
 
   // Test update mapping with same name fails
   if (hf() == cryptonote::network_version_15_ons) {
-    cryptonote::transaction tx1 = gen.create_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, session_name1, &miner_key.session_value);
+    cryptonote::transaction tx1 = gen.create_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, session_name1, &miner_key.session_value);
     gen.add_tx(tx1, false /*can_be_added_to_blockchain*/, "Can not add a ONS TX that re-updates the underlying value to same value");
   }
 
   crypto::hash session_tx_hash2;
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, session_name1, &bob_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, session_name1, &bob_key.session_value);
     session_tx_hash2 = cryptonote::get_transaction_hash(tx1);
     gen.create_and_add_next_block({tx1});
   }
 
-  oxen_register_callback(events, "check_updated", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_updated", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_updated");
     ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2147,10 +2147,10 @@ ons::generic_signature ons_monero_signature(const crypto::hash& h, const crypto:
     return result;
 }
 
-bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_event_entry>& events)
+bool quenero_name_system_update_mapping_multiple_owners::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_n_blocks(10); /// generate some outputs and unlock them
   gen.add_mined_money_unlock_blocks();
@@ -2172,12 +2172,12 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
 
     std::string name      = "hello_world";
     std::string name_hash = ons::name_to_base64_hash(name);
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
     gen.create_and_add_next_block({tx1});
     uint64_t height = gen.height();
     crypto::hash txid      = cryptonote::get_transaction_hash(tx1);
 
-    oxen_register_callback(events, "check_update0", [=](cryptonote::core &c, size_t ev_index)
+    quenero_register_callback(events, "check_update0", [=](cryptonote::core &c, size_t ev_index)
     {
       const char* perr_context = "check_update0";
       ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2193,11 +2193,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons::make_ed25519_signature(hash, owner1_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update1", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update1", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update1";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2214,11 +2214,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons::make_ed25519_signature(hash, owner2_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update2", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update2", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update2";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2238,7 +2238,7 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
 
     std::string name            = "hello_sailor";
     std::string name_hash = ons::name_to_base64_hash(name);
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
     gen.create_and_add_next_block({tx1});
     uint64_t height        = gen.height();
     crypto::hash txid      = cryptonote::get_transaction_hash(tx1);
@@ -2250,11 +2250,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons_monero_signature(hash, owner1.wallet.address.m_spend_public_key, account1.get_keys().m_spend_secret_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update3", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update3", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update3";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2271,11 +2271,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons_monero_signature(hash, owner2.wallet.address.m_spend_public_key, account2.get_keys().m_spend_secret_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update3", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update3", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update3";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2299,7 +2299,7 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
 
     std::string name = "hello_driver";
     std::string name_hash = ons::name_to_base64_hash(name);
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
     gen.create_and_add_next_block({tx1});
     uint64_t height        = gen.height();
     crypto::hash txid      = cryptonote::get_transaction_hash(tx1);
@@ -2311,11 +2311,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons::make_ed25519_signature(hash, owner1_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update4", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update4", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update4";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2332,11 +2332,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons_monero_signature(hash, owner2.wallet.address.m_spend_public_key, account2.get_keys().m_spend_secret_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update5", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update5", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update5";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2359,7 +2359,7 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
 
     std::string name = "hello_passenger";
     std::string name_hash = ons::name_to_base64_hash(name);
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value, &owner1, &owner2);
     gen.create_and_add_next_block({tx1});
     uint64_t height        = gen.height();
     crypto::hash txid      = cryptonote::get_transaction_hash(tx1);
@@ -2372,11 +2372,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons_monero_signature(hash, owner1.wallet.address.m_spend_public_key, account1.get_keys().m_spend_secret_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update6", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update6", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update6";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2394,11 +2394,11 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
       crypto::hash hash = ons_signature_hash(encrypted_value.to_view(), nullptr /*owner*/, nullptr /*backup_owner*/, txid);
       auto signature = ons::make_ed25519_signature(hash, owner2_key);
 
-      cryptonote::transaction tx2 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
+      cryptonote::transaction tx2 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &signature);
       gen.create_and_add_next_block({tx2});
       txid      = cryptonote::get_transaction_hash(tx2);
 
-      oxen_register_callback(events, "check_update7", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
+      quenero_register_callback(events, "check_update7", [=, blockchain_height = gen.height()](cryptonote::core &c, size_t ev_index)
       {
         const char* perr_context = "check_update7";
         ons::name_system_db &ons_db = c.get_blockchain_storage().name_system_db();
@@ -2411,25 +2411,25 @@ bool oxen_name_system_update_mapping_multiple_owners::generate(std::vector<test_
   return true;
 }
 
-bool oxen_name_system_update_mapping_non_existent_name_fails::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_update_mapping_non_existent_name_fails::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
   cryptonote::account_base miner = gen.first_miner_;
   ons_keys_t miner_key           = make_ons_keys(miner);
   std::string name               = "hello-world";
-  cryptonote::transaction tx1 = gen.create_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &miner_key.session_value, nullptr /*owner*/, nullptr /*backup_owner*/, nullptr /*signature*/, false /*use_asserts*/);
+  cryptonote::transaction tx1 = gen.create_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &miner_key.session_value, nullptr /*owner*/, nullptr /*backup_owner*/, nullptr /*signature*/, false /*use_asserts*/);
   gen.add_tx(tx1, false /*can_be_added_to_blockchain*/, "Can not add a updating ONS TX referencing a non-existent ONS entry");
   return true;
 }
 
-bool oxen_name_system_update_mapping_invalid_signature::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_update_mapping_invalid_signature::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
@@ -2437,21 +2437,21 @@ bool oxen_name_system_update_mapping_invalid_signature::generate(std::vector<tes
   ons_keys_t miner_key           = make_ons_keys(miner);
 
   std::string const name = "hello-world";
-  cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value);
+  cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value);
   gen.create_and_add_next_block({tx1});
 
   ons_keys_t bob_key = make_ons_keys(gen.add_account());
   ons::mapping_value encrypted_value = bob_key.session_value.make_encrypted(name);
   ons::generic_signature invalid_signature = {};
-  cryptonote::transaction tx2 = gen.create_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &invalid_signature, false /*use_asserts*/);
+  cryptonote::transaction tx2 = gen.create_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &encrypted_value, nullptr /*owner*/, nullptr /*backup_owner*/, &invalid_signature, false /*use_asserts*/);
   gen.add_tx(tx2, false /*can_be_added_to_blockchain*/, "Can not add a updating ONS TX with an invalid signature");
   return true;
 }
 
-bool oxen_name_system_update_mapping_replay::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_update_mapping_replay::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
@@ -2463,14 +2463,14 @@ bool oxen_name_system_update_mapping_replay::generate(std::vector<test_event_ent
   std::string const name = "hello-world";
   // Make ONS Mapping
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx(miner, gen.hardfork(), ons::mapping_type::session, name, miner_key.session_value);
     gen.create_and_add_next_block({tx1});
   }
 
   // (1) Update ONS Mapping
-  cryptonote::tx_extra_oxen_name_system ons_entry = {};
+  cryptonote::tx_extra_quenero_name_system ons_entry = {};
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &bob_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &bob_key.session_value);
     gen.create_and_add_next_block({tx1});
     [[maybe_unused]] bool found_tx_extra = cryptonote::get_field_from_tx_extra(tx1.extra, ons_entry);
     assert(found_tx_extra);
@@ -2478,14 +2478,14 @@ bool oxen_name_system_update_mapping_replay::generate(std::vector<test_event_ent
 
   // Replay the (1)st update mapping, should fail because the update is to the same session value
   {
-    cryptonote::transaction tx1 = gen.create_oxen_name_system_tx_update_w_extra(miner, gen.hardfork(), ons_entry);
+    cryptonote::transaction tx1 = gen.create_quenero_name_system_tx_update_w_extra(miner, gen.hardfork(), ons_entry);
     gen.add_tx(tx1, false /*can_be_added_to_blockchain*/, "Can not replay an older update mapping to the same session value");
   }
 
   // (2) Update Again
   crypto::hash new_hash = {};
   {
-    cryptonote::transaction tx1 = gen.create_and_add_oxen_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &alice_key.session_value);
+    cryptonote::transaction tx1 = gen.create_and_add_quenero_name_system_tx_update(miner, gen.hardfork(), ons::mapping_type::session, name, &alice_key.session_value);
     gen.create_and_add_next_block({tx1});
     new_hash = cryptonote::get_transaction_hash(tx1);
   }
@@ -2493,17 +2493,17 @@ bool oxen_name_system_update_mapping_replay::generate(std::vector<test_event_ent
   // Replay the (1)st update mapping, should fail now even though it's not to the same session value, but that the signature no longer matches so you can't replay.
   ons_entry.prev_txid = new_hash;
   {
-    cryptonote::transaction tx1 = gen.create_oxen_name_system_tx_update_w_extra(miner, gen.hardfork(), ons_entry);
+    cryptonote::transaction tx1 = gen.create_quenero_name_system_tx_update_w_extra(miner, gen.hardfork(), ons_entry);
     gen.add_tx(tx1, false /*can_be_added_to_blockchain*/, "Can not replay an older update mapping, should fail signature verification");
   }
 
   return true;
 }
 
-bool oxen_name_system_wrong_burn::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_wrong_burn::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   cryptonote::account_base miner = gen.first_miner_;
   gen.add_blocks_until_version(hard_forks.back().first);
 
@@ -2548,7 +2548,7 @@ bool oxen_name_system_wrong_burn::generate(std::vector<test_event_entry> &events
         if (under_burn) burn -= 1;
         else            burn += 1;
 
-        cryptonote::transaction tx = gen.create_oxen_name_system_tx(miner, gen.hardfork(), type, name, value, nullptr /*owner*/, nullptr /*backup_owner*/, burn);
+        cryptonote::transaction tx = gen.create_quenero_name_system_tx(miner, gen.hardfork(), type, name, value, nullptr /*owner*/, nullptr /*backup_owner*/, burn);
         if (new_hf_version == cryptonote::network_version_18 && !under_burn && new_height < 524'000)
         {
           gen.add_tx(tx, true /*can_be_added_to_blockchain*/, "Wrong burn for a ONS tx but workaround for testnet", true /*kept_by_block*/);
@@ -2561,10 +2561,10 @@ bool oxen_name_system_wrong_burn::generate(std::vector<test_event_entry> &events
   return true;
 }
 
-bool oxen_name_system_wrong_version::generate(std::vector<test_event_entry> &events)
+bool quenero_name_system_wrong_version::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   cryptonote::account_base miner = gen.first_miner_;
   gen.add_blocks_until_version(hard_forks.back().first);
@@ -2572,7 +2572,7 @@ bool oxen_name_system_wrong_version::generate(std::vector<test_event_entry> &eve
 
   std::string name = "ons_name";
   ons_keys_t miner_key                       = make_ons_keys(miner);
-  cryptonote::tx_extra_oxen_name_system data = {};
+  cryptonote::tx_extra_quenero_name_system data = {};
   data.version                               = 0xFF;
   data.owner                                 = miner_key.owner;
   data.type                                  = ons::mapping_type::session;
@@ -2584,12 +2584,12 @@ bool oxen_name_system_wrong_version::generate(std::vector<test_event_entry> &eve
   uint64_t burn_requirement = ons::burn_needed(new_hf_version, ons::mapping_type::session);
 
   std::vector<uint8_t> extra;
-  cryptonote::add_oxen_name_system_to_tx_extra(extra, data);
+  cryptonote::add_quenero_name_system_to_tx_extra(extra, data);
   cryptonote::add_burned_amount_to_tx_extra(extra, burn_requirement);
 
   cryptonote::transaction tx = {};
-  oxen_tx_builder(events, tx, gen.top().block, miner /*from*/, miner.get_keys().m_account_address, 0, new_hf_version)
-      .with_tx_type(cryptonote::txtype::oxen_name_system)
+  quenero_tx_builder(events, tx, gen.top().block, miner /*from*/, miner.get_keys().m_account_address, 0, new_hf_version)
+      .with_tx_type(cryptonote::txtype::quenero_name_system)
       .with_extra(extra)
       .with_fee(burn_requirement + TESTS_DEFAULT_FEE)
       .build();
@@ -2599,31 +2599,31 @@ bool oxen_name_system_wrong_version::generate(std::vector<test_event_entry> &eve
 }
 
 // NOTE: Generate forked block, check that alternative quorums are generated and accessible
-bool oxen_service_nodes_alt_quorums::generate(std::vector<test_event_entry>& events)
+bool quenero_masternodes_alt_quorums::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::STATE_CHANGE_QUORUM_SIZE + 3);
+  add_masternodes(gen, masternodes::STATE_CHANGE_QUORUM_SIZE + 3);
 
-  oxen_chain_generator fork = gen;
+  quenero_chain_generator fork = gen;
   gen.create_and_add_next_block();
   fork.create_and_add_next_block();
   uint64_t height_with_fork = gen.height();
 
-  service_nodes::quorum_manager fork_quorums = fork.top_quorum();
-  oxen_register_callback(events, "check_alt_quorums_exist", [fork_quorums, height_with_fork](cryptonote::core &c, size_t ev_index)
+  masternodes::quorum_manager fork_quorums = fork.top_quorum();
+  quenero_register_callback(events, "check_alt_quorums_exist", [fork_quorums, height_with_fork](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_alt_quorums_exist");
 
-    std::vector<std::shared_ptr<const service_nodes::quorum>> alt_quorums;
-    c.get_quorum(service_nodes::quorum_type::obligations, height_with_fork, false /*include_old*/, &alt_quorums);
+    std::vector<std::shared_ptr<const masternodes::quorum>> alt_quorums;
+    c.get_quorum(masternodes::quorum_type::obligations, height_with_fork, false /*include_old*/, &alt_quorums);
     CHECK_TEST_CONDITION_MSG(alt_quorums.size() == 1, "alt_quorums.size(): " << alt_quorums.size());
 
-    service_nodes::quorum const &fork_obligation_quorum = *fork_quorums.obligations;
-    service_nodes::quorum const &real_obligation_quorum = *(alt_quorums[0]);
+    masternodes::quorum const &fork_obligation_quorum = *fork_quorums.obligations;
+    masternodes::quorum const &real_obligation_quorum = *(alt_quorums[0]);
     CHECK_TEST_CONDITION(fork_obligation_quorum.validators.size() == real_obligation_quorum.validators.size());
     CHECK_TEST_CONDITION(fork_obligation_quorum.workers.size() == real_obligation_quorum.workers.size());
 
@@ -2647,26 +2647,26 @@ bool oxen_service_nodes_alt_quorums::generate(std::vector<test_event_entry>& eve
   return true;
 }
 
-bool oxen_service_nodes_checkpoint_quorum_size::generate(std::vector<test_event_entry>& events)
+bool quenero_masternodes_checkpoint_quorum_size::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, service_nodes::CHECKPOINT_QUORUM_SIZE - 1);
+  add_masternodes(gen, masternodes::CHECKPOINT_QUORUM_SIZE - 1);
 
   for (int i = 0; i < 16; i++)
   {
     gen.create_and_add_next_block();
-    std::shared_ptr<const service_nodes::quorum> quorum = gen.get_quorum(service_nodes::quorum_type::checkpointing, gen.height());
+    std::shared_ptr<const masternodes::quorum> quorum = gen.get_quorum(masternodes::quorum_type::checkpointing, gen.height());
     if (quorum) break;
   }
 
-  oxen_register_callback(events, "check_checkpoint_quorum_should_be_empty", [check_height_1 = gen.height()](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_checkpoint_quorum_should_be_empty", [check_height_1 = gen.height()](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_checkpoint_quorum_should_be_empty");
-    std::shared_ptr<const service_nodes::quorum> quorum = c.get_quorum(service_nodes::quorum_type::checkpointing, check_height_1);
+    std::shared_ptr<const masternodes::quorum> quorum = c.get_quorum(masternodes::quorum_type::checkpointing, check_height_1);
     CHECK_TEST_CONDITION(quorum != nullptr);
     CHECK_TEST_CONDITION(quorum->validators.size() == 0);
     return true;
@@ -2675,10 +2675,10 @@ bool oxen_service_nodes_checkpoint_quorum_size::generate(std::vector<test_event_
   cryptonote::transaction new_registration_tx = gen.create_and_add_registration_tx(gen.first_miner());
   gen.create_and_add_next_block({new_registration_tx});
   gen.add_blocks_until_next_checkpointable_height();
-  oxen_register_callback(events, "check_checkpoint_quorum_should_be_populated", [check_height_2 = gen.height()](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_checkpoint_quorum_should_be_populated", [check_height_2 = gen.height()](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_checkpoint_quorum_should_be_populated");
-    std::shared_ptr<const service_nodes::quorum> quorum = c.get_quorum(service_nodes::quorum_type::checkpointing, check_height_2);
+    std::shared_ptr<const masternodes::quorum> quorum = c.get_quorum(masternodes::quorum_type::checkpointing, check_height_2);
     CHECK_TEST_CONDITION(quorum != nullptr);
     CHECK_TEST_CONDITION(quorum->validators.size() > 0);
     return true;
@@ -2687,10 +2687,10 @@ bool oxen_service_nodes_checkpoint_quorum_size::generate(std::vector<test_event_
   return true;
 }
 
-bool oxen_service_nodes_gen_nodes::generate(std::vector<test_event_entry> &events)
+bool quenero_masternodes_gen_nodes::generate(std::vector<test_event_entry> &events)
 {
-  const std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table(cryptonote::network_version_9_service_nodes);
-  oxen_chain_generator gen(events, hard_forks);
+  const std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table(cryptonote::network_version_9_masternodes);
+  quenero_chain_generator gen(events, hard_forks);
   const auto miner                      = gen.first_miner();
   const auto alice                      = gen.add_account();
   size_t alice_account_base_event_index = gen.event_index();
@@ -2706,9 +2706,9 @@ bool oxen_service_nodes_gen_nodes::generate(std::vector<test_event_entry> &event
   const auto reg_tx = gen.create_and_add_registration_tx(alice);
   gen.create_and_add_next_block({reg_tx});
 
-  oxen_register_callback(events, "check_registered", [&events, alice](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_registered", [&events, alice](cryptonote::core &c, size_t ev_index)
   {
-    DEFINE_TESTS_ERROR_CONTEXT("gen_service_nodes::check_registered");
+    DEFINE_TESTS_ERROR_CONTEXT("gen_masternodes::check_registered");
     std::vector<cryptonote::block> blocks;
     bool r = c.get_blocks((uint64_t)0, (uint64_t)-1, blocks);
     CHECK_TEST_CONDITION(r);
@@ -2717,26 +2717,26 @@ bool oxen_service_nodes_gen_nodes::generate(std::vector<test_event_entry> &event
     r = find_block_chain(events, chain, mtx, cryptonote::get_block_hash(blocks.back()));
     CHECK_TEST_CONDITION(r);
 
-    // Expect the change to have unlock time of 0, and we get that back immediately ~0.8 oxen
-    // 101 (balance) - 100 (stake) - 0.2 (test fee) = 0.8 oxen
+    // Expect the change to have unlock time of 0, and we get that back immediately ~0.8 quenero
+    // 101 (balance) - 100 (stake) - 0.2 (test fee) = 0.8 quenero
     const uint64_t unlocked_balance    = get_unlocked_balance(alice, blocks, mtx);
     const uint64_t staking_requirement = MK_COINS(100);
 
     CHECK_EQ(MK_COINS(101) - TESTS_DEFAULT_FEE - staking_requirement, unlocked_balance);
 
     /// check that alice is registered
-    const auto info_v = c.get_service_node_list_state({});
+    const auto info_v = c.get_masternode_list_state({});
     CHECK_EQ(info_v.size(), 1);
     return true;
   });
 
-  for (auto i = 0u; i < service_nodes::staking_num_lock_blocks(cryptonote::FAKECHAIN); ++i)
+  for (auto i = 0u; i < masternodes::staking_num_lock_blocks(cryptonote::FAKECHAIN); ++i)
     gen.create_and_add_next_block();
 
-  oxen_register_callback(events, "check_expired", [&events, alice](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_expired", [&events, alice](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_expired");
-    const auto stake_lock_time = service_nodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
+    const auto stake_lock_time = masternodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
 
     std::vector<cryptonote::block> blocks;
     size_t count = 15 + (2 * CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW) + stake_lock_time;
@@ -2748,17 +2748,17 @@ bool oxen_service_nodes_gen_nodes::generate(std::vector<test_event_entry> &event
     CHECK_TEST_CONDITION(r);
 
     /// check that alice's registration expired
-    const auto info_v = c.get_service_node_list_state({});
+    const auto info_v = c.get_masternode_list_state({});
     CHECK_EQ(info_v.empty(), true);
 
-    /// check that alice received some service node rewards (TODO: check the balance precisely)
+    /// check that alice received some masternode rewards (TODO: check the balance precisely)
     CHECK_TEST_CONDITION(get_balance(alice, blocks, mtx) > MK_COINS(101) - TESTS_DEFAULT_FEE);
     return true;
   });
   return true;
 }
 
-using sn_info_t = service_nodes::service_node_pubkey_info;
+using sn_info_t = masternodes::masternode_pubkey_info;
 static bool contains(const std::vector<sn_info_t>& infos, const crypto::public_key& key)
 {
   const auto it =
@@ -2766,24 +2766,24 @@ static bool contains(const std::vector<sn_info_t>& infos, const crypto::public_k
   return it != infos.end();
 }
 
-bool oxen_service_nodes_test_rollback::generate(std::vector<test_event_entry>& events)
+bool quenero_masternodes_test_rollback::generate(std::vector<test_event_entry>& events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.back().first);
-  add_service_nodes(gen, 11);
+  add_masternodes(gen, 11);
 
-  gen.add_n_blocks(5);   /// create a few blocks with active service nodes
+  gen.add_n_blocks(5);   /// create a few blocks with active masternodes
   auto fork = gen;       /// chain split here
 
   // deregister some node (A) on main
   const auto pk           = gen.top_quorum().obligations->workers[0];
-  const auto dereg_tx     = gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, pk, 0, 0);
+  const auto dereg_tx     = gen.create_and_add_state_change_tx(masternodes::new_state::deregister, pk, 0, 0);
   size_t deregister_index = gen.event_index();
   gen.create_and_add_next_block({dereg_tx});
 
   size_t reg_evnt_idx;
-  /// create a new service node (B) in the next block
+  /// create a new masternode (B) in the next block
   {
     const auto tx = gen.create_and_add_registration_tx(gen.first_miner());
     reg_evnt_idx = gen.event_index();
@@ -2792,25 +2792,25 @@ bool oxen_service_nodes_test_rollback::generate(std::vector<test_event_entry>& e
 
   fork.add_n_blocks(3); /// create blocks on the alt chain and trigger chain switch
   fork.add_n_blocks(15); // create a few more blocks to test winner selection
-  oxen_register_callback(events, "test_registrations", [&events, deregister_index, reg_evnt_idx](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "test_registrations", [&events, deregister_index, reg_evnt_idx](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_registrations");
-    const auto sn_list = c.get_service_node_list_state({});
+    const auto sn_list = c.get_masternode_list_state({});
     /// Test that node A is still registered
     {
       /// obtain public key of node A
       const auto event_a = events.at(deregister_index);
-      CHECK_TEST_CONDITION(std::holds_alternative<oxen_blockchain_addable<oxen_transaction>>(event_a));
-      const auto dereg_tx = var::get<oxen_blockchain_addable<oxen_transaction>>(event_a);
+      CHECK_TEST_CONDITION(std::holds_alternative<quenero_blockchain_addable<quenero_transaction>>(event_a));
+      const auto dereg_tx = var::get<quenero_blockchain_addable<quenero_transaction>>(event_a);
       CHECK_TEST_CONDITION(dereg_tx.data.tx.type == cryptonote::txtype::state_change);
 
-      cryptonote::tx_extra_service_node_state_change deregistration;
-      cryptonote::get_service_node_state_change_from_tx_extra(
+      cryptonote::tx_extra_masternode_state_change deregistration;
+      cryptonote::get_masternode_state_change_from_tx_extra(
           dereg_tx.data.tx.extra, deregistration, c.get_blockchain_storage().get_current_hard_fork_version());
 
-      const auto uptime_quorum = c.get_quorum(service_nodes::quorum_type::obligations, deregistration.block_height);
+      const auto uptime_quorum = c.get_quorum(masternodes::quorum_type::obligations, deregistration.block_height);
       CHECK_TEST_CONDITION(uptime_quorum);
-      const auto pk_a = uptime_quorum->workers.at(deregistration.service_node_index);
+      const auto pk_a = uptime_quorum->workers.at(deregistration.masternode_index);
 
       /// Check present
       const bool found_a = contains(sn_list, pk_a);
@@ -2821,12 +2821,12 @@ bool oxen_service_nodes_test_rollback::generate(std::vector<test_event_entry>& e
     {
       /// obtain public key of node B
       const auto event_b = events.at(reg_evnt_idx);
-      CHECK_TEST_CONDITION(std::holds_alternative<oxen_blockchain_addable<oxen_transaction>>(event_b));
-      const auto reg_tx = var::get<oxen_blockchain_addable<oxen_transaction>>(event_b);
+      CHECK_TEST_CONDITION(std::holds_alternative<quenero_blockchain_addable<quenero_transaction>>(event_b));
+      const auto reg_tx = var::get<quenero_blockchain_addable<quenero_transaction>>(event_b);
 
       crypto::public_key pk_b;
-      if (!cryptonote::get_service_node_pubkey_from_tx_extra(reg_tx.data.tx.extra, pk_b)) {
-        MERROR("Could not get service node key from tx extra");
+      if (!cryptonote::get_masternode_pubkey_from_tx_extra(reg_tx.data.tx.extra, pk_b)) {
+        MERROR("Could not get masternode key from tx extra");
         return false;
       }
 
@@ -2840,33 +2840,33 @@ bool oxen_service_nodes_test_rollback::generate(std::vector<test_event_entry>& e
   return true;
 }
 
-bool oxen_service_nodes_test_swarms_basic::generate(std::vector<test_event_entry>& events)
+bool quenero_masternodes_test_swarms_basic::generate(std::vector<test_event_entry>& events)
 {
   const std::vector<std::pair<uint8_t, uint64_t>> hard_forks = {
       std::make_pair(7, 0), std::make_pair(8, 1), std::make_pair(9, 2), std::make_pair(10, 150)};
 
-  oxen_chain_generator gen(events, hard_forks);
+  quenero_chain_generator gen(events, hard_forks);
   gen.add_blocks_until_version(hard_forks.rbegin()[1].first);
 
-  /// Create some service nodes before hf version 10
+  /// Create some masternodes before hf version 10
   constexpr size_t INIT_SN_COUNT  = 13;
   constexpr size_t TOTAL_SN_COUNT = 25;
   gen.add_n_blocks(90);
   gen.add_mined_money_unlock_blocks();
 
-  /// register some service nodes
-  add_service_nodes(gen, INIT_SN_COUNT);
+  /// register some masternodes
+  add_masternodes(gen, INIT_SN_COUNT);
 
-  /// create a few blocks with active service nodes
+  /// create a few blocks with active masternodes
   gen.add_n_blocks(5);
-  assert(gen.hf_version_ == cryptonote::network_version_9_service_nodes);
+  assert(gen.hf_version_ == cryptonote::network_version_9_masternodes);
 
   gen.add_blocks_until_version(cryptonote::network_version_10_bulletproofs);
-  oxen_register_callback(events, "test_initial_swarms", [](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "test_initial_swarms", [](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_swarms_basic::test_initial_swarms");
-    const auto sn_list = c.get_service_node_list_state({}); /// Check that there is one active swarm and the swarm queue is not empty
-    std::map<service_nodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
+    const auto sn_list = c.get_masternode_list_state({}); /// Check that there is one active swarm and the swarm queue is not empty
+    std::map<masternodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
     for (const auto& entry : sn_list)
     {
       const auto id = entry.info->swarm_id;
@@ -2878,17 +2878,17 @@ bool oxen_service_nodes_test_swarms_basic::generate(std::vector<test_event_entry
     return true;
   });
 
-  /// rewind some blocks and register 1 more service node
+  /// rewind some blocks and register 1 more masternode
   {
     const auto tx = gen.create_and_add_registration_tx(gen.first_miner());
     gen.create_and_add_next_block({tx});
   }
 
-  oxen_register_callback(events, "test_with_one_more_sn", [](cryptonote::core &c, size_t ev_index) /// test that another swarm has been created
+  quenero_register_callback(events, "test_with_one_more_sn", [](cryptonote::core &c, size_t ev_index) /// test that another swarm has been created
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_with_one_more_sn");
-    const auto sn_list = c.get_service_node_list_state({});
-    std::map<service_nodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
+    const auto sn_list = c.get_masternode_list_state({});
+    std::map<masternodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
     for (const auto& entry : sn_list)
     {
       const auto id = entry.info->swarm_id;
@@ -2904,11 +2904,11 @@ bool oxen_service_nodes_test_swarms_basic::generate(std::vector<test_event_entry
     gen.create_and_add_next_block({tx});
   }
 
-  oxen_register_callback(events, "test_with_more_sn", [](cryptonote::core &c, size_t ev_index) /// test that another swarm has been created
+  quenero_register_callback(events, "test_with_more_sn", [](cryptonote::core &c, size_t ev_index) /// test that another swarm has been created
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_with_more_sn");
-    const auto sn_list = c.get_service_node_list_state({});
-    std::map<service_nodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
+    const auto sn_list = c.get_masternode_list_state({});
+    std::map<masternodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
     for (const auto& entry : sn_list)
     {
       const auto id = entry.info->swarm_id;
@@ -2919,21 +2919,21 @@ bool oxen_service_nodes_test_swarms_basic::generate(std::vector<test_event_entry
   });
 
   std::vector<cryptonote::transaction> dereg_txs; /// deregister enough snode to bring all 3 swarm to the min size
-  const size_t excess = TOTAL_SN_COUNT - 3 * service_nodes::EXCESS_BASE;
-  service_nodes::quorum_manager top_quorum = gen.top_quorum();
+  const size_t excess = TOTAL_SN_COUNT - 3 * masternodes::EXCESS_BASE;
+  masternodes::quorum_manager top_quorum = gen.top_quorum();
   for (size_t i = 0; i < excess; ++i)
   {
     const auto pk = top_quorum.obligations->workers[i];
-    const auto tx = gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, pk, 0, 0, cryptonote::get_block_height(gen.top().block));
+    const auto tx = gen.create_and_add_state_change_tx(masternodes::new_state::deregister, pk, 0, 0, cryptonote::get_block_height(gen.top().block));
     dereg_txs.push_back(tx);
   }
 
   gen.create_and_add_next_block(dereg_txs);
-  oxen_register_callback(events, "test_after_first_deregisters", [](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "test_after_first_deregisters", [](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_after_first_deregisters");
-    const auto sn_list = c.get_service_node_list_state({});
-    std::map<service_nodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
+    const auto sn_list = c.get_masternode_list_state({});
+    std::map<masternodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
     for (const auto& entry : sn_list)
     {
       const auto id = entry.info->swarm_id;
@@ -2947,16 +2947,16 @@ bool oxen_service_nodes_test_swarms_basic::generate(std::vector<test_event_entry
   dereg_txs.clear();
   {
     const auto pk = gen.top_quorum().obligations->workers[0];
-    const auto tx = gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, pk, 0, 0);
+    const auto tx = gen.create_and_add_state_change_tx(masternodes::new_state::deregister, pk, 0, 0);
     dereg_txs.push_back(tx);
   }
   gen.create_and_add_next_block(dereg_txs);
 
-  oxen_register_callback(events, "test_after_final_deregisters", [](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "test_after_final_deregisters", [](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_after_first_deregisters");
-    const auto sn_list = c.get_service_node_list_state({});
-    std::map<service_nodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
+    const auto sn_list = c.get_masternode_list_state({});
+    std::map<masternodes::swarm_id_t, std::vector<crypto::public_key>> swarms;
     for (const auto &entry : sn_list)
     {
       const auto id = entry.info->swarm_id;
@@ -2971,10 +2971,10 @@ bool oxen_service_nodes_test_swarms_basic::generate(std::vector<test_event_entry
   return true;
 }
 
-bool oxen_service_nodes_insufficient_contribution::generate(std::vector<test_event_entry> &events)
+bool quenero_masternodes_insufficient_contribution::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
@@ -2989,13 +2989,13 @@ bool oxen_service_nodes_insufficient_contribution::generate(std::vector<test_eve
   cryptonote::transaction stake = gen.create_and_add_staking_tx(sn_keys.pub, gen.first_miner_, MK_COINS(1));
   gen.create_and_add_next_block({stake});
 
-  oxen_register_callback(events, "test_insufficient_stake_does_not_get_accepted", [sn_keys](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "test_insufficient_stake_does_not_get_accepted", [sn_keys](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("test_insufficient_stake_does_not_get_accepted");
-    const auto sn_list = c.get_service_node_list_state({sn_keys.pub});
+    const auto sn_list = c.get_masternode_list_state({sn_keys.pub});
     CHECK_TEST_CONDITION(sn_list.size() == 1);
 
-    service_nodes::service_node_pubkey_info const &pubkey_info = sn_list[0];
+    masternodes::masternode_pubkey_info const &pubkey_info = sn_list[0];
     CHECK_EQ(pubkey_info.info->total_contributed, MK_COINS(50));
     return true;
   });
@@ -3003,16 +3003,16 @@ bool oxen_service_nodes_insufficient_contribution::generate(std::vector<test_eve
   return true;
 }
 
-static oxen_chain_generator setup_pulse_tests(std::vector<test_event_entry> &events)
+static quenero_chain_generator setup_pulse_tests(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator result(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator result(events, hard_forks);
 
   result.add_blocks_until_version(hard_forks.back().first);
   result.add_mined_money_unlock_blocks();
 
-  std::vector<cryptonote::transaction> registration_txs(service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN));
-  for (auto i = 0u; i < service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN); ++i)
+  std::vector<cryptonote::transaction> registration_txs(masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN));
+  for (auto i = 0u; i < masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN); ++i)
     registration_txs[i] = result.create_and_add_registration_tx(result.first_miner());
 
   // NOTE: Generate Valid Blocks
@@ -3021,16 +3021,16 @@ static oxen_chain_generator setup_pulse_tests(std::vector<test_event_entry> &eve
   return result;
 }
 
-bool oxen_pulse_invalid_validator_bitset::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_invalid_validator_bitset::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
+  quenero_chain_generator gen = setup_pulse_tests(events);
   gen.add_event_msg("Invalid Block: Validator bitset wrong");
-  oxen_blockchain_entry entry     = {};
-  oxen_create_block_params params = gen.next_block_params();
+  quenero_blockchain_entry entry     = {};
+  quenero_create_block_params params = gen.next_block_params();
   gen.block_begin(entry, params, {} /*tx_list*/);
 
   // NOTE: Overwrite valiadator bitset to be wrong
-  entry.block.pulse.validator_bitset = ~service_nodes::pulse_validator_bit_mask();
+  entry.block.pulse.validator_bitset = ~masternodes::pulse_validator_bit_mask();
 
   gen.block_end(entry, params);
   gen.add_block(entry, false /*can_be_added_to_blockchain*/, "Invalid Pulse Block, specifies the wrong validator bitset");
@@ -3038,12 +3038,12 @@ bool oxen_pulse_invalid_validator_bitset::generate(std::vector<test_event_entry>
   return true;
 }
 
-bool oxen_pulse_invalid_signature::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_invalid_signature::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
+  quenero_chain_generator gen = setup_pulse_tests(events);
   gen.add_event_msg("Invalid Block: Wrong signature given (null signature)");
-  oxen_blockchain_entry entry     = {};
-  oxen_create_block_params params = gen.next_block_params();
+  quenero_blockchain_entry entry     = {};
+  quenero_create_block_params params = gen.next_block_params();
   gen.block_begin(entry, params, {} /*tx_list*/);
 
   // NOTE: Overwrite signature
@@ -3054,28 +3054,28 @@ bool oxen_pulse_invalid_signature::generate(std::vector<test_event_entry> &event
   return true;
 }
 
-bool oxen_pulse_oob_voter_index::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_oob_voter_index::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
+  quenero_chain_generator gen = setup_pulse_tests(events);
   gen.add_event_msg("Invalid Block: Quorum index that indexes out of bounds");
-  oxen_blockchain_entry entry     = {};
-  oxen_create_block_params params = gen.next_block_params();
+  quenero_blockchain_entry entry     = {};
+  quenero_create_block_params params = gen.next_block_params();
   gen.block_begin(entry, params, {} /*tx_list*/);
 
   // NOTE: Overwrite oob voter index
-  entry.block.signatures.back().voter_index = service_nodes::PULSE_QUORUM_NUM_VALIDATORS + 1;
+  entry.block.signatures.back().voter_index = masternodes::PULSE_QUORUM_NUM_VALIDATORS + 1;
   gen.block_end(entry, params);
   gen.add_block(entry, false /*can_be_added_to_blockchain*/, "Invalid Pulse Block, specifies the wrong validator bitset");
 
   return true;
 }
 
-bool oxen_pulse_non_participating_validator::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_non_participating_validator::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
+  quenero_chain_generator gen = setup_pulse_tests(events);
   gen.add_event_msg("Invalid Block: Validator gave signature but is not locked in to participate this round.");
-  oxen_blockchain_entry entry     = {};
-  oxen_create_block_params params = gen.next_block_params();
+  quenero_blockchain_entry entry     = {};
+  quenero_create_block_params params = gen.next_block_params();
   gen.block_begin(entry, params, {} /*tx_list*/);
 
   // NOTE: Manually generate signatures to break test
@@ -3089,29 +3089,29 @@ bool oxen_pulse_non_participating_validator::generate(std::vector<test_event_ent
         entry.block.pulse.random_value.data[i] = static_cast<char>(tools::uniform_distribution_portable(tools::rng, 256));
     }
 
-    service_nodes::quorum quorum = {};
+    masternodes::quorum quorum = {};
     {
-      std::vector<service_nodes::pubkey_and_sninfo> active_snode_list = params.prev.service_node_state.active_service_nodes_infos();
-      std::vector<crypto::hash> entropy = service_nodes::get_pulse_entropy_for_next_block(gen.db_, params.prev.block, entry.block.pulse.round);
+      std::vector<masternodes::pubkey_and_sninfo> active_snode_list = params.prev.masternode_state.active_masternodes_infos();
+      std::vector<crypto::hash> entropy = masternodes::get_pulse_entropy_for_next_block(gen.db_, params.prev.block, entry.block.pulse.round);
       quorum = generate_pulse_quorum(cryptonote::FAKECHAIN, params.block_leader.key, entry.block.major_version, active_snode_list, entropy, entry.block.pulse.round);
-      assert(quorum.validators.size() == service_nodes::PULSE_QUORUM_NUM_VALIDATORS);
+      assert(quorum.validators.size() == masternodes::PULSE_QUORUM_NUM_VALIDATORS);
       assert(quorum.workers.size() == 1);
     }
 
     // NOTE: First 7 validators are locked in. We received signatures from the
     // first 6 in the quorum, then the 8th validator in the quorum (who is not
     // meant to be participating).
-    static_assert(service_nodes::PULSE_QUORUM_NUM_VALIDATORS > service_nodes::PULSE_BLOCK_REQUIRED_SIGNATURES);
+    static_assert(masternodes::PULSE_QUORUM_NUM_VALIDATORS > masternodes::PULSE_BLOCK_REQUIRED_SIGNATURES);
     entry.block.pulse.validator_bitset = 0b0000'000'0111'1111;
     size_t const voter_indexes[]       = {0, 1, 2, 3, 4, 5, 7};
 
     crypto::hash block_hash = cryptonote::get_block_hash(entry.block);
     for (size_t index : voter_indexes)
     {
-      service_nodes::service_node_keys validator_keys = gen.get_cached_keys(quorum.validators[index]);
+      masternodes::masternode_keys validator_keys = gen.get_cached_keys(quorum.validators[index]);
       assert(validator_keys.pub == quorum.validators[index]);
 
-      service_nodes::quorum_signature signature = {};
+      masternodes::quorum_signature signature = {};
       signature.voter_index                     = index;
       crypto::generate_signature(block_hash, validator_keys.pub, validator_keys.key, signature.signature);
       entry.block.signatures.push_back(signature);
@@ -3124,14 +3124,14 @@ bool oxen_pulse_non_participating_validator::generate(std::vector<test_event_ent
   return true;
 }
 
-bool oxen_pulse_generate_all_rounds::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_generate_all_rounds::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
+  quenero_chain_generator gen = setup_pulse_tests(events);
 
   for (uint8_t round = 0; round < static_cast<uint8_t>(-1); round++)
   {
-    oxen_blockchain_entry entry     = {};
-    oxen_create_block_params params = gen.next_block_params();
+    quenero_blockchain_entry entry     = {};
+    quenero_create_block_params params = gen.next_block_params();
     params.pulse_round              = round;
     gen.block_begin(entry, params, {} /*tx_list*/);
     gen.block_end(entry, params);
@@ -3141,12 +3141,12 @@ bool oxen_pulse_generate_all_rounds::generate(std::vector<test_event_entry> &eve
   return true;
 }
 
-bool oxen_pulse_out_of_order_voters::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_out_of_order_voters::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
+  quenero_chain_generator gen = setup_pulse_tests(events);
   gen.add_event_msg("Invalid Block: Quorum voters are out of order");
-  oxen_blockchain_entry entry     = {};
-  oxen_create_block_params params = gen.next_block_params();
+  quenero_blockchain_entry entry     = {};
+  quenero_create_block_params params = gen.next_block_params();
   gen.block_begin(entry, params, {} /*tx_list*/);
   // NOTE: Swap voters so that the votes are not sorted in order
   auto tmp                       = entry.block.signatures.back();
@@ -3158,35 +3158,35 @@ bool oxen_pulse_out_of_order_voters::generate(std::vector<test_event_entry> &eve
   return true;
 }
 
-bool oxen_pulse_reject_miner_block::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_reject_miner_block::generate(std::vector<test_event_entry> &events)
 {
-  oxen_chain_generator gen = setup_pulse_tests(events);
-  gen.add_event_msg("Invalid Block: PoW Block but we have enough service nodes for Pulse");
-  oxen_blockchain_entry entry     = {};
-  oxen_create_block_params params = gen.next_block_params();
-  params.type = oxen_create_block_type::miner;
+  quenero_chain_generator gen = setup_pulse_tests(events);
+  gen.add_event_msg("Invalid Block: PoW Block but we have enough masternodes for Pulse");
+  quenero_blockchain_entry entry     = {};
+  quenero_create_block_params params = gen.next_block_params();
+  params.type = quenero_create_block_type::miner;
   gen.block_begin(entry, params, {} /*tx_list*/);
 
-  // NOTE: Create an ordinary miner block even when we have enough Service Nodes for Pulse.
-  fill_nonce_with_oxen_generator(&gen, entry.block, TEST_DEFAULT_DIFFICULTY, cryptonote::get_block_height(entry.block));
+  // NOTE: Create an ordinary miner block even when we have enough Masternodes for Pulse.
+  fill_nonce_with_quenero_generator(&gen, entry.block, TEST_DEFAULT_DIFFICULTY, cryptonote::get_block_height(entry.block));
 
   gen.block_end(entry, params);
   gen.add_block(entry, false /*can_be_added_to_blockchain*/, "Invalid Pulse Block, block was mined with a miner but we have enough nodes for Pulse");
   return true;
 }
 
-bool oxen_pulse_generate_blocks::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_generate_blocks::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  add_service_nodes(gen, service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN));
+  add_masternodes(gen, masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN));
   gen.add_n_blocks(40); // Chain genereator will generate blocks via Pulse quorums
 
-  oxen_register_callback(events, "check_pulse_blocks", [](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_pulse_blocks", [](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_pulse_blocks");
     uint64_t top_height;
@@ -3199,40 +3199,40 @@ bool oxen_pulse_generate_blocks::generate(std::vector<test_event_entry> &events)
   return true;
 }
 
-bool oxen_pulse_fallback_to_pow_and_back::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_fallback_to_pow_and_back::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
 
-  add_service_nodes(gen, service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN));
+  add_masternodes(gen, masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN));
   gen.create_and_add_next_block();
 
   gen.add_event_msg("Deregister 1 node, we now have insufficient nodes for Pulse");
   {
     const auto deregister_pub_key_1 = gen.top_quorum().obligations->workers[0];
     cryptonote::transaction tx =
-        gen.create_and_add_state_change_tx(service_nodes::new_state::deregister, deregister_pub_key_1, 0, 0);
+        gen.create_and_add_state_change_tx(masternodes::new_state::deregister, deregister_pub_key_1, 0, 0);
     gen.create_and_add_next_block({tx});
   }
 
   gen.add_event_msg("Check that we accept a PoW block");
   {
-    oxen_create_block_params block_params = gen.next_block_params();
-    block_params.type                     = oxen_create_block_type::miner;
+    quenero_create_block_params block_params = gen.next_block_params();
+    block_params.type                     = quenero_create_block_type::miner;
 
-    oxen_blockchain_entry entry = {};
+    quenero_blockchain_entry entry = {};
     bool created = gen.create_block(entry, block_params, {});
     assert(created);
     gen.add_block(entry, true, "Can add a Miner block, we have insufficient nodes for Pulse so we fall back to PoW blocks.");
   }
 
-  oxen_register_callback(events, "check_no_pulse_quorum_exists", [](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_no_pulse_quorum_exists", [](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_no_pulse_quorum_exists");
-    const auto quorum = c.get_quorum(service_nodes::quorum_type::pulse, c.get_current_blockchain_height() - 1, false, nullptr);
+    const auto quorum = c.get_quorum(masternodes::quorum_type::pulse, c.get_current_blockchain_height() - 1, false, nullptr);
     CHECK_TEST_CONDITION(quorum.get() == nullptr);
     return true;
   });
@@ -3247,19 +3247,19 @@ bool oxen_pulse_fallback_to_pow_and_back::generate(std::vector<test_event_entry>
   return true;
 }
 
-bool oxen_pulse_chain_split::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_chain_split::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, std::max(service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN), service_nodes::CHECKPOINT_QUORUM_SIZE));
+  add_masternodes(gen, std::max(masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN), masternodes::CHECKPOINT_QUORUM_SIZE));
 
   gen.create_and_add_next_block();
 
   gen.add_event_msg("Diverge the two chains");
-  oxen_chain_generator fork = gen;
+  quenero_chain_generator fork = gen;
   gen.create_and_add_next_block();
   fork.create_and_add_next_block();
 
@@ -3270,15 +3270,15 @@ bool oxen_pulse_chain_split::generate(std::vector<test_event_entry> &events)
   {
     gen.create_and_add_next_block();
     fork.create_and_add_next_block();
-    std::shared_ptr<const service_nodes::quorum> fork_quorum = fork.get_quorum(service_nodes::quorum_type::checkpointing, fork.height());
+    std::shared_ptr<const masternodes::quorum> fork_quorum = fork.get_quorum(masternodes::quorum_type::checkpointing, fork.height());
     if (fork_quorum && fork_quorum->validators.size()) break;
   }
-  fork.add_service_node_checkpoint(fork.height(), service_nodes::CHECKPOINT_MIN_VOTES);
+  fork.add_masternode_checkpoint(fork.height(), masternodes::CHECKPOINT_MIN_VOTES);
   gen.create_and_add_next_block();
   fork.create_and_add_next_block();
 
   crypto::hash const fork_top_hash = cryptonote::get_block_hash(fork.top().block);
-  oxen_register_callback(events, "check_reorganized_to_pulse_chain_with_checkpoints", [fork_top_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_reorganized_to_pulse_chain_with_checkpoints", [fork_top_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_reorganized_to_pulse_chain_with_checkpoints");
     uint64_t top_height;
@@ -3290,27 +3290,27 @@ bool oxen_pulse_chain_split::generate(std::vector<test_event_entry> &events)
   return true;
 }
 
-// Same as oxen_pulse_chain_split but, we don't use checkpoints. We rely on
+// Same as quenero_pulse_chain_split but, we don't use checkpoints. We rely on
 // Pulse chain weight to switch over.
-bool oxen_pulse_chain_split_with_no_checkpoints::generate(std::vector<test_event_entry> &events)
+bool quenero_pulse_chain_split_with_no_checkpoints::generate(std::vector<test_event_entry> &events)
 {
-  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = oxen_generate_hard_fork_table();
-  oxen_chain_generator gen(events, hard_forks);
+  std::vector<std::pair<uint8_t, uint64_t>> hard_forks = quenero_generate_hard_fork_table();
+  quenero_chain_generator gen(events, hard_forks);
 
   gen.add_blocks_until_version(hard_forks.back().first);
   gen.add_mined_money_unlock_blocks();
-  add_service_nodes(gen, std::max(service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN), service_nodes::CHECKPOINT_QUORUM_SIZE));
+  add_masternodes(gen, std::max(masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN), masternodes::CHECKPOINT_QUORUM_SIZE));
 
   gen.create_and_add_next_block();
 
   gen.add_event_msg("Diverge the two chains");
-  oxen_chain_generator fork = gen;
+  quenero_chain_generator fork = gen;
   gen.create_and_add_next_block();
   fork.create_and_add_next_block();
 
   fork.create_and_add_next_block();
   crypto::hash const fork_top_hash = cryptonote::get_block_hash(fork.top().block);
-  oxen_register_callback(events, "check_reorganized_to_pulse_chain_with_no_checkpoints", [fork_top_hash](cryptonote::core &c, size_t ev_index)
+  quenero_register_callback(events, "check_reorganized_to_pulse_chain_with_no_checkpoints", [fork_top_hash](cryptonote::core &c, size_t ev_index)
   {
     DEFINE_TESTS_ERROR_CONTEXT("check_reorganized_to_pulse_chain_with_no_checkpoints");
     uint64_t top_height;

@@ -40,11 +40,11 @@
 #include "crypto/hash.h"
 #include "epee/int-util.h"
 #include "common/dns_utils.h"
-#include "common/oxen.h"
+#include "common/quenero.h"
 #include <cfenv>
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "cn"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "cn"
 
 namespace cryptonote {
 
@@ -91,7 +91,7 @@ namespace cryptonote {
     return CRYPTONOTE_MAX_TX_SIZE;
   }
   //-----------------------------------------------------------------------------------------------
-  // TODO(oxen): Move into oxen_economy, this will require access to oxen::exp2
+  // TODO(quenero): Move into quenero_economy, this will require access to quenero::exp2
   uint64_t block_reward_unpenalized_formula_v7(uint64_t already_generated_coins, uint64_t height)
   {
     uint64_t emission_supply_component = (already_generated_coins * EMISSION_SUPPLY_MULTIPLIER) / EMISSION_SUPPLY_DIVISOR;
@@ -106,19 +106,19 @@ namespace cryptonote {
   uint64_t block_reward_unpenalized_formula_v8(uint64_t height)
   {
     std::fesetround(FE_TONEAREST);
-    uint64_t result = 28'000'000'000. + 100'000'000'000. / oxen::exp2(height / (720. * 90)); // halve every 90 days.
+    uint64_t result = 28'000'000'000. + 100'000'000'000. / quenero::exp2(height / (720. * 90)); // halve every 90 days.
     return result;
   }
 
   bool get_base_block_reward(size_t median_weight, size_t current_block_weight, uint64_t already_generated_coins, uint64_t &reward, uint64_t &reward_unpenalized, uint8_t version, uint64_t height) {
 
     //premine reward
-    if (already_generated_coins == 0)
+/*    if (already_generated_coins == 0)
     {
       reward = 22'500'000 * COIN;
       return true;
     }
-
+*/
     static_assert((TARGET_BLOCK_TIME % 1min) == 0s, "difficulty targets must be a multiple of a minute");
 
     uint64_t base_reward =

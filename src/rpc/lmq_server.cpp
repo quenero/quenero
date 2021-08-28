@@ -2,8 +2,8 @@
 #include "lmq_server.h"
 #include "oxenmq/oxenmq.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "daemon.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon.rpc"
 
 namespace cryptonote { namespace rpc {
 
@@ -16,19 +16,19 @@ namespace {
 
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_public{
   "lmq-public",
-  "Adds a public, unencrypted OxenMQ RPC listener (with restricted capabilities) at the given "
+  "Adds a public, unencrypted QueneroMQ RPC listener (with restricted capabilities) at the given "
     "address; can be specified multiple times. Examples: tcp://0.0.0.0:5555 (listen on port 5555), "
     "tcp://198.51.100.42:5555 (port 5555 on specific IPv4 address), tcp://[::]:5555, "
     "tcp://[2001:db8::abc]:5555 (IPv6), or ipc:///path/to/socket to listen on a unix domain socket"};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_curve_public{
   "lmq-curve-public",
-  "Adds a curve-encrypted OxenMQ RPC listener at the given address that accepts (restricted) rpc "
+  "Adds a curve-encrypted QueneroMQ RPC listener at the given address that accepts (restricted) rpc "
     "commands from any client. Clients must already know this server's public x25519 key to "
     "establish an encrypted connection."};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_curve{
   "lmq-curve",
-  "Adds a curve-encrypted OxenMQ RPC listener at the given address that only accepts client connections from whitelisted client x25519 pubkeys. "
-    "Clients must already know this server's public x25519 key to establish an encrypted connection. When running in service node mode "
+  "Adds a curve-encrypted QueneroMQ RPC listener at the given address that only accepts client connections from whitelisted client x25519 pubkeys. "
+    "Clients must already know this server's public x25519 key to establish an encrypted connection. When running in masternode mode "
     "the quorumnet port is already listening as if specified with --lmq-curve."};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_admin{
   "lmq-admin",
@@ -38,9 +38,9 @@ const command_line::arg_descriptor<std::vector<std::string>> arg_omq_user{
   "Specifies an x25519 pubkey of a client permitted to connect to the --lmq-curve or quorumnet address(es) with restricted capabilities"};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_local_control{
   "lmq-local-control",
-  "Adds an unencrypted OxenMQ RPC listener with full, unrestricted capabilities and no authentication at the given address. "
+  "Adds an unencrypted QueneroMQ RPC listener with full, unrestricted capabilities and no authentication at the given address. "
 #ifndef _WIN32
-    "Listens at ipc://<data-dir>/oxend.sock if not specified. Specify 'none' to disable the default. "
+    "Listens at ipc://<data-dir>/quenerod.sock if not specified. Specify 'none' to disable the default. "
 #endif
     "WARNING: Do not use this on a publicly accessible address!"};
 
@@ -102,7 +102,7 @@ omq_rpc::omq_rpc(cryptonote::core& core, core_rpc_server& rpc, const boost::prog
   auto& omq = core.get_omq();
   auto& auth = core._omq_auth_level_map();
 
-  // Set up any requested listening sockets.  (Note: if we are a service node, we'll already have
+  // Set up any requested listening sockets.  (Note: if we are a masternode, we'll already have
   // the quorumnet listener set up in cryptonote_core).
   for (const auto &addr : command_line::get_arg(vm, arg_omq_public)) {
     check_omq_listen_addr(addr);
@@ -131,9 +131,9 @@ omq_rpc::omq_rpc(cryptonote::core& core, core_rpc_server& rpc, const boost::prog
     // windows.  In theory we could do some runtime detection to see if the Windows version is new
     // enough to support unix domain sockets, but for now the Windows default is just "don't listen"
 #ifndef _WIN32
-    // Push default .oxen/oxend.sock
+    // Push default .quenero/quenerod.sock
     locals.push_back("ipc://" + core.get_config_directory().u8string() + "/" + CRYPTONOTE_NAME + "d.sock");
-    // Pushing old default lokid.sock onto the list. A symlink from .loki -> .oxen so the user should be able
+    // Pushing old default lokid.sock onto the list. A symlink from .loki -> .quenero so the user should be able
     // to communicate via the old .loki/lokid.sock
     locals.push_back("ipc://" + core.get_config_directory().u8string() + "/lokid.sock");
 #endif

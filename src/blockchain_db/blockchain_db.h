@@ -97,7 +97,7 @@
  *   KEY_IMAGE_EXISTS
  */
 
-namespace service_nodes {
+namespace masternodes {
 struct proof_info;
 }
 
@@ -1645,7 +1645,7 @@ public:
    * @param: blkid: the block hash
    * @param: data: the metadata for the block
    * @param: header: the alt block's header
-   * @param: checkpoint: the Service Nodee checkpoint associated with the block
+   * @param: checkpoint: the Masternodee checkpoint associated with the block
    *
    * @return true if the block was found in the alternative blocks list, false otherwise
    */
@@ -1842,23 +1842,23 @@ public:
 
   virtual void get_output_blacklist(std::vector<uint64_t> &blacklist) const   = 0;
   virtual void add_output_blacklist(std::vector<uint64_t> const &blacklist)   = 0;
-  virtual void set_service_node_data(const std::string& data, bool long_term) = 0;
-  virtual bool get_service_node_data(std::string &data, bool long_term) const = 0;
-  virtual void clear_service_node_data()                                      = 0;
+  virtual void set_masternode_data(const std::string& data, bool long_term) = 0;
+  virtual bool get_masternode_data(std::string &data, bool long_term) const = 0;
+  virtual void clear_masternode_data()                                      = 0;
 
-  /// Updates the given proof data with the latest stored info for the given service node.  Returns
+  /// Updates the given proof data with the latest stored info for the given masternode.  Returns
   /// true if found (and fields updated), false otherwise.
-  virtual bool get_service_node_proof(const crypto::public_key &pubkey, service_nodes::proof_info &proof) const = 0;
+  virtual bool get_masternode_proof(const crypto::public_key &pubkey, masternodes::proof_info &proof) const = 0;
 
-  /// Returns pubkeys and proof data for all currently stored service nodes.
-  virtual std::unordered_map<crypto::public_key, service_nodes::proof_info> get_all_service_node_proofs() const = 0;
+  /// Returns pubkeys and proof data for all currently stored masternodes.
+  virtual std::unordered_map<crypto::public_key, masternodes::proof_info> get_all_masternode_proofs() const = 0;
 
-  /// Creates or updates the proof data for a service node from a proof.
-  virtual void set_service_node_proof(const crypto::public_key &pubkey, const service_nodes::proof_info &proof) = 0;
+  /// Creates or updates the proof data for a masternode from a proof.
+  virtual void set_masternode_proof(const crypto::public_key &pubkey, const masternodes::proof_info &proof) = 0;
 
   /// Removes stored serialized proof sn data associated with the given pubkey.  Returns true if
   /// found, false if not found.
-  virtual bool remove_service_node_proof(const crypto::public_key &pubkey) = 0;
+  virtual bool remove_masternode_proof(const crypto::public_key &pubkey) = 0;
 
   // This function accepts an empty timestamps/difficulties array to fill, or
   // a prior timestamps/difficulties array that was filled by a previous call to

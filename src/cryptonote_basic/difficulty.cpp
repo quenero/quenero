@@ -31,14 +31,14 @@
 
 #include <algorithm>
 
-#include "common/oxen.h"
+#include "common/quenero.h"
 #include "epee/int-util.h"
 #include "crypto/hash.h"
 #include "difficulty.h"
 #include "hardfork.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "difficulty"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "difficulty"
 
 namespace cryptonote {
 
@@ -166,10 +166,9 @@ namespace cryptonote {
   difficulty_calc_mode difficulty_mode(cryptonote::network_type nettype, uint8_t hf_version, uint64_t height)
   {
     static const uint64_t hf12_height = cryptonote::HardFork::get_hardcoded_hard_fork_height(nettype, cryptonote::network_version_12_checkpointing);
-    static const uint64_t hf16_height = cryptonote::HardFork::get_hardcoded_hard_fork_height(nettype, cryptonote::network_version_16_pulse);
     auto result = difficulty_calc_mode::normal;
 
-    if (hf_version <= cryptonote::network_version_9_service_nodes)
+    if (hf_version <= cryptonote::network_version_9_masternodes)
     {
       result = difficulty_calc_mode::use_old_lwma;
     }
@@ -179,10 +178,6 @@ namespace cryptonote {
              height < hf12_height + (DIFFICULTY_WINDOW + 1))
     {
       result = difficulty_calc_mode::hf12_override;
-    }
-    else if (nettype == MAINNET && height >= hf16_height && height < hf16_height + (DIFFICULTY_WINDOW + 1))
-    {
-      result = difficulty_calc_mode::hf16_override;
     }
 
     return result;
@@ -236,7 +231,7 @@ namespace cryptonote {
     harmonic_mean_D = N / sum_inverse_D;
 
     // Keep LWMA sane in case something unforeseen occurs.
-    if (static_cast<int64_t>(oxen::round(LWMA)) < T / 20)
+    if (static_cast<int64_t>(quenero::round(LWMA)) < T / 20)
       LWMA = static_cast<double>(T / 20);
 
     nextDifficulty = harmonic_mean_D * T / LWMA * adjust;
@@ -253,8 +248,6 @@ namespace cryptonote {
     // prevent too-long blocks right after the fork.
     if (mode == difficulty_calc_mode::hf12_override)
       return std::min(next_difficulty, 30'000'000 * uint64_t(target_seconds));
-    else if (mode == difficulty_calc_mode::hf16_override)
-      return std::min(next_difficulty, PULSE_FIXED_DIFFICULTY);
 
     return next_difficulty;
   }

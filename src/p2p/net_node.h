@@ -275,7 +275,7 @@ namespace nodetool
   private:
     const std::vector<std::string> m_seed_nodes_list =
     {
-      // TODO(oxen): "seeds.oxen.network"
+      // TODO(quenero): "seeds.quenero.network"
     };
 
     bool islimitup=false;

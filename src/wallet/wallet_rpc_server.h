@@ -44,8 +44,8 @@
 #include "wallet2.h"
 #include "rpc/http_server_base.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "wallet.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.rpc"
 
 namespace tools
 {
@@ -155,7 +155,7 @@ namespace tools
     wallet_rpc::SET_LOG_CATEGORIES::response              invoke(wallet_rpc::SET_LOG_CATEGORIES::request&& req);
     wallet_rpc::GET_VERSION::response                     invoke(wallet_rpc::GET_VERSION::request&& req);
     wallet_rpc::STAKE::response                           invoke(wallet_rpc::STAKE::request&& req);
-    wallet_rpc::REGISTER_SERVICE_NODE::response           invoke(wallet_rpc::REGISTER_SERVICE_NODE::request&& req);
+    wallet_rpc::REGISTER_MASTERNODE::response           invoke(wallet_rpc::REGISTER_MASTERNODE::request&& req);
     wallet_rpc::CAN_REQUEST_STAKE_UNLOCK::response        invoke(wallet_rpc::CAN_REQUEST_STAKE_UNLOCK::request&& req);
     wallet_rpc::REQUEST_STAKE_UNLOCK::response            invoke(wallet_rpc::REQUEST_STAKE_UNLOCK::request&& req);
     wallet_rpc::ONS_BUY_MAPPING::response                 invoke(wallet_rpc::ONS_BUY_MAPPING::request&& req);

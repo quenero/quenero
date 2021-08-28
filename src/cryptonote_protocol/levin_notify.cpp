@@ -43,8 +43,8 @@
 #include "net/dandelionpp.h"
 #include "p2p/net_node.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "net.p2p.tx"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "net.p2p.tx"
 
 namespace cryptonote
 {

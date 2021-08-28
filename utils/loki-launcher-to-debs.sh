@@ -274,13 +274,13 @@ get_value() {
 
 declare -A json
 json[getinfo]=$(get_value 30 curl -sS http://localhost:$_rpc/get_info)
-json[pubkeys]=$(get_value 3 curl -sSX POST http://localhost:$_rpc/json_rpc -d '{"jsonrpc":"2.0","id":"0","method":"get_service_node_key"}')
-json[privkeys]=$(get_value 3 curl -sSX POST http://localhost:$_rpc/json_rpc -d '{"jsonrpc":"2.0","id":"0","method":"get_service_node_privkey"}')
+json[pubkeys]=$(get_value 3 curl -sSX POST http://localhost:$_rpc/json_rpc -d '{"jsonrpc":"2.0","id":"0","method":"get_masternode_key"}')
+json[privkeys]=$(get_value 3 curl -sSX POST http://localhost:$_rpc/json_rpc -d '{"jsonrpc":"2.0","id":"0","method":"get_masternode_privkey"}')
 echo " done."
 
 # Get the privkey off disk (to compare)
 privkey_disk=$(od -An -tx1 -v $datadir/key | tr -d ' \n')
-privkey_rpc=$(jq -r .result.service_node_privkey <<<"${json[privkeys]}")
+privkey_rpc=$(jq -r .result.masternode_privkey <<<"${json[privkeys]}")
 
 if [ "$privkey_disk" != "$privkey_rpc" ]; then
     die "Error: your SN private key obtained from lokid doesn't match the one on disk!"
@@ -356,7 +356,7 @@ cat <<DETAILS
 ${BGREEN}Summary: this script detected the following settings to migrate:${RESET}
 
 lokid:
-- service node pubkey: $BOLD$(jq -r .result.service_node_pubkey <<<"${json[pubkeys]}")$RESET
+- masternode pubkey: $BOLD$(jq -r .result.masternode_pubkey <<<"${json[pubkeys]}")$RESET
 - data directory: $BOLD$datadir$RESET (=> $BOLD/var/lib/loki$RESET)
 - p2p/rpc/qnet ports: $BOLD$lokid_p2p/$lokid_rpc/$lokid_qnet$RESET
 

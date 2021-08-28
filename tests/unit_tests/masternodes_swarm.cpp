@@ -29,7 +29,7 @@
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #include "gtest/gtest.h"
-#include "cryptonote_core/service_node_swarm.h"
+#include "cryptonote_core/masternode_swarm.h"
 #include "cryptonote_basic/cryptonote_basic.h"
 
 #include <functional>
@@ -39,7 +39,7 @@
 #undef LOKI_DEFAULT_LOG_CATEGORY
 #define LOKI_DEFAULT_LOG_CATEGORY "sn_unit_tests"
 
-using namespace service_nodes;
+using namespace masternodes;
 
 crypto::public_key newPubKey() {
   return cryptonote::keypair{hw::get_device("default")}.pub;

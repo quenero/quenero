@@ -25,11 +25,11 @@ int usage(int exit_code, std::string_view msg = ""sv) {
 
 generate [--overwrite] FILENAME
 
-    Generates a new Ed25519 service node keypair and writes the secret key to
+    Generates a new Ed25519 masternode keypair and writes the secret key to
     FILENAME.  If FILENAME contains the string "PUBKEY" it will be replaced
     with the generated public key value (in hex).
 
-    For an active service node this file is named `key_ed25519` in the oxend
+    For an active masternode this file is named `key_ed25519` in the quenerod
     data directory.
 
     If FILENAME already exists the command will fail unless the `--overwrite`
@@ -37,20 +37,20 @@ generate [--overwrite] FILENAME
 
 legacy [--overwrite] FILENAME
 
-    Generates a new service node legacy keypair and write the private key to
+    Generates a new masternode legacy keypair and write the private key to
     FILENAME. If FILENAME contains the string "PUBKEY" it will be replaced with
     the generated public key value (in hex).
 
     If FILENAME already exists the command will fail unless the `--overwrite`
     flag is specified.
 
-    Note that legacy keypairs are not needed as of Oxen 8.x; you can use just a
-    Ed25519 keypair (and this is the default for new service node
+    Note that legacy keypairs are not needed as of Quenero 8.x; you can use just a
+    Ed25519 keypair (and this is the default for new masternode
     installations).
 
 show [--ed25519|--legacy] FILENAME
 
-    Reads FILENAME as a service node secret key (Ed25519 or legacy) and
+    Reads FILENAME as a masternode secret key (Ed25519 or legacy) and
     displays it as a hex value along with the associated public key.  The
     displayed secret key can be saved and later used to recreate the secret key
     file with the `restore` command.
@@ -312,7 +312,7 @@ int restore(bool ed25519, std::list<std::string_view> args) {
         if (ed25519 && filename.size() >= 4 && filename.substr(filename.size() - 4) == "/key") {
             std::cout << "\n\n\x1b[31;1m"
                 "Warning: You are trying to restore a file named 'key' using the 'restore'\n"
-                "command, which is intended for the key_ed25519 key file; for old service nodes\n"
+                "command, which is intended for the key_ed25519 key file; for old masternodes\n"
                 "with both key files you want to use 'restore-legacy' to restore the old\n"
                 "(pre-Loki 8.x) pubkey.\x1b[0m\n";
         }

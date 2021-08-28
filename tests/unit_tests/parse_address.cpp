@@ -1,4 +1,4 @@
-// Copyright (c) 2021, The Oxen Project
+// Copyright (c) 2021, The Quenero Project
 // 
 // All rights reserved.
 // 

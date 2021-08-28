@@ -30,13 +30,13 @@
 add_library(cryptonote_core
   blockchain.cpp
   cryptonote_core.cpp
-  service_node_rules.cpp
-  service_node_list.cpp
-  service_node_voting.cpp
-  service_node_quorum_cop.cpp
-  service_node_swarm.cpp
+  masternode_rules.cpp
+  masternode_list.cpp
+  masternode_voting.cpp
+  masternode_quorum_cop.cpp
+  masternode_swarm.cpp
   tx_blink.cpp
-  oxen_name_system.cpp
+  quenero_name_system.cpp
   tx_pool.cpp
   tx_sanity_check.cpp
   cryptonote_tx_utils.cpp

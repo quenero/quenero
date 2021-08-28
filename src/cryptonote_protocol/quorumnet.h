@@ -32,7 +32,7 @@
 
 #include <vector>
 
-namespace service_nodes {
+namespace masternodes {
     struct quorum_vote_t;
 };
 

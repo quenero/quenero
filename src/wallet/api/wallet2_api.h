@@ -602,7 +602,7 @@ struct Wallet
     }
 
    /**
-    * @brief listCurrentStakes - returns a list of the wallets locked stakes, provides both service node address and the staked amount
+    * @brief listCurrentStakes - returns a list of the wallets locked stakes, provides both masternode address and the staked amount
     * @return
     */
     virtual std::vector<std::pair<std::string, uint64_t>>* listCurrentStakes() const = 0;
@@ -656,7 +656,7 @@ struct Wallet
     static uint64_t amountFromDouble(double amount);
     static std::string genPaymentId();
     static bool paymentIdValid(const std::string &paiment_id);
-    /// Check if the string represents a valid public key (regardless of whether the service node actually exists or not)
+    /// Check if the string represents a valid public key (regardless of whether the masternode actually exists or not)
     static bool serviceNodePubkeyValid(const std::string &str);
     static bool addressValid(const std::string &str, NetworkType nettype);
     static bool keyValid(const std::string &secret_key_string, const std::string &address_string, bool isViewKey, NetworkType nettype, std::string &error);
@@ -1018,7 +1018,7 @@ struct Wallet
     virtual Device getDeviceType() const = 0;
 
     /// Prepare a staking transaction; return nullptr on failure
-    virtual PendingTransaction* stakePending(const std::string& service_node_key, const uint64_t& amount) = 0;
+    virtual PendingTransaction* stakePending(const std::string& masternode_key, const uint64_t& amount) = 0;
 
     virtual StakeUnlockResult* canRequestStakeUnlock(const std::string &sn_key) = 0;
 

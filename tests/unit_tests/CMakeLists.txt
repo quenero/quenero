@@ -51,7 +51,7 @@ add_executable(unit_tests
   keccak.cpp
   levin.cpp
   logging.cpp
-  oxen_name_system.cpp
+  quenero_name_system.cpp
   long_term_block_weight.cpp
   lmdb.cpp
   main.cpp
@@ -71,8 +71,8 @@ add_executable(unit_tests
   random.cpp
   rolling_median.cpp
   serialization.cpp
-  service_nodes.cpp
-  service_nodes_swarm.cpp
+  masternodes.cpp
+  masternodes_swarm.cpp
   sha256.cpp
   string_util.cpp
   subaddress.cpp

@@ -47,11 +47,11 @@
 #include "crypto/hash.h"
 #include "ringct/rctSigs.h"
 #include "cryptonote_basic/verification_context.h"
-#include "cryptonote_core/service_node_voting.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/masternode_voting.h"
+#include "cryptonote_core/quenero_name_system.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "cn"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "cn"
 
 using namespace crypto;
 
@@ -642,13 +642,13 @@ namespace cryptonote
     return true;
   }
 
-  bool add_service_node_state_change_to_tx_extra(std::vector<uint8_t>& tx_extra, const tx_extra_service_node_state_change& state_change, const uint8_t hf_version)
+  bool add_masternode_state_change_to_tx_extra(std::vector<uint8_t>& tx_extra, const tx_extra_masternode_state_change& state_change, const uint8_t hf_version)
   {
     tx_extra_field field;
     if (hf_version < network_version_12_checkpointing)
     {
-      CHECK_AND_ASSERT_MES(state_change.state == service_nodes::new_state::deregister, false, "internal error: cannot construct an old deregistration for a non-deregistration state change (before hardfork v12)");
-      field = tx_extra_service_node_deregister_old{state_change};
+      CHECK_AND_ASSERT_MES(state_change.state == masternodes::new_state::deregister, false, "internal error: cannot construct an old deregistration for a non-deregistration state change (before hardfork v12)");
+      field = tx_extra_masternode_deregister_old{state_change};
     }
     else
     {
@@ -656,28 +656,28 @@ namespace cryptonote
     }
 
     bool r = add_tx_extra_field_to_tx_extra(tx_extra, field);
-    CHECK_AND_ASSERT_MES(r, false, "failed to serialize tx extra service node state change");
+    CHECK_AND_ASSERT_MES(r, false, "failed to serialize tx extra masternode state change");
     return true;
   }
 
   //---------------------------------------------------------------
-  void add_service_node_pubkey_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& pubkey)
+  void add_masternode_pubkey_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& pubkey)
   {
-    add_tx_extra<tx_extra_service_node_pubkey>(tx_extra, pubkey);
+    add_tx_extra<tx_extra_masternode_pubkey>(tx_extra, pubkey);
   }
   //---------------------------------------------------------------
-  bool get_service_node_pubkey_from_tx_extra(const std::vector<uint8_t>& tx_extra, crypto::public_key& pubkey)
+  bool get_masternode_pubkey_from_tx_extra(const std::vector<uint8_t>& tx_extra, crypto::public_key& pubkey)
   {
-    tx_extra_service_node_pubkey pk;
+    tx_extra_masternode_pubkey pk;
     if (!get_field_from_tx_extra(tx_extra, pk))
       return false;
-    pubkey = pk.m_service_node_key;
+    pubkey = pk.m_masternode_key;
     return true;
   }
   //---------------------------------------------------------------
-  void add_service_node_contributor_to_tx_extra(std::vector<uint8_t>& tx_extra, const cryptonote::account_public_address& address)
+  void add_masternode_contributor_to_tx_extra(std::vector<uint8_t>& tx_extra, const cryptonote::account_public_address& address)
   {
-    add_tx_extra<tx_extra_service_node_contributor>(tx_extra, address);
+    add_tx_extra<tx_extra_masternode_contributor>(tx_extra, address);
   }
   //---------------------------------------------------------------
   bool get_tx_secret_key_from_tx_extra(const std::vector<uint8_t>& tx_extra, crypto::secret_key& key)
@@ -710,9 +710,9 @@ namespace cryptonote
     return result;
   }
   //---------------------------------------------------------------
-  bool get_service_node_contributor_from_tx_extra(const std::vector<uint8_t>& tx_extra, cryptonote::account_public_address& address)
+  bool get_masternode_contributor_from_tx_extra(const std::vector<uint8_t>& tx_extra, cryptonote::account_public_address& address)
   {
-    tx_extra_service_node_contributor contributor;
+    tx_extra_masternode_contributor contributor;
     if (!get_field_from_tx_extra(tx_extra, contributor))
       return false;
     address.m_spend_public_key = contributor.m_spend_public_key;
@@ -720,13 +720,13 @@ namespace cryptonote
     return true;
   }
   //---------------------------------------------------------------
-  bool add_service_node_register_to_tx_extra(
+  bool add_masternode_register_to_tx_extra(
       std::vector<uint8_t>& tx_extra,
       const std::vector<cryptonote::account_public_address>& addresses,
       uint64_t portions_for_operator,
       const std::vector<uint64_t>& portions,
       uint64_t expiration_timestamp,
-      const crypto::signature& service_node_signature)
+      const crypto::signature& masternode_signature)
   {
     if (addresses.size() != portions.size())
     {
@@ -742,13 +742,13 @@ namespace cryptonote
     }
     // convert to variant
     tx_extra_field field =
-      tx_extra_service_node_register{
+      tx_extra_masternode_register{
         public_spend_keys,
         public_view_keys,
         portions_for_operator,
         portions,
         expiration_timestamp,
-        service_node_signature
+        masternode_signature
       };
 
     bool r = add_tx_extra_field_to_tx_extra(tx_extra, field);
@@ -756,12 +756,12 @@ namespace cryptonote
     return true;
   }
   //---------------------------------------------------------------
-  void add_service_node_winner_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& winner)
+  void add_masternode_winner_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& winner)
   {
-    add_tx_extra<tx_extra_service_node_winner>(tx_extra, winner);
+    add_tx_extra<tx_extra_masternode_winner>(tx_extra, winner);
   }
   //---------------------------------------------------------------
-  bool get_service_node_state_change_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_service_node_state_change &state_change, const uint8_t hf_version)
+  bool get_masternode_state_change_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_masternode_state_change &state_change, const uint8_t hf_version)
   {
     if (hf_version >= cryptonote::network_version_12_checkpointing) {
       // Look for a new-style state change field:
@@ -769,26 +769,26 @@ namespace cryptonote
     }
 
     // v11 or earlier; parse the old style and copy into a new style
-    tx_extra_service_node_deregister_old dereg;
+    tx_extra_masternode_deregister_old dereg;
     if (!get_field_from_tx_extra(tx_extra, dereg))
       return false;
 
-    state_change = tx_extra_service_node_state_change{
-      tx_extra_service_node_state_change::version_t::v0,
-      service_nodes::new_state::deregister, dereg.block_height, dereg.service_node_index, 0, 0, {dereg.votes.begin(), dereg.votes.end()}};
+    state_change = tx_extra_masternode_state_change{
+      tx_extra_masternode_state_change::version_t::v0,
+      masternodes::new_state::deregister, dereg.block_height, dereg.masternode_index, 0, 0, {dereg.votes.begin(), dereg.votes.end()}};
     return true;
   }
   //---------------------------------------------------------------
-  crypto::public_key get_service_node_winner_from_tx_extra(const std::vector<uint8_t>& tx_extra)
+  crypto::public_key get_masternode_winner_from_tx_extra(const std::vector<uint8_t>& tx_extra)
   {
     // find corresponding field
-    tx_extra_service_node_winner winner;
+    tx_extra_masternode_winner winner;
     if (get_field_from_tx_extra(tx_extra, winner))
-      return winner.m_service_node_key;
+      return winner.m_masternode_key;
     return crypto::null_pkey;
   }
   //---------------------------------------------------------------
-  void add_oxen_name_system_to_tx_extra(std::vector<uint8_t> &tx_extra, tx_extra_oxen_name_system const &entry)
+  void add_quenero_name_system_to_tx_extra(std::vector<uint8_t> &tx_extra, tx_extra_quenero_name_system const &entry)
   {
     tx_extra_field field = entry;
     add_tx_extra_field_to_tx_extra(tx_extra, field);
@@ -1059,7 +1059,7 @@ namespace cryptonote
     switch (decimal_point)
     {
       case 9:
-        return "oxen";
+        return "quenero";
       case 6:
         return "megarok";
       case 3:
@@ -1106,8 +1106,8 @@ namespace cryptonote
     if (tvc.m_fee_too_low)               os << "Fee too low, ";
     if (tvc.m_invalid_version)           os << "TX has invalid version, ";
     if (tvc.m_invalid_type)              os << "TX has invalid type, ";
-    if (tvc.m_key_image_locked_by_snode) os << "Key image is locked by service node, ";
-    if (tvc.m_key_image_blacklisted)     os << "Key image is blacklisted on the service node network, ";
+    if (tvc.m_key_image_locked_by_snode) os << "Key image is locked by masternode, ";
+    if (tvc.m_key_image_blacklisted)     os << "Key image is blacklisted on the masternode network, ";
 
     if (tx)
       os << "TX Version: " << tx->version << ", Type: " << tx->type;
@@ -1119,7 +1119,7 @@ namespace cryptonote
     return buf;
   }
   //---------------------------------------------------------------
-  std::string print_vote_verification_context(vote_verification_context const &vvc, service_nodes::quorum_vote_t const *vote)
+  std::string print_vote_verification_context(vote_verification_context const &vvc, masternodes::quorum_vote_t const *vote)
   {
     std::ostringstream os;
 
@@ -1135,9 +1135,9 @@ namespace cryptonote
       os << "Incorrect voting group specified";
       if (vote)
       {
-        if (vote->group == service_nodes::quorum_group::validator)
+        if (vote->group == masternodes::quorum_group::validator)
           os << ": validator";
-        else if (vote->group == service_nodes::quorum_group::worker)
+        else if (vote->group == masternodes::quorum_group::worker)
           os << ": worker";
         else
           os << ": " << static_cast<int>(vote->group);
@@ -1277,7 +1277,7 @@ namespace cryptonote
     const blobdata blob = tx_to_blob(t);
     CHECK_AND_ASSERT_MES(!blob.empty(), false, "Failed to convert tx to blob");
 
-    // TODO(oxen): Not sure if this is the right fix, we may just want to set
+    // TODO(quenero): Not sure if this is the right fix, we may just want to set
     // unprunable size to the size of the prefix because technically that is
     // what it is and then keep this code path.
     if (t.is_transfer())

@@ -41,8 +41,8 @@
 #include "epee/string_tools.h"
 
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "wallet.mms"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.mms"
 
 namespace mms
 {

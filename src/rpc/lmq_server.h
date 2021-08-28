@@ -33,14 +33,14 @@
 #include "cryptonote_core/blockchain.h"
 #include "oxenmq/connections.h"
 
-namespace oxenmq { class OxenMQ; }
+namespace oxenmq { class QueneroMQ; }
 
 namespace cryptonote { namespace rpc {
 
 void init_omq_options(boost::program_options::options_description& desc);
 
 /**
- * LMQ RPC server class.  This doesn't actually hold the OxenMQ instance--that's in
+ * LMQ RPC server class.  This doesn't actually hold the QueneroMQ instance--that's in
  * cryptonote_core--but it works with it to add RPC endpoints, make it listen on RPC ports, and
  * handles RPC requests.
  */

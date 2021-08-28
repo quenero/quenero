@@ -1,0 +1,27 @@
+FROM quenero-ubuntu:20.04
+
+RUN apt-get -y install quenerod quenero-wallet-cli
+
+ARG USER_ID
+ARG GROUP_ID
+
+# https://vsupalov.com/docker-shared-permissions/
+# removed due to "addgroup: The GID `100' is already in use"
+# RUN addgroup --gid $GROUP_ID quenero && 
+
+RUN adduser --system --disabled-password --uid $USER_ID --gid $GROUP_ID quenero && \
+    mkdir -p /wallet /home/quenero/.quenero && \
+    chown -R quenero:$GROUP_ID /home/quenero/.quenero && \
+    chown -R quenero:$GROUP_ID /wallet
+
+# Contains the blockchain
+VOLUME /home/quenero/.quenero
+
+EXPOSE 22022
+EXPOSE 22023
+
+# switch to user quenero
+USER quenero
+WORKDIR /home/quenero
+
+ENTRYPOINT ["quenerod", "--p2p-bind-ip=0.0.0.0", "--p2p-bind-port=22022", "--rpc-admin=0.0.0.0:22023", "--non-interactive"]

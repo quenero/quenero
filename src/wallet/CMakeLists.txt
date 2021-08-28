@@ -56,7 +56,7 @@ target_link_libraries(wallet
     OpenSSL::Crypto
     extra)
 
-oxen_add_executable(wallet_rpc_server "oxen-wallet-rpc"
+quenero_add_executable(wallet_rpc_server "quenero-wallet-rpc"
   wallet_rpc_server.cpp
   wallet_rpc_server_commands_defs.cpp
   )

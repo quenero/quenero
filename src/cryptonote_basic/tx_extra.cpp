@@ -2,7 +2,7 @@
 
 namespace cryptonote {
 
-tx_extra_oxen_name_system tx_extra_oxen_name_system::make_buy(
+tx_extra_quenero_name_system tx_extra_quenero_name_system::make_buy(
     ons::generic_owner const& owner,
     ons::generic_owner const* backup_owner,
     ons::mapping_type type,
@@ -10,7 +10,7 @@ tx_extra_oxen_name_system tx_extra_oxen_name_system::make_buy(
     const std::string& encrypted_value,
     const crypto::hash& prev_txid)
 {
-  tx_extra_oxen_name_system result{};
+  tx_extra_quenero_name_system result{};
   result.fields = ons::extra_field::buy;
   result.owner = owner;
 
@@ -26,12 +26,12 @@ tx_extra_oxen_name_system tx_extra_oxen_name_system::make_buy(
   return result;
 }
 
-tx_extra_oxen_name_system tx_extra_oxen_name_system::make_renew(
+tx_extra_quenero_name_system tx_extra_quenero_name_system::make_renew(
     ons::mapping_type type, crypto::hash const &name_hash, crypto::hash const &prev_txid)
 {
-  assert(is_lokinet_type(type) && prev_txid);
+  assert(prev_txid);
 
-  tx_extra_oxen_name_system result{};
+  tx_extra_quenero_name_system result{};
   result.fields = ons::extra_field::none;
   result.type = type;
   result.name_hash = name_hash;
@@ -39,7 +39,7 @@ tx_extra_oxen_name_system tx_extra_oxen_name_system::make_renew(
   return result;
 }
 
-tx_extra_oxen_name_system tx_extra_oxen_name_system::make_update(
+tx_extra_quenero_name_system tx_extra_quenero_name_system::make_update(
     const ons::generic_signature& signature,
     ons::mapping_type type,
     const crypto::hash& name_hash,
@@ -48,7 +48,7 @@ tx_extra_oxen_name_system tx_extra_oxen_name_system::make_update(
     const ons::generic_owner* backup_owner,
     const crypto::hash& prev_txid)
 {
-  tx_extra_oxen_name_system result{};
+  tx_extra_quenero_name_system result{};
   result.signature = signature;
   result.type = type;
   result.name_hash = name_hash;

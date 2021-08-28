@@ -44,9 +44,9 @@
 #include "common/command_line.h"
 #include "tx_pool.h"
 #include "blockchain.h"
-#include "service_node_voting.h"
-#include "service_node_list.h"
-#include "service_node_quorum_cop.h"
+#include "masternode_voting.h"
+#include "masternode_list.h"
+#include "masternode_quorum_cop.h"
 #include "pulse.h"
 #include "cryptonote_basic/miner.h"
 #include "cryptonote_basic/connection_context.h"
@@ -56,7 +56,7 @@
 PUSH_WARNINGS
 DISABLE_VS_WARNINGS(4355)
 
-#include "common/oxen_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 namespace cryptonote
 {
    struct test_options {
@@ -77,26 +77,26 @@ namespace cryptonote
   // cryptonote_protocol/quorumnet.cpp's quorumnet::init_core_callbacks().  This indirection is here
   // so that core doesn't need to link against cryptonote_protocol (plus everything it depends on).
 
-  // Initializes quorumnet state (for service nodes only).  This is called after the OxenMQ object
+  // Initializes quorumnet state (for masternodes only).  This is called after the QueneroMQ object
   // has been set up but before it starts listening.  Return an opaque pointer (void *) that gets
   // passed into all the other callbacks below so that the callbacks can recast it into whatever it
   // should be.
   using quorumnet_new_proc = void *(core &core);
   // Initializes quorumnet; unlike `quorumnet_new_proc` this needs to be called for all nodes, not
-  // just service nodes.  The second argument should be the `quorumnet_new` return value if a
-  // service node, nullptr if not.
+  // just masternodes.  The second argument should be the `quorumnet_new` return value if a
+  // masternode, nullptr if not.
   using quorumnet_init_proc = void (core &core, void *self);
-  // Destroys the quorumnet state; called on shutdown *after* the OxenMQ object has been destroyed.
+  // Destroys the quorumnet state; called on shutdown *after* the QueneroMQ object has been destroyed.
   // Should destroy the state object and set the pointer reference to nullptr.
   using quorumnet_delete_proc = void (void *&self);
   // Relays votes via quorumnet.
-  using quorumnet_relay_obligation_votes_proc = void (void *self, const std::vector<service_nodes::quorum_vote_t> &votes);
+  using quorumnet_relay_obligation_votes_proc = void (void *self, const std::vector<masternodes::quorum_vote_t> &votes);
   // Sends a blink tx to the current blink quorum, returns a future that can be used to wait for the
   // result.
   using quorumnet_send_blink_proc = std::future<std::pair<blink_result, std::string>> (core& core, const std::string& tx_blob);
 
   // Relay a Pulse message to members specified in the quorum excluding the originating message owner.
-  using quorumnet_pulse_relay_message_to_quorum_proc = void (void *, pulse::message const &msg, service_nodes::quorum const &quorum, bool block_producer);
+  using quorumnet_pulse_relay_message_to_quorum_proc = void (void *, pulse::message const &msg, masternodes::quorum const &quorum, bool block_producer);
 
   // Function pointer that we invoke when the mempool has changed; this gets set during
   // rpc/http_server.cpp's init_options().
@@ -297,8 +297,8 @@ namespace cryptonote
      int add_blinks(const std::vector<std::shared_ptr<blink_tx>> &blinks);
 
      /**
-      * @brief handles an incoming blink transaction by dispatching it to the service node network
-      * via quorumnet.  If this node is not a service node this will start up quorumnet in
+      * @brief handles an incoming blink transaction by dispatching it to the masternode network
+      * via quorumnet.  If this node is not a masternode this will start up quorumnet in
       * remote-only mode the first time it is called.
       *
       * @param tx_blob the transaction data
@@ -348,7 +348,7 @@ namespace cryptonote
       */
      bool check_incoming_block_size(const blobdata& block_blob) const;
 
-     /// Called (from service_node_quorum_cop) to tell quorumnet that it need to refresh its list of
+     /// Called (from masternode_quorum_cop) to tell quorumnet that it need to refresh its list of
      /// active SNs.
      void update_omq_sns();
 
@@ -573,11 +573,11 @@ namespace cryptonote
       */
      size_t get_alternative_blocks_count() const;
 
-     // Returns a bool on whether the service node is currently active
+     // Returns a bool on whether the masternode is currently active
      bool is_active_sn() const;
 
-     // Returns the service nodes info
-     std::shared_ptr<const service_nodes::service_node_info> get_my_sn_info() const;
+     // Returns the masternodes info
+     std::shared_ptr<const masternodes::masternode_info> get_my_sn_info() const;
 
      /**
       * Returns a short daemon status summary string.  Used when built with systemd support and
@@ -687,19 +687,19 @@ namespace cryptonote
       */
      const Blockchain& get_blockchain_storage()const{return m_blockchain_storage;}
 
-     /// @brief return a reference to the service node list
-     const service_nodes::service_node_list &get_service_node_list() const { return m_service_node_list; }
-     /// @brief return a reference to the service node list
-     service_nodes::service_node_list &get_service_node_list() { return m_service_node_list; }
+     /// @brief return a reference to the masternode list
+     const masternodes::masternode_list &get_masternode_list() const { return m_masternode_list; }
+     /// @brief return a reference to the masternode list
+     masternodes::masternode_list &get_masternode_list() { return m_masternode_list; }
 
      /// @brief return a reference to the tx pool
      const tx_memory_pool &get_pool() const { return m_mempool; }
-     /// @brief return a reference to the service node list
+     /// @brief return a reference to the masternode list
      tx_memory_pool &get_pool() { return m_mempool; }
 
-     /// Returns a reference to the OxenMQ object.  Must not be called before init(), and should not
+     /// Returns a reference to the QueneroMQ object.  Must not be called before init(), and should not
      /// be used for any omq communication until after start_oxenmq() has been called.
-     oxenmq::OxenMQ& get_omq() { return *m_omq; }
+     oxenmq::QueneroMQ& get_omq() { return *m_omq; }
 
      /**
       * @copydoc miner::on_synchronized
@@ -885,7 +885,7 @@ namespace cryptonote
      bool offline() const { return m_offline; }
 
      /**
-      * @brief Get the deterministic quorum of service node's public keys responsible for the specified quorum type
+      * @brief Get the deterministic quorum of masternode's public keys responsible for the specified quorum type
       *
       * @param type The quorum type to retrieve
       * @param height Block height to deterministically recreate the quorum list from (note that for
@@ -893,70 +893,70 @@ namespace cryptonote
       * @param include_old whether to look in the old quorum states (does nothing unless running with --store-full-quorum-history)
       * @return Null shared ptr if quorum has not been determined yet or is not defined for height
       */
-     std::shared_ptr<const service_nodes::quorum> get_quorum(service_nodes::quorum_type type, uint64_t height, bool include_old = false, std::vector<std::shared_ptr<const service_nodes::quorum>> *alt_states = nullptr) const;
+     std::shared_ptr<const masternodes::quorum> get_quorum(masternodes::quorum_type type, uint64_t height, bool include_old = false, std::vector<std::shared_ptr<const masternodes::quorum>> *alt_states = nullptr) const;
 
      /**
       * @brief Get a non owning reference to the list of blacklisted key images
       */
-     const std::vector<service_nodes::key_image_blacklist_entry> &get_service_node_blacklisted_key_images() const;
+     const std::vector<masternodes::key_image_blacklist_entry> &get_masternode_blacklisted_key_images() const;
 
      /**
-      * @brief get a snapshot of the service node list state at the time of the call.
+      * @brief get a snapshot of the masternode list state at the time of the call.
       *
-      * @param service_node_pubkeys pubkeys to search, if empty this indicates get all the pubkeys
+      * @param masternode_pubkeys pubkeys to search, if empty this indicates get all the pubkeys
       *
-      * @return all the service nodes that can be matched from pubkeys in param
+      * @return all the masternodes that can be matched from pubkeys in param
       */
-     std::vector<service_nodes::service_node_pubkey_info> get_service_node_list_state(const std::vector<crypto::public_key>& service_node_pubkeys = {}) const;
+     std::vector<masternodes::masternode_pubkey_info> get_masternode_list_state(const std::vector<crypto::public_key>& masternode_pubkeys = {}) const;
 
      /**
-       * @brief get whether `pubkey` is known as a service node.
+       * @brief get whether `pubkey` is known as a masternode.
        *
        * @param pubkey the public key to test
-       * @param require_active if true also require that the service node is active (fully funded
+       * @param require_active if true also require that the masternode is active (fully funded
        * and not decommissioned).
        *
-       * @return whether `pubkey` is known as a (optionally active) service node
+       * @return whether `pubkey` is known as a (optionally active) masternode
        */
-     bool is_service_node(const crypto::public_key& pubkey, bool require_active) const;
+     bool is_masternode(const crypto::public_key& pubkey, bool require_active) const;
 
      /**
-      * @brief Add a service node vote
+      * @brief Add a masternode vote
       *
-      * @param vote The vote for deregistering a service node.
+      * @param vote The vote for deregistering a masternode.
 
       * @return
       */
-     bool add_service_node_vote(const service_nodes::quorum_vote_t& vote, vote_verification_context &vvc);
+     bool add_masternode_vote(const masternodes::quorum_vote_t& vote, vote_verification_context &vvc);
 
-     using service_keys = service_nodes::service_node_keys;
+     using service_keys = masternodes::masternode_keys;
 
      /**
-      * @brief Returns true if this node is operating in service node mode.
+      * @brief Returns true if this node is operating in masternode mode.
       *
-      * Note that this does not mean the node is currently a registered service node, only that it
-      * is capable of performing service node duties if a registration hits the network.
+      * Note that this does not mean the node is currently a registered masternode, only that it
+      * is capable of performing masternode duties if a registration hits the network.
       */
-     bool service_node() const { return m_service_node; }
+     bool masternode() const { return m_masternode; }
 
      /**
       * @brief Get the service keys for this node.
       *
-      * Note that these exists even if the node is not currently operating as a service node as they
-      * can be used for services other than service nodes (e.g. authenticated public RPC).
+      * Note that these exists even if the node is not currently operating as a masternode as they
+      * can be used for services other than masternodes (e.g. authenticated public RPC).
       *
       * @return reference to service keys.
       */
      const service_keys& get_service_keys() const { return m_service_keys; }
 
      /**
-      * @brief attempts to submit an uptime proof to the network, if this is running in service node mode
+      * @brief attempts to submit an uptime proof to the network, if this is running in masternode mode
       *
       * @return true
       */
      bool submit_uptime_proof();
 
-     /** Called to signal that a significant service node application ping has arrived (either the
+     /** Called to signal that a significant masternode application ping has arrived (either the
       * first, or the first after a long time).  This triggers a check and attempt to send an uptime
       * proof soon (i.e. at the next idle loop).
       */
@@ -997,13 +997,13 @@ namespace cryptonote
       *
       * @return true, necessary for binding this function to a periodic invoker
       */
-     bool relay_service_node_votes();
+     bool relay_masternode_votes();
 
      /**
       * @brief sets the given votes to relayed; generally called automatically when
-      * relay_service_node_votes() is called.
+      * relay_masternode_votes() is called.
       */
-     void set_service_node_votes_relayed(const std::vector<service_nodes::quorum_vote_t> &votes);
+     void set_masternode_votes_relayed(const std::vector<masternodes::quorum_vote_t> &votes);
 
      bool has_block_weights(uint64_t height, uint64_t nblocks) const;
 
@@ -1022,8 +1022,8 @@ namespace cryptonote
       */
      bool set_storage_server_peer_reachable(crypto::public_key const &pubkey, bool value);
 
-     /// Time point at which the storage server and lokinet last pinged us
-     std::atomic<time_t> m_last_storage_server_ping, m_last_lokinet_ping;
+     /// Time point at which the storage server  last pinged us
+     std::atomic<time_t> m_last_storage_server_ping;
      std::atomic<uint16_t> m_storage_https_port, m_storage_omq_port;
 
      uint32_t sn_public_ip() const { return m_sn_public_ip; }
@@ -1039,7 +1039,7 @@ namespace cryptonote
      bool relay_txpool_transactions();
 
      /**
-      * @brief returns the oxend config directory
+      * @brief returns the quenerod config directory
       */
      const fs::path& get_config_directory() const { return m_config_folder; }
 
@@ -1069,7 +1069,7 @@ namespace cryptonote
       * @return true if all the checks pass, otherwise false
       */
      bool check_tx_semantic(const transaction& tx, bool kept_by_block) const;
-     bool check_service_node_time();
+     bool check_masternode_time();
      void set_semantics_failed(const crypto::hash &tx_hash);
 
      void parse_incoming_tx_pre(tx_verification_batch_info &tx_info);
@@ -1134,7 +1134,7 @@ namespace cryptonote
      /**
       * @brief Initializes service keys by loading or creating.  An Ed25519 key (from which we also
       * get an x25519 key) is always created; the Monero SN keypair is only created when running in
-      * Service Node mode (as it is only used to sign registrations and uptime proofs); otherwise
+      * Masternode mode (as it is only used to sign registrations and uptime proofs); otherwise
       * the pair will be set to the null keys.
       *
       * @return true on success, false otherwise
@@ -1148,7 +1148,7 @@ namespace cryptonote
      oxenmq::AuthLevel omq_check_access(const crypto::x25519_public_key& pubkey) const;
 
      /**
-      * @brief Initializes OxenMQ object, called during init().
+      * @brief Initializes QueneroMQ object, called during init().
       *
       * Does not start it: this gets called to initialize it, then it gets configured with endpoints
       * and listening addresses, then finally a call to `start_oxenmq()` should happen to actually
@@ -1158,9 +1158,9 @@ namespace cryptonote
 
  public:
      /**
-      * @brief Starts OxenMQ listening.
+      * @brief Starts QueneroMQ listening.
       *
-      * Called after all OxenMQ initialization is done.
+      * Called after all QueneroMQ initialization is done.
       */
      void start_oxenmq();
 
@@ -1172,15 +1172,14 @@ namespace cryptonote
      /**
       * @brief Internal use only!
       *
-      * This returns a mutable reference to the internal auth level map that OxenMQ uses, for
+      * This returns a mutable reference to the internal auth level map that QueneroMQ uses, for
       * internal use only.
       */
      std::unordered_map<crypto::x25519_public_key, oxenmq::AuthLevel>& _omq_auth_level_map() { return m_omq_auth; }
      oxenmq::TaggedThreadID const &pulse_thread_id() const { return *m_pulse_thread_id; }
 
-     /// Service Node's storage server and lokinet version
+     /// Masternode's storage server version
      std::array<uint16_t, 3> ss_version;
-     std::array<uint16_t, 3> lokinet_version;
 
  private:
 
@@ -1203,8 +1202,8 @@ namespace cryptonote
      tx_memory_pool m_mempool; //!< transaction pool instance
      Blockchain m_blockchain_storage; //!< Blockchain instance
 
-     service_nodes::service_node_list m_service_node_list;
-     service_nodes::quorum_cop        m_quorum_cop;
+     masternodes::masternode_list m_masternode_list;
+     masternodes::quorum_cop        m_quorum_cop;
 
      i_cryptonote_protocol* m_pprotocol; //!< cryptonote protocol instance
      cryptonote_protocol_stub m_protocol_stub; //!< cryptonote protocol stub instance
@@ -1216,9 +1215,9 @@ namespace cryptonote
 
      fs::path m_config_folder; //!< folder to look in for configs and other files
 
-     //m_sn_times keeps track of the services nodes timestamp checks to with other services nodes. If too many of these are out of sync we can assume our service node time is not in sync. lock m_sn_timestamp_mutex when accessing m_sn_times
+     //m_sn_times keeps track of the services nodes timestamp checks to with other services nodes. If too many of these are out of sync we can assume our masternode time is not in sync. lock m_sn_timestamp_mutex when accessing m_sn_times
      std::mutex m_sn_timestamp_mutex;
-     service_nodes::participation_history<service_nodes::timesync_entry, 30> m_sn_times;
+     masternodes::participation_history<masternodes::timesync_entry, 30> m_sn_times;
 
      tools::periodic_task m_store_blockchain_interval{12h, false}; //!< interval for manual storing of Blockchain, if enabled
      tools::periodic_task m_fork_moaner{2h}; //!< interval for checking HardFork status
@@ -1227,7 +1226,7 @@ namespace cryptonote
      tools::periodic_task m_check_uptime_proof_interval{30s}; //!< interval for checking our own uptime proof (will be set to get_net_config().UPTIME_PROOF_CHECK_INTERVAL after init)
      tools::periodic_task m_block_rate_interval{90s, false}; //!< interval for checking block rate
      tools::periodic_task m_blockchain_pruning_interval{5h}; //!< interval for incremental blockchain pruning
-     tools::periodic_task m_service_node_vote_relayer{2min, false};
+     tools::periodic_task m_masternode_vote_relayer{2min, false};
      tools::periodic_task m_sn_proof_cleanup_interval{1h, false};
      tools::periodic_task m_systemd_notify_interval{10s};
 
@@ -1242,15 +1241,15 @@ namespace cryptonote
 
      std::atomic_flag m_checkpoints_updating; //!< set if checkpoints are currently updating to avoid multiple threads attempting to update at once
 
-     bool m_service_node; // True if running in service node mode
+     bool m_masternode; // True if running in masternode mode
      service_keys m_service_keys; // Always set, even for non-SN mode -- these can be used for public oxenmq rpc
 
-     /// Service Node's public IP and qnet ports
+     /// Masternode's public IP and qnet ports
      uint32_t m_sn_public_ip;
      uint16_t m_quorumnet_port;
 
-     /// OxenMQ main object.  Gets created during init().
-     std::unique_ptr<oxenmq::OxenMQ> m_omq;
+     /// QueneroMQ main object.  Gets created during init().
+     std::unique_ptr<oxenmq::QueneroMQ> m_omq;
 
      // Internal opaque data object managed by cryptonote_protocol/quorumnet.cpp.  void pointer to
      // avoid linking issues (protocol does not link against core).

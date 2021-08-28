@@ -45,8 +45,8 @@
 #include "cryptonote_core/cryptonote_core.h"
 #include "common/hex.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "bcutil"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "bcutil"
 
 namespace
 {
@@ -604,7 +604,7 @@ int main(int argc, char* argv[])
 
   if (command_line::get_arg(vm, command_line::arg_help))
   {
-    std::cout << "Oxen '" << OXEN_RELEASE_NAME << "' (v" << OXEN_VERSION_FULL << ")\n\n";
+    std::cout << "Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL << ")\n\n";
     std::cout << desc_options << std::endl;
     return 1;
   }
@@ -641,7 +641,7 @@ int main(int argc, char* argv[])
   }
   m_config_folder = command_line::get_arg(vm, cryptonote::arg_data_dir);
 
-  mlog_configure(mlog_get_default_log_path("oxen-blockchain-import.log"), true);
+  mlog_configure(mlog_get_default_log_path("quenero-blockchain-import.log"), true);
   if (!command_line::is_arg_defaulted(vm, arg_log_level))
     mlog_set_log(command_line::get_arg(vm, arg_log_level).c_str());
   else

@@ -21,18 +21,18 @@ chmod 600 ssh_key
 
 branch_or_tag=${DRONE_BRANCH:-${DRONE_TAG:-unknown}}
 
-upload_to="oxen.rocks/${DRONE_REPO// /_}/${branch_or_tag// /_}"
+upload_to="quenero.rocks/${DRONE_REPO// /_}/${branch_or_tag// /_}"
 
 filename=
-for f in oxen-*.tar.xz oxen-*.zip; do
-    if [[ $f != oxen-\** ]]; then
+for f in quenero-*.tar.xz quenero-*.zip; do
+    if [[ $f != quenero-\** ]]; then
         filename=$f
         break
     fi
 done
 
 if [ -z "$filename" ]; then
-    echo "Did not find expected oxen-*.tar.xz or .zip!"
+    echo "Did not find expected quenero-*.tar.xz or .zip!"
     ls -l
     exit 1
 fi
@@ -49,7 +49,7 @@ for p in "${upload_dirs[@]}"; do
 -mkdir $dir_tmp"
 done
 
-sftp -i ssh_key -b - -o StrictHostKeyChecking=off drone@oxen.rocks <<SFTP
+sftp -i ssh_key -b - -o StrictHostKeyChecking=off drone@quenero.rocks <<SFTP
 $mkdirs
 put $filename $upload_to
 SFTP

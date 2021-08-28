@@ -28,14 +28,14 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
-#include "common/oxen.h"
+#include "common/quenero.h"
 #include <string>
 #include <cstdint>
 #include "epee/serialization/keyvalue_serialization.h"
 
 namespace wallet {
 
-OXEN_RPC_DOC_INTROSPECT
+QUENERO_RPC_DOC_INTROSPECT
 struct transfer_destination
 {
   std::string address; // Destination public address.

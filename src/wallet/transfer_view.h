@@ -28,7 +28,7 @@
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
-#include "common/oxen.h"
+#include "common/quenero.h"
 #include <string>
 #include <vector>
 #include "cryptonote_basic/subaddress_index.h"
@@ -45,7 +45,7 @@ enum struct pay_type
   out,
   stake,
   miner,
-  service_node,
+  masternode,
   governance,
   ons
 };
@@ -60,7 +60,7 @@ inline const char *pay_type_string(pay_type type)
     case pay_type::stake:        return "stake";
     case pay_type::ons:          return "ons";
     case pay_type::miner:        return "reward";
-    case pay_type::service_node: return "snode";
+    case pay_type::masternode: return "snode";
     case pay_type::governance:   return "gov";
     default: assert(false);      return "xxxxx";
   }
@@ -71,12 +71,12 @@ inline pay_type pay_type_from_tx(const cryptonote::transaction tx)
   switch(tx.type)
   {
     case cryptonote::txtype::stake: return wallet::pay_type::stake;
-    case cryptonote::txtype::oxen_name_system: return wallet::pay_type::ons;
+    case cryptonote::txtype::quenero_name_system: return wallet::pay_type::ons;
     default: return wallet::pay_type::out;
   }
 }
 
-OXEN_RPC_DOC_INTROSPECT
+QUENERO_RPC_DOC_INTROSPECT
 struct transfer_view
 {
   std::string txid;                                          // Transaction ID for this transfer.
@@ -96,7 +96,7 @@ struct transfer_view
   bool double_spend_seen;                                    // True if the key image(s) for the transfer have been seen before.
   uint64_t confirmations;                                    // Number of block mined since the block containing this transaction (or block height at which the transaction should be added to a block if not yet confirmed).
   uint64_t suggested_confirmations_threshold;                // Estimation of the confirmations needed for the transaction to be included in a block.
-  uint64_t checkpointed;                                     // If transfer is backed by atleast 2 Service Node Checkpoints, 0 if it is not, see immutable_height in the daemon rpc call get_info
+  uint64_t checkpointed;                                     // If transfer is backed by atleast 2 Masternode Checkpoints, 0 if it is not, see immutable_height in the daemon rpc call get_info
   bool blink_mempool;                                        // True if this is an approved blink tx in the mempool
   bool was_blink;                                            // True if we saw this as an approved blink (either in the mempool or a recent, uncheckpointed block).  Note that if we didn't see it while an active blink this won't be set.
 

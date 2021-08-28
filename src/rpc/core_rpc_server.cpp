@@ -41,13 +41,13 @@
 #include <oxenmq/base64.h>
 #include "crypto/crypto.h"
 #include "cryptonote_basic/tx_extra.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "cryptonote_core/pulse.h"
-#include "oxen_economy.h"
+#include "quenero_economy.h"
 #include "epee/string_tools.h"
 #include "core_rpc_server.h"
 #include "common/command_line.h"
-#include "common/oxen.h"
+#include "common/quenero.h"
 #include "common/sha256sum.h"
 #include "common/perf_timer.h"
 #include "common/random.h"
@@ -65,8 +65,8 @@
 #include "p2p/net_node.h"
 #include "version.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "daemon.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon.rpc"
 
 
 namespace cryptonote { namespace rpc {
@@ -419,10 +419,9 @@ namespace cryptonote { namespace rpc {
     res.block_size_median = res.block_weight_median = m_core.get_blockchain_storage().get_current_cumulative_block_weight_median();
     if (context.admin)
     {
-      res.service_node = m_core.service_node();
+      res.masternode = m_core.masternode();
       res.start_time = (uint64_t)m_core.get_start_time();
       res.last_storage_server_ping = (uint64_t)m_core.m_last_storage_server_ping;
-      res.last_lokinet_ping = (uint64_t)m_core.m_last_lokinet_ping;
       res.free_space = m_core.get_free_space();
       res.height_without_bootstrap = res.height;
       std::shared_lock lock{m_bootstrap_daemon_mutex};
@@ -437,9 +436,9 @@ namespace cryptonote { namespace rpc {
     res.database_size = m_core.get_blockchain_storage().get_db().get_database_size();
     if (!context.admin)
       res.database_size = round_up(res.database_size, 1'000'000'000);
-    res.version = context.admin ? OXEN_VERSION_FULL : std::to_string(OXEN_VERSION[0]);
+    res.version = context.admin ? QUENERO_VERSION_FULL : std::to_string(QUENERO_VERSION[0]);
     res.status_line = context.admin ? m_core.get_status_string() :
-      "v" + std::to_string(OXEN_VERSION[0]) + "; Height: " + std::to_string(res.height);
+      "v" + std::to_string(QUENERO_VERSION[0]) + "; Height: " + std::to_string(res.height);
 
     res.status = STATUS_OK;
     return res;
@@ -720,9 +719,9 @@ namespace cryptonote { namespace rpc {
       void operator()(const tx_extra_merge_mining_tag& x) { entry.mm_depth = x.depth; entry.mm_root = tools::type_to_hex(x.merkle_root); }
       void operator()(const tx_extra_additional_pub_keys& x) { entry.additional_pubkeys = hexify(x.data); }
       void operator()(const tx_extra_burn& x) { entry.burn_amount = x.amount; }
-      void operator()(const tx_extra_service_node_winner& x) { entry.sn_winner = tools::type_to_hex(x.m_service_node_key); }
-      void operator()(const tx_extra_service_node_pubkey& x) { entry.sn_pubkey = tools::type_to_hex(x.m_service_node_key); }
-      void operator()(const tx_extra_service_node_register& x) {
+      void operator()(const tx_extra_masternode_winner& x) { entry.sn_winner = tools::type_to_hex(x.m_masternode_key); }
+      void operator()(const tx_extra_masternode_pubkey& x) { entry.sn_pubkey = tools::type_to_hex(x.m_masternode_key); }
+      void operator()(const tx_extra_masternode_register& x) {
         auto& reg = entry.sn_registration.emplace();
         reg.fee = microportion(x.m_portions_for_operator);
         reg.expiry = x.m_expiration_timestamp;
@@ -732,7 +731,7 @@ namespace cryptonote { namespace rpc {
           portion = microportion(x.m_portions[i]);
         }
       }
-      void operator()(const tx_extra_service_node_contributor& x) {
+      void operator()(const tx_extra_masternode_contributor& x) {
         entry.sn_contributor = get_account_address_as_str(nettype, false, {x.m_spend_public_key, x.m_view_public_key});
       }
       template <typename T>
@@ -740,18 +739,18 @@ namespace cryptonote { namespace rpc {
         // Common loading code for nearly-identical state_change and deregister_old variables:
         auto& sc = entry.sn_state_change.emplace();
         sc.height = x.block_height;
-        sc.index = x.service_node_index;
+        sc.index = x.masternode_index;
         sc.voters.reserve(x.votes.size());
         for (auto& v : x.votes)
           sc.voters.push_back(v.validator_index);
         return sc;
       }
-      void operator()(const tx_extra_service_node_deregister_old& x) {
+      void operator()(const tx_extra_masternode_deregister_old& x) {
         auto& sc = _state_change(x);
         sc.old_dereg = true;
         sc.type = "dereg";
       }
-      void operator()(const tx_extra_service_node_state_change& x) {
+      void operator()(const tx_extra_masternode_state_change& x) {
         auto& sc = _state_change(x);
         if (x.reason_consensus_all)
           sc.reasons = cryptonote::coded_reasons(x.reason_consensus_all);
@@ -760,11 +759,11 @@ namespace cryptonote { namespace rpc {
           sc.reasons_maybe = cryptonote::coded_reasons(reasons_maybe);
         switch (x.state)
         {
-          case service_nodes::new_state::decommission: sc.type = "decom"; break;
-          case service_nodes::new_state::recommission: sc.type = "recom"; break;
-          case service_nodes::new_state::deregister: sc.type = "dereg"; break;
-          case service_nodes::new_state::ip_change_penalty: sc.type = "ip"; break;
-          case service_nodes::new_state::_count: /*leave blank*/ break;
+          case masternodes::new_state::decommission: sc.type = "decom"; break;
+          case masternodes::new_state::recommission: sc.type = "recom"; break;
+          case masternodes::new_state::deregister: sc.type = "dereg"; break;
+          case masternodes::new_state::ip_change_penalty: sc.type = "ip"; break;
+          case masternodes::new_state::_count: /*leave blank*/ break;
         }
       }
       void operator()(const tx_extra_tx_secret_key& x) { entry.tx_secret_key = tools::type_to_hex(x.key); }
@@ -781,16 +780,11 @@ namespace cryptonote { namespace rpc {
         else if (owner.type == ons::generic_owner_sig_type::ed25519)
           entry = tools::type_to_hex(owner.ed25519);
       }
-      void operator()(const tx_extra_oxen_name_system& x) {
+      void operator()(const tx_extra_quenero_name_system& x) {
         auto& ons = entry.ons.emplace();
         ons.blocks = ons::expiry_blocks(nettype, x.type);
         switch (x.type)
         {
-          case ons::mapping_type::lokinet: [[fallthrough]];
-          case ons::mapping_type::lokinet_2years: [[fallthrough]];
-          case ons::mapping_type::lokinet_5years: [[fallthrough]];
-          case ons::mapping_type::lokinet_10years: ons.type = "lokinet"; break;
-
           case ons::mapping_type::session: ons.type = "session"; break;
           case ons::mapping_type::wallet:  ons.type = "wallet"; break;
 
@@ -1018,8 +1012,8 @@ namespace cryptonote { namespace rpc {
 
       if (req.stake_info) {
         auto hf_version = m_core.get_hard_fork_version(e.in_pool ? m_core.get_current_blockchain_height() : e.block_height);
-        service_nodes::staking_components sc;
-        if (service_nodes::tx_get_staking_components_and_amounts(nettype(), hf_version, t, e.block_height, &sc)
+        masternodes::staking_components sc;
+        if (masternodes::tx_get_staking_components_and_amounts(nettype(), hf_version, t, e.block_height, &sc)
             && sc.transferred > 0)
           e.stake_amount = sc.transferred;
       }
@@ -1308,7 +1302,7 @@ namespace cryptonote { namespace rpc {
     const uint8_t major_version = m_core.get_blockchain_storage().get_current_hard_fork_version();
 
     res.pow_algorithm =
-        major_version >= network_version_12_checkpointing    ? "RandomX (OXEN variant)"               :
+        major_version >= network_version_12_checkpointing    ? "RandomX (QUENERO variant)"               :
         major_version == network_version_11_infinite_staking ? "Cryptonight Turtle Light (Variant 2)" :
                                                                "Cryptonight Heavy (Variant 2)";
 
@@ -1465,8 +1459,8 @@ namespace cryptonote { namespace rpc {
             if (req.stake_info) {
                 auto height = m_core.get_current_blockchain_height();
                 auto hf_version = m_core.get_hard_fork_version(height);
-                service_nodes::staking_components sc;
-                if (service_nodes::tx_get_staking_components_and_amounts(nettype(), hf_version, tx, height, &sc)
+                masternodes::staking_components sc;
+                if (masternodes::tx_get_staking_components_and_amounts(nettype(), hf_version, tx, height, &sc)
                         && sc.transferred > 0)
                     txi.stake_amount = sc.transferred;
             }
@@ -1549,7 +1543,7 @@ namespace cryptonote { namespace rpc {
   //------------------------------------------------------------------------------------------------------------------------------
 
   //
-  // Oxen
+  // Quenero
   //
   GET_OUTPUT_BLACKLIST::response core_rpc_server::invoke(GET_OUTPUT_BLACKLIST::request&& req, rpc_context context)
   {
@@ -1831,7 +1825,7 @@ namespace cryptonote { namespace rpc {
       response.pow_hash = tools::type_to_hex(get_block_longhash_w_blockchain(m_core.get_nettype(), &(m_core.get_blockchain_storage()), blk, height, 0));
     response.long_term_weight = m_core.get_blockchain_storage().get_db().get_block_long_term_weight(height);
     response.miner_tx_hash = tools::type_to_hex(cryptonote::get_transaction_hash(blk.miner_tx));
-    response.service_node_winner = tools::type_to_hex(cryptonote::get_service_node_winner_from_tx_extra(blk.miner_tx.extra));
+    response.masternode_winner = tools::type_to_hex(cryptonote::get_masternode_winner_from_tx_extra(blk.miner_tx.extra));
     if (get_tx_hashes)
     {
       response.tx_hashes.reserve(blk.tx_hashes.size());
@@ -2312,40 +2306,40 @@ namespace cryptonote { namespace rpc {
     return res;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  GET_SERVICE_NODE_STATUS::response core_rpc_server::invoke(GET_SERVICE_NODE_STATUS::request&& req, rpc_context context)
+  GET_MASTERNODE_STATUS::response core_rpc_server::invoke(GET_MASTERNODE_STATUS::request&& req, rpc_context context)
   {
-    GET_SERVICE_NODE_STATUS::response res{};
+    GET_MASTERNODE_STATUS::response res{};
 
-    PERF_TIMER(on_get_service_node_status);
-    auto get_service_node_key_res = invoke(GET_SERVICE_KEYS::request{}, context);
+    PERF_TIMER(on_get_masternode_status);
+    auto get_masternode_key_res = invoke(GET_SERVICE_KEYS::request{}, context);
 
-    GET_SERVICE_NODES::request get_service_nodes_req{};
-    get_service_nodes_req.include_json = req.include_json;
-    get_service_nodes_req.service_node_pubkeys.push_back(std::move(get_service_node_key_res.service_node_pubkey));
+    GET_MASTERNODES::request get_masternodes_req{};
+    get_masternodes_req.include_json = req.include_json;
+    get_masternodes_req.masternode_pubkeys.push_back(std::move(get_masternode_key_res.masternode_pubkey));
 
-    auto get_service_nodes_res = invoke(std::move(get_service_nodes_req), context);
-    res.status = get_service_nodes_res.status;
+    auto get_masternodes_res = invoke(std::move(get_masternodes_req), context);
+    res.status = get_masternodes_res.status;
 
-    if (get_service_nodes_res.service_node_states.empty()) // Started in service node but not staked, no information on the blockchain yet
+    if (get_masternodes_res.masternode_states.empty()) // Started in masternode but not staked, no information on the blockchain yet
     {
-      res.service_node_state.service_node_pubkey  = std::move(get_service_node_key_res.service_node_pubkey);
-      res.service_node_state.public_ip            = epee::string_tools::get_ip_string_from_int32(m_core.sn_public_ip());
-      res.service_node_state.storage_port         = m_core.storage_https_port();
-      res.service_node_state.storage_lmq_port     = m_core.storage_omq_port();
-      res.service_node_state.quorumnet_port       = m_core.quorumnet_port();
-      res.service_node_state.pubkey_ed25519       = std::move(get_service_node_key_res.service_node_ed25519_pubkey);
-      res.service_node_state.pubkey_x25519        = std::move(get_service_node_key_res.service_node_x25519_pubkey);
-      res.service_node_state.service_node_version = OXEN_VERSION;
+      res.masternode_state.masternode_pubkey  = std::move(get_masternode_key_res.masternode_pubkey);
+      res.masternode_state.public_ip            = epee::string_tools::get_ip_string_from_int32(m_core.sn_public_ip());
+      res.masternode_state.storage_port         = m_core.storage_https_port();
+      res.masternode_state.storage_lmq_port     = m_core.storage_omq_port();
+      res.masternode_state.quorumnet_port       = m_core.quorumnet_port();
+      res.masternode_state.pubkey_ed25519       = std::move(get_masternode_key_res.masternode_ed25519_pubkey);
+      res.masternode_state.pubkey_x25519        = std::move(get_masternode_key_res.masternode_x25519_pubkey);
+      res.masternode_state.masternode_version = QUENERO_VERSION;
     }
     else
     {
-      res.service_node_state = std::move(get_service_nodes_res.service_node_states[0]);
+      res.masternode_state = std::move(get_masternodes_res.masternode_states[0]);
     }
 
-    res.height = get_service_nodes_res.height;
-    res.block_hash = get_service_nodes_res.block_hash;
-    res.status = get_service_nodes_res.status;
-    res.as_json = get_service_nodes_res.as_json;
+    res.height = get_masternodes_res.height;
+    res.block_hash = get_masternodes_res.block_hash;
+    res.status = get_masternodes_res.status;
+    res.as_json = get_masternodes_res.as_json;
 
     return res;
   }
@@ -2774,12 +2768,12 @@ namespace cryptonote { namespace rpc {
 
     PERF_TIMER(on_get_quorum_state);
 
-    if (req.quorum_type >= tools::enum_count<service_nodes::quorum_type> &&
+    if (req.quorum_type >= tools::enum_count<masternodes::quorum_type> &&
         req.quorum_type != GET_QUORUM_STATE::ALL_QUORUMS_SENTINEL_VALUE)
       throw rpc_error{ERROR_WRONG_PARAM,
         "Quorum type specifies an invalid value: " + std::to_string(req.quorum_type)};
 
-    auto requested_type = [&req](service_nodes::quorum_type type) {
+    auto requested_type = [&req](masternodes::quorum_type type) {
       return req.quorum_type == GET_QUORUM_STATE::ALL_QUORUMS_SENTINEL_VALUE ||
         req.quorum_type == static_cast<uint8_t>(type);
     };
@@ -2799,11 +2793,11 @@ namespace cryptonote { namespace rpc {
       // pulse: current height (i.e. top block height + 1)
       uint64_t top_height = curr_height - 1;
       latest_ob = top_height;
-      latest_cp = std::min(start, top_height - top_height % service_nodes::CHECKPOINT_INTERVAL);
-      latest_bl = std::min(start, top_height - top_height % service_nodes::BLINK_QUORUM_INTERVAL);
-      if (requested_type(service_nodes::quorum_type::checkpointing))
+      latest_cp = std::min(start, top_height - top_height % masternodes::CHECKPOINT_INTERVAL);
+      latest_bl = std::min(start, top_height - top_height % masternodes::BLINK_QUORUM_INTERVAL);
+      if (requested_type(masternodes::quorum_type::checkpointing))
         start = std::min(start, latest_cp);
-      if (requested_type(service_nodes::quorum_type::blink))
+      if (requested_type(masternodes::quorum_type::blink))
         start = std::min(start, latest_bl);
       end = curr_height;
     }
@@ -2825,7 +2819,7 @@ namespace cryptonote { namespace rpc {
     start                = std::min(curr_height, start);
     // We can also provide the pulse quorum for the current block being produced, so if asked for
     // that make a note.
-    bool add_curr_pulse = (latest || end > curr_height) && requested_type(service_nodes::quorum_type::pulse);
+    bool add_curr_pulse = (latest || end > curr_height) && requested_type(masternodes::quorum_type::pulse);
     end = std::min(curr_height, end);
 
     uint64_t count       = (start > end) ? start - end : end - start;
@@ -2842,26 +2836,26 @@ namespace cryptonote { namespace rpc {
       uint8_t hf_version = m_core.get_hard_fork_version(height);
       if (hf_version != HardFork::INVALID_HF_VERSION)
       {
-        auto start_quorum_iterator = static_cast<service_nodes::quorum_type>(0);
-        auto end_quorum_iterator   = service_nodes::max_quorum_type_for_hf(hf_version);
+        auto start_quorum_iterator = static_cast<masternodes::quorum_type>(0);
+        auto end_quorum_iterator   = masternodes::max_quorum_type_for_hf(hf_version);
 
         if (req.quorum_type != GET_QUORUM_STATE::ALL_QUORUMS_SENTINEL_VALUE)
         {
-          start_quorum_iterator = static_cast<service_nodes::quorum_type>(req.quorum_type);
+          start_quorum_iterator = static_cast<masternodes::quorum_type>(req.quorum_type);
           end_quorum_iterator   = start_quorum_iterator;
         }
 
         for (int quorum_int = (int)start_quorum_iterator; quorum_int <= (int)end_quorum_iterator; quorum_int++)
         {
-          auto type = static_cast<service_nodes::quorum_type>(quorum_int);
+          auto type = static_cast<masternodes::quorum_type>(quorum_int);
           if (latest)
           { // Latest quorum requested, so skip if this is isn't the latest height for *this* quorum type
-            if (type == service_nodes::quorum_type::obligations && height != latest_ob) continue;
-            if (type == service_nodes::quorum_type::checkpointing && height != latest_cp) continue;
-            if (type == service_nodes::quorum_type::blink && height != latest_bl) continue;
-            if (type == service_nodes::quorum_type::pulse) continue;
+            if (type == masternodes::quorum_type::obligations && height != latest_ob) continue;
+            if (type == masternodes::quorum_type::checkpointing && height != latest_cp) continue;
+            if (type == masternodes::quorum_type::blink && height != latest_bl) continue;
+            if (type == masternodes::quorum_type::pulse) continue;
           }
-          if (std::shared_ptr<const service_nodes::quorum> quorum = m_core.get_quorum(type, height, true /*include_old*/))
+          if (std::shared_ptr<const masternodes::quorum> quorum = m_core.get_quorum(type, height, true /*include_old*/))
           {
             auto& entry = res.quorums.emplace_back();
             entry.height                                          = height;
@@ -2889,14 +2883,14 @@ namespace cryptonote { namespace rpc {
       if (pulse::get_round_timings(blockchain, curr_height, top_header.timestamp, next_timings) &&
           pulse::convert_time_to_round(pulse::clock::now(), next_timings.r0_timestamp, &pulse_round))
       {
-        auto entropy = service_nodes::get_pulse_entropy_for_next_block(blockchain.get_db(), pulse_round);
-        auto& sn_list = m_core.get_service_node_list();
-        auto quorum = generate_pulse_quorum(m_core.get_nettype(), sn_list.get_block_leader().key, hf_version, sn_list.active_service_nodes_infos(), entropy, pulse_round);
+        auto entropy = masternodes::get_pulse_entropy_for_next_block(blockchain.get_db(), pulse_round);
+        auto& sn_list = m_core.get_masternode_list();
+        auto quorum = generate_pulse_quorum(m_core.get_nettype(), sn_list.get_block_leader().key, hf_version, sn_list.active_masternodes_infos(), entropy, pulse_round);
         if (verify_pulse_quorum_sizes(quorum))
         {
           auto& entry = res.quorums.emplace_back();
           entry.height = curr_height;
-          entry.quorum_type = static_cast<uint8_t>(service_nodes::quorum_type::pulse);
+          entry.quorum_type = static_cast<uint8_t>(masternodes::quorum_type::pulse);
 
           entry.quorum.validators = hexify(quorum.validators);
           entry.quorum.workers = hexify(quorum.workers);
@@ -2924,37 +2918,37 @@ namespace cryptonote { namespace rpc {
     return res;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response core_rpc_server::invoke(GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request&& req, rpc_context context)
+  GET_MASTERNODE_REGISTRATION_CMD_RAW::response core_rpc_server::invoke(GET_MASTERNODE_REGISTRATION_CMD_RAW::request&& req, rpc_context context)
   {
-    GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response res{};
+    GET_MASTERNODE_REGISTRATION_CMD_RAW::response res{};
 
-    PERF_TIMER(on_get_service_node_registration_cmd_raw);
+    PERF_TIMER(on_get_masternode_registration_cmd_raw);
 
-    if (!m_core.service_node())
-      throw rpc_error{ERROR_WRONG_PARAM, "Daemon has not been started in service node mode, please relaunch with --service-node flag."};
+    if (!m_core.masternode())
+      throw rpc_error{ERROR_WRONG_PARAM, "Daemon has not been started in masternode mode, please relaunch with --service-node flag."};
 
     uint8_t hf_version = m_core.get_hard_fork_version(m_core.get_current_blockchain_height());
-    if (!service_nodes::make_registration_cmd(m_core.get_nettype(), hf_version, req.staking_requirement, req.args, m_core.get_service_keys(), res.registration_cmd, req.make_friendly))
+    if (!masternodes::make_registration_cmd(m_core.get_nettype(), hf_version, req.staking_requirement, req.args, m_core.get_service_keys(), res.registration_cmd, req.make_friendly))
       throw rpc_error{ERROR_INTERNAL, "Failed to make registration command"};
 
     res.status = STATUS_OK;
     return res;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  GET_SERVICE_NODE_REGISTRATION_CMD::response core_rpc_server::invoke(GET_SERVICE_NODE_REGISTRATION_CMD::request&& req, rpc_context context)
+  GET_MASTERNODE_REGISTRATION_CMD::response core_rpc_server::invoke(GET_MASTERNODE_REGISTRATION_CMD::request&& req, rpc_context context)
   {
-    GET_SERVICE_NODE_REGISTRATION_CMD::response res{};
+    GET_MASTERNODE_REGISTRATION_CMD::response res{};
 
-    PERF_TIMER(on_get_service_node_registration_cmd);
+    PERF_TIMER(on_get_masternode_registration_cmd);
 
     std::vector<std::string> args;
 
     uint64_t const curr_height   = m_core.get_current_blockchain_height();
-    uint64_t staking_requirement = service_nodes::get_staking_requirement(m_core.get_nettype(), curr_height, m_core.get_hard_fork_version(curr_height));
+    uint64_t staking_requirement = masternodes::get_staking_requirement(m_core.get_nettype(), curr_height, m_core.get_hard_fork_version(curr_height));
 
     {
       uint64_t portions_cut;
-      if (!service_nodes::get_portions_from_percent_str(req.operator_cut, portions_cut))
+      if (!masternodes::get_portions_from_percent_str(req.operator_cut, portions_cut))
       {
         res.status = "Invalid value: " + req.operator_cut + ". Should be between [0-100]";
         MERROR(res.status);
@@ -2966,12 +2960,12 @@ namespace cryptonote { namespace rpc {
 
     for (const auto& [address, amount] : req.contributions)
     {
-        uint64_t num_portions = service_nodes::get_portions_to_make_amount(staking_requirement, amount);
+        uint64_t num_portions = masternodes::get_portions_to_make_amount(staking_requirement, amount);
         args.push_back(address);
         args.push_back(std::to_string(num_portions));
     }
 
-    GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request req_old{};
+    GET_MASTERNODE_REGISTRATION_CMD_RAW::request req_old{};
 
     req_old.staking_requirement = req.staking_requirement;
     req_old.args = std::move(args);
@@ -2979,16 +2973,16 @@ namespace cryptonote { namespace rpc {
     return invoke(std::move(req_old), context);
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::response core_rpc_server::invoke(GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::request&& req, rpc_context context)
+  GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::response core_rpc_server::invoke(GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::request&& req, rpc_context context)
   {
-    GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::response res{};
+    GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::response res{};
 
-    PERF_TIMER(on_get_service_node_blacklisted_key_images);
-    auto &blacklist = m_core.get_service_node_blacklisted_key_images();
+    PERF_TIMER(on_get_masternode_blacklisted_key_images);
+    auto &blacklist = m_core.get_masternode_blacklisted_key_images();
 
     res.status = STATUS_OK;
     res.blacklist.reserve(blacklist.size());
-    for (const service_nodes::key_image_blacklist_entry &entry : blacklist)
+    for (const masternodes::key_image_blacklist_entry &entry : blacklist)
     {
       res.blacklist.emplace_back();
       auto &new_entry = res.blacklist.back();
@@ -3003,13 +2997,13 @@ namespace cryptonote { namespace rpc {
   {
     GET_SERVICE_KEYS::response res{};
 
-    PERF_TIMER(on_get_service_node_key);
+    PERF_TIMER(on_get_masternode_key);
 
     const auto& keys = m_core.get_service_keys();
     if (keys.pub)
-      res.service_node_pubkey = tools::type_to_hex(keys.pub);
-    res.service_node_ed25519_pubkey = tools::type_to_hex(keys.pub_ed25519);
-    res.service_node_x25519_pubkey = tools::type_to_hex(keys.pub_x25519);
+      res.masternode_pubkey = tools::type_to_hex(keys.pub);
+    res.masternode_ed25519_pubkey = tools::type_to_hex(keys.pub_ed25519);
+    res.masternode_x25519_pubkey = tools::type_to_hex(keys.pub_x25519);
     res.status = STATUS_OK;
     return res;
   }
@@ -3018,13 +3012,13 @@ namespace cryptonote { namespace rpc {
   {
     GET_SERVICE_PRIVKEYS::response res{};
 
-    PERF_TIMER(on_get_service_node_key);
+    PERF_TIMER(on_get_masternode_key);
 
     const auto& keys = m_core.get_service_keys();
     if (keys.key != crypto::null_skey)
-      res.service_node_privkey = tools::type_to_hex(keys.key.data);
-    res.service_node_ed25519_privkey = tools::type_to_hex(keys.key_ed25519.data);
-    res.service_node_x25519_privkey = tools::type_to_hex(keys.key_x25519.data);
+      res.masternode_privkey = tools::type_to_hex(keys.key.data);
+    res.masternode_ed25519_privkey = tools::type_to_hex(keys.key_ed25519.data);
+    res.masternode_x25519_privkey = tools::type_to_hex(keys.key_x25519.data);
     res.status = STATUS_OK;
     return res;
   }
@@ -3033,7 +3027,7 @@ namespace cryptonote { namespace rpc {
       std::chrono::steady_clock::time_point t,
       std::chrono::system_clock::time_point system_now,
       std::chrono::steady_clock::time_point steady_now) {
-    if (t == service_nodes::NEVER)
+    if (t == masternodes::NEVER)
       return 0;
     return std::chrono::system_clock::to_time_t(
             std::chrono::time_point_cast<std::chrono::system_clock::duration>(
@@ -3041,10 +3035,10 @@ namespace cryptonote { namespace rpc {
   }
 
   //------------------------------------------------------------------------------------------------------------------------------
-  void core_rpc_server::fill_sn_response_entry(GET_SERVICE_NODES::response::entry& entry, const service_nodes::service_node_pubkey_info &sn_info, uint64_t current_height) {
+  void core_rpc_server::fill_sn_response_entry(GET_MASTERNODES::response::entry& entry, const masternodes::masternode_pubkey_info &sn_info, uint64_t current_height) {
 
     const auto &info = *sn_info.info;
-    entry.service_node_pubkey           = tools::type_to_hex(sn_info.pubkey);
+    entry.masternode_pubkey           = tools::type_to_hex(sn_info.pubkey);
     entry.registration_height           = info.registration_height;
     entry.requested_unlock_height       = info.requested_unlock_height;
     entry.last_reward_block_height      = info.last_reward_block_height;
@@ -3053,15 +3047,14 @@ namespace cryptonote { namespace rpc {
     entry.funded                        = info.is_fully_funded();
     entry.state_height                  = info.is_fully_funded()
         ? (info.is_decommissioned() ? info.last_decommission_height : info.active_since_height) : info.last_reward_block_height;
-    entry.earned_downtime_blocks        = service_nodes::quorum_cop::calculate_decommission_credit(info, current_height);
+    entry.earned_downtime_blocks        = masternodes::quorum_cop::calculate_decommission_credit(info, current_height);
     entry.decommission_count            = info.decommission_count;
     entry.last_decommission_reason_consensus_all      = info.last_decommission_reason_consensus_all;
     entry.last_decommission_reason_consensus_any      = info.last_decommission_reason_consensus_any;
 
     auto& netconf = m_core.get_net_config();
-    m_core.get_service_node_list().access_proof(sn_info.pubkey, [&entry, &netconf](const auto &proof) {
-        entry.service_node_version     = proof.proof->version;
-        entry.lokinet_version          = proof.proof->lokinet_version;
+    m_core.get_masternode_list().access_proof(sn_info.pubkey, [&entry, &netconf](const auto &proof) {
+        entry.masternode_version     = proof.proof->version;
         entry.storage_server_version   = proof.proof->storage_server_version;
         entry.public_ip                = epee::string_tools::get_ip_string_from_int32(proof.proof->public_ip);
         entry.storage_port             = proof.proof->storage_https_port;
@@ -3070,7 +3063,7 @@ namespace cryptonote { namespace rpc {
         entry.pubkey_x25519            = proof.pubkey_x25519 ? tools::type_to_hex(proof.pubkey_x25519) : "";
         entry.quorumnet_port           = proof.proof->qnet_port;
 
-        // NOTE: Service Node Testing
+        // NOTE: Masternode Testing
         entry.last_uptime_proof                  = proof.proof->timestamp;
         auto system_now = std::chrono::system_clock::now();
         auto steady_now = std::chrono::steady_clock::now();
@@ -3079,20 +3072,20 @@ namespace cryptonote { namespace rpc {
         entry.storage_server_last_unreachable = reachable_to_time_t(proof.ss_last_unreachable, system_now, steady_now);
         entry.storage_server_last_reachable = reachable_to_time_t(proof.ss_last_reachable, system_now, steady_now);
 
-        service_nodes::participation_history<service_nodes::participation_entry> const &checkpoint_participation = proof.checkpoint_participation;
-        service_nodes::participation_history<service_nodes::participation_entry> const &pulse_participation      = proof.pulse_participation;
-        service_nodes::participation_history<service_nodes::timestamp_participation_entry> const &timestamp_participation      = proof.timestamp_participation;
-        service_nodes::participation_history<service_nodes::timesync_entry> const &timesync_status      = proof.timesync_status;
-        entry.checkpoint_participation = std::vector<service_nodes::participation_entry>(checkpoint_participation.begin(), checkpoint_participation.end());
-        entry.pulse_participation      = std::vector<service_nodes::participation_entry>(pulse_participation.begin(),      pulse_participation.end());
-        entry.timestamp_participation  = std::vector<service_nodes::timestamp_participation_entry>(timestamp_participation.begin(),      timestamp_participation.end());
-        entry.timesync_status          = std::vector<service_nodes::timesync_entry>(timesync_status.begin(),      timesync_status.end());
+        masternodes::participation_history<masternodes::participation_entry> const &checkpoint_participation = proof.checkpoint_participation;
+        masternodes::participation_history<masternodes::participation_entry> const &pulse_participation      = proof.pulse_participation;
+        masternodes::participation_history<masternodes::timestamp_participation_entry> const &timestamp_participation      = proof.timestamp_participation;
+        masternodes::participation_history<masternodes::timesync_entry> const &timesync_status      = proof.timesync_status;
+        entry.checkpoint_participation = std::vector<masternodes::participation_entry>(checkpoint_participation.begin(), checkpoint_participation.end());
+        entry.pulse_participation      = std::vector<masternodes::participation_entry>(pulse_participation.begin(),      pulse_participation.end());
+        entry.timestamp_participation  = std::vector<masternodes::timestamp_participation_entry>(timestamp_participation.begin(),      timestamp_participation.end());
+        entry.timesync_status          = std::vector<masternodes::timesync_entry>(timesync_status.begin(),      timesync_status.end());
     });
 
     entry.contributors.reserve(info.contributors.size());
 
-    using namespace service_nodes;
-    for (service_node_info::contributor_t const &contributor : info.contributors)
+    using namespace masternodes;
+    for (masternode_info::contributor_t const &contributor : info.contributors)
     {
       entry.contributors.push_back({});
       auto &new_contributor = entry.contributors.back();
@@ -3101,7 +3094,7 @@ namespace cryptonote { namespace rpc {
       new_contributor.address  = cryptonote::get_account_address_as_str(m_core.get_nettype(), false/*is_subaddress*/, contributor.address);
 
       new_contributor.locked_contributions.reserve(contributor.locked_contributions.size());
-      for (service_node_info::contribution_t const &src : contributor.locked_contributions)
+      for (masternode_info::contribution_t const &src : contributor.locked_contributions)
       {
         new_contributor.locked_contributions.push_back({});
         auto &dest = new_contributor.locked_contributions.back();
@@ -3121,11 +3114,11 @@ namespace cryptonote { namespace rpc {
 
   }
 
-  static constexpr GET_SERVICE_NODES::requested_fields_t all_fields{true};
+  static constexpr GET_MASTERNODES::requested_fields_t all_fields{true};
   //------------------------------------------------------------------------------------------------------------------------------
-  GET_SERVICE_NODES::response core_rpc_server::invoke(GET_SERVICE_NODES::request&& req, rpc_context context)
+  GET_MASTERNODES::response core_rpc_server::invoke(GET_MASTERNODES::request&& req, rpc_context context)
   {
-    GET_SERVICE_NODES::response res{};
+    GET_MASTERNODES::response res{};
 
     res.status = STATUS_OK;
     res.height = m_core.get_current_blockchain_height() - 1;
@@ -3142,20 +3135,20 @@ namespace cryptonote { namespace rpc {
       }
     }
 
-    std::vector<crypto::public_key> pubkeys(req.service_node_pubkeys.size());
-    for (size_t i = 0; i < req.service_node_pubkeys.size(); i++)
+    std::vector<crypto::public_key> pubkeys(req.masternode_pubkeys.size());
+    for (size_t i = 0; i < req.masternode_pubkeys.size(); i++)
     {
-      if (!tools::hex_to_type(req.service_node_pubkeys[i], pubkeys[i]))
+      if (!tools::hex_to_type(req.masternode_pubkeys[i], pubkeys[i]))
         throw rpc_error{ERROR_WRONG_PARAM,
           "Could not convert to a public key, arg: " + std::to_string(i)
-            + " which is pubkey: " + req.service_node_pubkeys[i]};
+            + " which is pubkey: " + req.masternode_pubkeys[i]};
     }
 
-    auto sn_infos = m_core.get_service_node_list_state(pubkeys);
+    auto sn_infos = m_core.get_masternode_list_state(pubkeys);
 
     if (req.active_only) {
       const auto end =
-        std::remove_if(sn_infos.begin(), sn_infos.end(), [](const service_nodes::service_node_pubkey_info& snpk_info) {
+        std::remove_if(sn_infos.begin(), sn_infos.end(), [](const masternodes::masternode_pubkey_info& snpk_info) {
           return !snpk_info.info->is_active();
         });
 
@@ -3185,7 +3178,7 @@ namespace cryptonote { namespace rpc {
       sn_infos.resize(limit);
     }
 
-    res.service_node_states.reserve(sn_infos.size());
+    res.masternode_states.reserve(sn_infos.size());
     res.fields = req.fields.value_or(all_fields);
 
     if (req.include_json)
@@ -3197,8 +3190,8 @@ namespace cryptonote { namespace rpc {
     }
 
     for (auto &pubkey_info : sn_infos) {
-      res.service_node_states.emplace_back();
-      fill_sn_response_entry(res.service_node_states.back(), pubkey_info, res.height);
+      res.masternode_states.emplace_back();
+      fill_sn_response_entry(res.masternode_states.back(), pubkey_info, res.height);
     }
 
     return res;
@@ -3247,7 +3240,7 @@ namespace cryptonote { namespace rpc {
   {
     m_core.ss_version = req.version;
     return handle_ping<STORAGE_SERVER_PING>(
-      req.version, service_nodes::MIN_STORAGE_SERVER_VERSION,
+      req.version, masternodes::MIN_STORAGE_SERVER_VERSION,
       "Storage Server", m_core.m_last_storage_server_ping, m_core.get_net_config().UPTIME_PROOF_FREQUENCY,
       [this, &req](bool significant) {
         m_core.m_storage_https_port = req.https_port;
@@ -3257,15 +3250,6 @@ namespace cryptonote { namespace rpc {
       });
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  LOKINET_PING::response core_rpc_server::invoke(LOKINET_PING::request&& req, rpc_context context)
-  {
-    m_core.lokinet_version = req.version;
-    return handle_ping<LOKINET_PING>(
-        req.version, service_nodes::MIN_LOKINET_VERSION,
-        "Lokinet", m_core.m_last_lokinet_ping, m_core.get_net_config().UPTIME_PROOF_FREQUENCY,
-        [this](bool significant) { if (significant) m_core.reset_proof_interval(); });
-  }
-  //------------------------------------------------------------------------------------------------------------------------------
   GET_STAKING_REQUIREMENT::response core_rpc_server::invoke(GET_STAKING_REQUIREMENT::request&& req, rpc_context context)
   {
     GET_STAKING_REQUIREMENT::response res{};
@@ -3273,7 +3257,7 @@ namespace cryptonote { namespace rpc {
     PERF_TIMER(on_get_staking_requirement);
     res.height = req.height > 0 ? req.height : m_core.get_current_blockchain_height();
 
-    res.staking_requirement = service_nodes::get_staking_requirement(m_core.get_nettype(), res.height, m_core.get_hard_fork_version(res.height));
+    res.staking_requirement = masternodes::get_staking_requirement(m_core.get_nettype(), res.height, m_core.get_hard_fork_version(res.height));
     res.status = STATUS_OK;
     return res;
   }
@@ -3380,32 +3364,32 @@ namespace cryptonote { namespace rpc {
         }
         if (tx.type == cryptonote::txtype::state_change)
         {
-          cryptonote::tx_extra_service_node_state_change state_change;
-          if (!cryptonote::get_service_node_state_change_from_tx_extra(tx.extra, state_change, hard_fork_version))
+          cryptonote::tx_extra_masternode_state_change state_change;
+          if (!cryptonote::get_masternode_state_change_from_tx_extra(tx.extra, state_change, hard_fork_version))
           {
             LOG_ERROR("Could not get state change from tx, possibly corrupt tx, hf_version "<< std::to_string(hard_fork_version));
             continue;
           }
 
           switch(state_change.state) {
-            case service_nodes::new_state::deregister:
+            case masternodes::new_state::deregister:
               res.total_deregister++;
               break;
 
-            case service_nodes::new_state::decommission:
+            case masternodes::new_state::decommission:
               res.total_decommission++;
               break;
 
-            case service_nodes::new_state::recommission:
+            case masternodes::new_state::recommission:
               res.total_recommission++;
               break;
 
-            case service_nodes::new_state::ip_change_penalty:
+            case masternodes::new_state::ip_change_penalty:
               res.total_ip_change_penalty++;
               break;
 
             default:
-              MERROR("Unhandled state in on_get_service_nodes_state_changes");
+              MERROR("Unhandled state in on_get_masternodes_state_changes");
               break;
           }
         }
@@ -3485,8 +3469,6 @@ namespace cryptonote { namespace rpc {
       for (auto type : request.types)
       {
         types.push_back(static_cast<ons::mapping_type>(type));
-        if (!ons::mapping_type_allowed(hf_version, types.back()))
-          throw rpc_error{ERROR_WRONG_PARAM, "Invalid lokinet type '" + std::to_string(type) + "'"};
       }
 
       // This also takes 32 raw bytes, but that is undocumented (because it is painful to pass
@@ -3534,7 +3516,7 @@ namespace cryptonote { namespace rpc {
       if (!ons::parse_owner_to_generic_owner(m_core.get_nettype(), owner, ons_owner, &errmsg))
         throw rpc_error{ERROR_WRONG_PARAM, std::move(errmsg)};
 
-      // TODO(oxen): We now serialize both owner and backup_owner, since if
+      // TODO(quenero): We now serialize both owner and backup_owner, since if
       // we specify an owner that is backup owner, we don't show the (other)
       // owner. For RPC compatibility we keep the request_index around until the
       // next hard fork (16)
@@ -3586,8 +3568,6 @@ namespace cryptonote { namespace rpc {
 
     uint8_t hf_version = m_core.get_hard_fork_version(m_core.get_current_blockchain_height());
     auto type = static_cast<ons::mapping_type>(req.type);
-    if (!ons::mapping_type_allowed(hf_version, type))
-      throw rpc_error{ERROR_WRONG_PARAM, "Invalid lokinet type '" + std::to_string(req.type) + "'"};
 
     if (auto mapping = m_core.get_blockchain_storage().name_system_db().resolve(
         type, *name_hash, m_core.get_current_blockchain_height()))

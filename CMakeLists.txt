@@ -50,17 +50,17 @@ message(STATUS "CMake version ${CMAKE_VERSION}")
 # Has to be set before `project()`, and ignored on non-macos:
 set(CMAKE_OSX_DEPLOYMENT_TARGET 10.12 CACHE STRING "macOS deployment target (Apple clang only)")
 
-project(oxen
+project(quenero
     VERSION 9.1.0
     LANGUAGES CXX C)
-  set(OXEN_RELEASE_CODENAME "Salty Saga")
+  set(QUENERO_RELEASE_CODENAME "Salty Saga")
 
 # String value to append to the full version string; this is intended to easily identify whether a
 # binary was build from the release or development branches.  This should be permanently set to an
 # empty string on `stable`, "-dev" on the `dev` branch, and can be set externally (via cmake
 # arguments) where it makes sense to take some other branch release with an extra value.
-if(NOT DEFINED OXEN_RELEASE_SUFFIX)
-  set(OXEN_RELEASE_SUFFIX "")
+if(NOT DEFINED QUENERO_RELEASE_SUFFIX)
+  set(QUENERO_RELEASE_SUFFIX "")
 endif()
 
 if(POLICY CMP0079)
@@ -860,7 +860,7 @@ if (WIN32)
 endif()
 
 if (BUILD_INTEGRATION)
-  target_compile_definitions(extra INTERFACE OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+  target_compile_definitions(extra INTERFACE QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
 else()
   option(USE_READLINE "Build with GNU readline support." ON)
   if(USE_READLINE AND BUILD_STATIC_DEPS)
@@ -956,11 +956,11 @@ endif()
 # Set up a `make strip_binaries` target that strips built binaries.  This depends on all
 # default-built binaries and strips them after build.  (To also build and strip debug utilities
 # there is also a `make strip_binaries_all` target.)
-get_property(oxen_exec_tgts_all GLOBAL PROPERTY oxen_executable_targets)
-set(oxen_exec_tgts "")
+get_property(quenero_exec_tgts_all GLOBAL PROPERTY quenero_executable_targets)
+set(quenero_exec_tgts "")
 set(strip_binaries "")
 set(strip_binaries_all "")
-foreach(tgt ${oxen_exec_tgts_all})
+foreach(tgt ${quenero_exec_tgts_all})
   list(APPEND strip_binaries_all COMMAND ${CMAKE_STRIP} $<TARGET_FILE:${tgt}>)
   # Look for a EXCLUDE_FROM_ALL property:
   get_property(tgt_excl_all TARGET ${tgt} PROPERTY EXCLUDE_FROM_ALL)
@@ -969,12 +969,12 @@ foreach(tgt ${oxen_exec_tgts_all})
   get_property(tgt_dir TARGET ${tgt} PROPERTY SOURCE_DIR)
   get_property(tgt_dir_excl_all DIRECTORY ${tgt_dir} PROPERTY EXCLUDE_FROM_ALL)
   if (NOT tgt_excl_all AND NOT tgt_dir_excl_all)
-    list(APPEND oxen_exec_tgts ${tgt})
+    list(APPEND quenero_exec_tgts ${tgt})
     list(APPEND strip_binaries COMMAND ${CMAKE_STRIP} $<TARGET_FILE:${tgt}>)
   endif()
 endforeach()
-add_custom_target(strip_binaries ${strip_binaries} DEPENDS ${oxen_exec_tgts})
-add_custom_target(strip_binaries_all ${strip_binaries_all} DEPENDS ${oxen_exec_tgts_all})
+add_custom_target(strip_binaries ${strip_binaries} DEPENDS ${quenero_exec_tgts})
+add_custom_target(strip_binaries_all ${strip_binaries_all} DEPENDS ${quenero_exec_tgts_all})
 
 execute_process(COMMAND tar --version RESULT_VARIABLE tar_exit_code OUTPUT_VARIABLE tar_vers)
 set(git_tag "-unknown")
@@ -1016,17 +1016,17 @@ elseif(tar_os STREQUAL "Windows")
   endif()
   set(default_archive create_zip) # .tar.xz files are too scary for Windows users
 endif()
-set(tar_dir "oxen-${tar_os}-${PROJECT_VERSION}${OXEN_RELEASE_SUFFIX}${git_tag}")
+set(tar_dir "quenero-${tar_os}-${PROJECT_VERSION}${QUENERO_RELEASE_SUFFIX}${git_tag}")
 add_custom_target(create_tarxz
   COMMAND ${CMAKE_COMMAND} -E rename bin "${tar_dir}"
   COMMAND ${CMAKE_COMMAND} -E tar cvJ "${tar_dir}.tar.xz" -- "${tar_dir}"
   COMMAND ${CMAKE_COMMAND} -E rename "${tar_dir}" bin
-  DEPENDS ${oxen_exec_tgts})
+  DEPENDS ${quenero_exec_tgts})
 
 add_custom_target(create_zip
   COMMAND ${CMAKE_COMMAND} -E rename bin "${tar_dir}"
   COMMAND ${CMAKE_COMMAND} -E tar cv "${tar_dir}.zip" --format=zip -- "${tar_dir}"
   COMMAND ${CMAKE_COMMAND} -E rename "${tar_dir}" bin
-  DEPENDS ${oxen_exec_tgts})
+  DEPENDS ${quenero_exec_tgts})
 
 add_custom_target(create_archive DEPENDS ${default_archive})

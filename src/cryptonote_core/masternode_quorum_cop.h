@@ -31,7 +31,7 @@
 #include "serialization/serialization.h"
 #include "cryptonote_protocol/cryptonote_protocol_handler_common.h"
 #include "cryptonote_basic/cryptonote_basic_impl.h"
-#include "cryptonote_core/service_node_voting.h"
+#include "cryptonote_core/masternode_voting.h"
 #include <cassert>
 #include <mutex>
 
@@ -42,14 +42,14 @@ namespace cryptonote
   struct checkpoint_t;
 };
 
-namespace service_nodes
+namespace masternodes
 {
-  struct service_node_info;
+  struct masternode_info;
 
   struct quorum
   {
-    std::vector<crypto::public_key> validators; // Array of public keys identifying service nodes who validate and sign.
-    std::vector<crypto::public_key> workers;    // Array of public keys of tested service nodes (if applicable).
+    std::vector<crypto::public_key> validators; // Array of public keys identifying masternodes who validate and sign.
+    std::vector<crypto::public_key> workers;    // Array of public keys of tested masternodes (if applicable).
 
     BEGIN_SERIALIZE()
       FIELD(validators)
@@ -68,7 +68,7 @@ namespace service_nodes
   {
     std::shared_ptr<const quorum> obligations;
     // TODO(doyle): Workers aren't used, but I kept this as a quorum
-    // to avoid drastic changes for now to a lot of the service node API
+    // to avoid drastic changes for now to a lot of the masternode API
     std::shared_ptr<const quorum> checkpointing;
     std::shared_ptr<const quorum> blink;
     std::shared_ptr<const quorum> pulse;
@@ -85,7 +85,7 @@ namespace service_nodes
     }
   };
 
-  struct service_node_test_results {
+  struct masternode_test_results {
     bool uptime_proved            = true;
     bool single_ip                = true;
     bool checkpoint_participation = true;
@@ -114,11 +114,11 @@ namespace service_nodes
     std::vector<quorum_vote_t> get_relayable_votes(uint64_t current_height, uint8_t hf_version, bool quorum_relay);
     bool                       handle_vote        (quorum_vote_t const &vote, cryptonote::vote_verification_context &vvc);
 
-    static int64_t calculate_decommission_credit(const service_node_info &info, uint64_t current_height);
+    static int64_t calculate_decommission_credit(const masternode_info &info, uint64_t current_height);
 
   private:
     void process_quorums(cryptonote::block const &block);
-    service_node_test_results check_service_node(uint8_t hf_version, const crypto::public_key &pubkey, const service_node_info &info) const;
+    masternode_test_results check_masternode(uint8_t hf_version, const crypto::public_key &pubkey, const masternode_info &info) const;
 
     cryptonote::core& m_core;
     voting_pool       m_vote_pool;

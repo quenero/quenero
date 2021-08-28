@@ -51,7 +51,7 @@
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_basic/miner.h"
 #include "cryptonote_core/uptime_proof.h"
-#include "oxen_economy.h"
+#include "quenero_economy.h"
 #include "ringct/rctSigs.h"
 
 #include "chaingen.h"
@@ -64,15 +64,15 @@ extern "C"
 }
 
 #include <sqlite3.h>
-void oxen_register_callback(std::vector<test_event_entry> &events,
+void quenero_register_callback(std::vector<test_event_entry> &events,
                             std::string const &callback_name,
-                            oxen_callback callback)
+                            quenero_callback callback)
 {
-  events.push_back(oxen_callback_entry{callback_name, callback});
+  events.push_back(quenero_callback_entry{callback_name, callback});
 }
 
 std::vector<std::pair<uint8_t, uint64_t>>
-oxen_generate_hard_fork_table(uint8_t hf_version, uint64_t pos_delay)
+quenero_generate_hard_fork_table(uint8_t hf_version, uint64_t pos_delay)
 {
   assert(hf_version < cryptonote::network_version_count);
   // We always need block 0 == v7 for the genesis block:
@@ -89,14 +89,14 @@ oxen_generate_hard_fork_table(uint8_t hf_version, uint64_t pos_delay)
   return result;
 }
 
-uint64_t oxen_chain_generator_db::get_block_height(crypto::hash const &hash) const
+uint64_t quenero_chain_generator_db::get_block_height(crypto::hash const &hash) const
 {
-  oxen_blockchain_entry const &entry = this->block_table.at(hash);
+  quenero_blockchain_entry const &entry = this->block_table.at(hash);
   uint64_t result                    = cryptonote::get_block_height(entry.block);
   return result;
 }
 
-cryptonote::block oxen_chain_generator_db::get_block_from_height(uint64_t height) const
+cryptonote::block quenero_chain_generator_db::get_block_from_height(uint64_t height) const
 {
   assert(height < blocks.size());
   cryptonote::block const &result = this->blocks[height].block;
@@ -104,22 +104,22 @@ cryptonote::block oxen_chain_generator_db::get_block_from_height(uint64_t height
   return result;
 }
 
-cryptonote::block_header oxen_chain_generator_db::get_block_header_from_height(uint64_t height) const
+cryptonote::block_header quenero_chain_generator_db::get_block_header_from_height(uint64_t height) const
 {
   return get_block_from_height(height);
 }
 
-service_nodes::service_node_keys oxen_chain_generator::get_cached_keys(const crypto::public_key &pubkey) const {
-  service_nodes::service_node_keys keys;
+masternodes::masternode_keys quenero_chain_generator::get_cached_keys(const crypto::public_key &pubkey) const {
+  masternodes::masternode_keys keys;
   keys.pub = pubkey;
-  auto it = service_node_keys_.find(keys.pub);
-  assert(it != service_node_keys_.end());
-  if (it != service_node_keys_.end())
+  auto it = masternode_keys_.find(keys.pub);
+  assert(it != masternode_keys_.end());
+  if (it != masternode_keys_.end())
     keys.key = it->second;
   return keys;
 }
 
-bool oxen_chain_generator_db::get_tx(const crypto::hash &h, cryptonote::transaction &tx) const
+bool quenero_chain_generator_db::get_tx(const crypto::hash &h, cryptonote::transaction &tx) const
 {
   auto it = tx_table.find(h);
   if (it == tx_table.end()) return false;
@@ -128,7 +128,7 @@ bool oxen_chain_generator_db::get_tx(const crypto::hash &h, cryptonote::transact
 }
 
 std::vector<cryptonote::checkpoint_t>
-oxen_chain_generator_db::get_checkpoints_range(uint64_t start, uint64_t end, size_t num_desired_checkpoints) const
+quenero_chain_generator_db::get_checkpoints_range(uint64_t start, uint64_t end, size_t num_desired_checkpoints) const
 {
   assert(start < blocks.size());
   assert(end < blocks.size());
@@ -149,7 +149,7 @@ oxen_chain_generator_db::get_checkpoints_range(uint64_t start, uint64_t end, siz
   return result;
 }
 
-std::vector<cryptonote::block> oxen_chain_generator_db::get_blocks_range(const uint64_t &h1,
+std::vector<cryptonote::block> quenero_chain_generator_db::get_blocks_range(const uint64_t &h1,
                                                                          const uint64_t &h2) const
 {
   assert(h1 <= h2);
@@ -163,15 +163,15 @@ std::vector<cryptonote::block> oxen_chain_generator_db::get_blocks_range(const u
   return result;
 }
 
-oxen_chain_generator::oxen_chain_generator(std::vector<test_event_entry> &events, const std::vector<std::pair<uint8_t, uint64_t>> &hard_forks)
+quenero_chain_generator::quenero_chain_generator(std::vector<test_event_entry> &events, const std::vector<std::pair<uint8_t, uint64_t>> &hard_forks)
 : events_(events)
 , hard_forks_(hard_forks)
 {
-  bool init = ons_db_->init(nullptr, cryptonote::FAKECHAIN, ons::init_oxen_name_system("", false /*read_only*/));
+  bool init = ons_db_->init(nullptr, cryptonote::FAKECHAIN, ons::init_quenero_name_system("", false /*read_only*/));
   assert(init);
 
   first_miner_.generate();
-  oxen_blockchain_entry genesis = oxen_chain_generator::create_genesis_block(first_miner_, 1338224400);
+  quenero_blockchain_entry genesis = quenero_chain_generator::create_genesis_block(first_miner_, 1338224400);
   events_.push_back(genesis.block);
   db_.blocks.push_back(genesis);
 
@@ -184,35 +184,35 @@ oxen_chain_generator::oxen_chain_generator(std::vector<test_event_entry> &events
   events_.push_back(settings);
 }
 
-service_nodes::quorum_manager oxen_chain_generator::top_quorum() const
+masternodes::quorum_manager quenero_chain_generator::top_quorum() const
 {
-  service_nodes::quorum_manager result = top().service_node_state.quorums;
+  masternodes::quorum_manager result = top().masternode_state.quorums;
   return result;
 }
 
-service_nodes::quorum_manager oxen_chain_generator::quorum(uint64_t height) const
+masternodes::quorum_manager quenero_chain_generator::quorum(uint64_t height) const
 {
   assert(height > 0 && height < db_.blocks.size());
-  service_nodes::quorum_manager result = db_.blocks[height].service_node_state.quorums;
+  masternodes::quorum_manager result = db_.blocks[height].masternode_state.quorums;
   return result;
 }
 
-std::shared_ptr<const service_nodes::quorum> oxen_chain_generator::get_quorum(service_nodes::quorum_type type, uint64_t height) const
+std::shared_ptr<const masternodes::quorum> quenero_chain_generator::get_quorum(masternodes::quorum_type type, uint64_t height) const
 {
-  // TODO(oxen): Bad copy pasta from get_quorum, if it ever changes at the source this will break :<
-  if (type == service_nodes::quorum_type::checkpointing)
+  // TODO(quenero): Bad copy pasta from get_quorum, if it ever changes at the source this will break :<
+  if (type == masternodes::quorum_type::checkpointing)
   {
-    assert(height >= service_nodes::REORG_SAFETY_BUFFER_BLOCKS_POST_HF12);
-    height -= service_nodes::REORG_SAFETY_BUFFER_BLOCKS_POST_HF12;
+    assert(height >= masternodes::REORG_SAFETY_BUFFER_BLOCKS_POST_HF12);
+    height -= masternodes::REORG_SAFETY_BUFFER_BLOCKS_POST_HF12;
   }
 
   assert(height > 0 && height < db_.blocks.size());
-  service_nodes::quorum_manager manager = db_.blocks[height].service_node_state.quorums;
-  std::shared_ptr<const service_nodes::quorum> result = manager.get(type);
+  masternodes::quorum_manager manager = db_.blocks[height].masternode_state.quorums;
+  std::shared_ptr<const masternodes::quorum> result = manager.get(type);
   return result;
 }
 
-oxen_blockchain_entry &oxen_chain_generator::add_block(oxen_blockchain_entry const &entry, bool can_be_added_to_blockchain, std::string const &fail_msg)
+quenero_blockchain_entry &quenero_chain_generator::add_block(quenero_blockchain_entry const &entry, bool can_be_added_to_blockchain, std::string const &fail_msg)
 {
   crypto::hash block_hash = get_block_hash(entry.block);
   if (can_be_added_to_blockchain)
@@ -227,7 +227,7 @@ oxen_blockchain_entry &oxen_chain_generator::add_block(oxen_blockchain_entry con
     db_.block_table[block_hash] = entry;
   }
 
-  oxen_blockchain_entry &result = (can_be_added_to_blockchain) ? db_.blocks.back() : db_.block_table[block_hash];
+  quenero_blockchain_entry &result = (can_be_added_to_blockchain) ? db_.blocks.back() : db_.block_table[block_hash];
   for (cryptonote::transaction &tx : result.txs)
   {
     crypto::hash tx_hash = get_transaction_hash(tx);
@@ -240,26 +240,26 @@ oxen_blockchain_entry &oxen_chain_generator::add_block(oxen_blockchain_entry con
     ons_db_->add_block(entry.block, entry.txs);
   }
 
-  // TODO(oxen): State history culling and alt states
-  state_history_.emplace_hint(state_history_.end(), result.service_node_state);
+  // TODO(quenero): State history culling and alt states
+  state_history_.emplace_hint(state_history_.end(), result.masternode_state);
 
   if (result.checkpointed)
   {
-    oxen_block_with_checkpoint data = {};
+    quenero_block_with_checkpoint data = {};
     data.has_checkpoint             = true;
     data.block                      = result.block;
     data.checkpoint                 = result.checkpoint;
-    events_.push_back(oxen_blockchain_addable<oxen_block_with_checkpoint>(data, can_be_added_to_blockchain, fail_msg));
+    events_.push_back(quenero_blockchain_addable<quenero_block_with_checkpoint>(data, can_be_added_to_blockchain, fail_msg));
   }
   else
   {
-    events_.push_back(oxen_blockchain_addable<cryptonote::block>(result.block, can_be_added_to_blockchain, fail_msg));
+    events_.push_back(quenero_blockchain_addable<cryptonote::block>(result.block, can_be_added_to_blockchain, fail_msg));
   }
 
   return result;
 }
 
-cryptonote::account_base oxen_chain_generator::add_account()
+cryptonote::account_base quenero_chain_generator::add_account()
 {
   cryptonote::account_base account;
   account.generate();
@@ -267,68 +267,68 @@ cryptonote::account_base oxen_chain_generator::add_account()
   return account;
 }
 
-void oxen_chain_generator::add_blocks_until_version(uint8_t hf_version)
+void quenero_chain_generator::add_blocks_until_version(uint8_t hf_version)
 {
   assert(hard_forks_.size());
   assert(hf_version_ <= hard_forks_.back().first);
   assert(db_.blocks.size() >= 1); // NOTE: We must have genesis block
   for (;;)
   {
-    oxen_blockchain_entry &entry = create_and_add_next_block();
+    quenero_blockchain_entry &entry = create_and_add_next_block();
     if (entry.block.major_version == hf_version) return;
   }
 }
 
-void oxen_chain_generator::add_n_blocks(int n)
+void quenero_chain_generator::add_n_blocks(int n)
 {
   for (auto i = 0; i < n; ++i) {
     create_and_add_next_block();
   }
 }
 
-bool oxen_chain_generator::add_blocks_until_next_checkpointable_height()
+bool quenero_chain_generator::add_blocks_until_next_checkpointable_height()
 {
-  if (top().service_node_state.active_service_nodes_infos().size() < service_nodes::CHECKPOINT_QUORUM_SIZE)
+  if (top().masternode_state.active_masternodes_infos().size() < masternodes::CHECKPOINT_QUORUM_SIZE)
     return false;
 
   // NOTE: Add blocks until we get to the first height that has a checkpointing
-  // quorum AND there are service nodes in the quorum. Note we do this naively
+  // quorum AND there are masternodes in the quorum. Note we do this naively
   // as tests shouldn't have to care about implementation details.
   for (;;)
   {
     create_and_add_next_block();
-    std::shared_ptr<const service_nodes::quorum> quorum = get_quorum(service_nodes::quorum_type::checkpointing, height());
+    std::shared_ptr<const masternodes::quorum> quorum = get_quorum(masternodes::quorum_type::checkpointing, height());
     if (quorum && quorum->validators.size()) break;
   }
 
   return true;
 }
 
-void oxen_chain_generator::add_service_node_checkpoint(uint64_t block_height, size_t num_votes)
+void quenero_chain_generator::add_masternode_checkpoint(uint64_t block_height, size_t num_votes)
 {
-  oxen_blockchain_entry &entry = db_.blocks[block_height];
+  quenero_blockchain_entry &entry = db_.blocks[block_height];
   entry.checkpointed           = true;
-  entry.checkpoint             = create_service_node_checkpoint(block_height, num_votes);
+  entry.checkpoint             = create_masternode_checkpoint(block_height, num_votes);
   events_.push_back(entry.checkpoint);
 }
 
-void oxen_chain_generator::add_mined_money_unlock_blocks()
+void quenero_chain_generator::add_mined_money_unlock_blocks()
 {
   add_n_blocks(CRYPTONOTE_MINED_MONEY_UNLOCK_WINDOW);
 }
 
-void oxen_chain_generator::add_transfer_unlock_blocks()
+void quenero_chain_generator::add_transfer_unlock_blocks()
 {
   add_n_blocks(CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE);
 }
 
-void oxen_chain_generator::add_tx(cryptonote::transaction const &tx, bool can_be_added_to_blockchain, std::string const &fail_msg, bool kept_by_block)
+void quenero_chain_generator::add_tx(cryptonote::transaction const &tx, bool can_be_added_to_blockchain, std::string const &fail_msg, bool kept_by_block)
 {
-  events_.emplace_back(oxen_blockchain_addable<oxen_transaction>{{tx, kept_by_block}, can_be_added_to_blockchain, fail_msg});
+  events_.emplace_back(quenero_blockchain_addable<quenero_transaction>{{tx, kept_by_block}, can_be_added_to_blockchain, fail_msg});
 }
 
 cryptonote::transaction
-oxen_chain_generator::create_and_add_oxen_name_system_tx(cryptonote::account_base const &src,
+quenero_chain_generator::create_and_add_quenero_name_system_tx(cryptonote::account_base const &src,
                                                          uint8_t hf_version,
                                                          ons::mapping_type type,
                                                          std::string const &name,
@@ -337,13 +337,13 @@ oxen_chain_generator::create_and_add_oxen_name_system_tx(cryptonote::account_bas
                                                          ons::generic_owner const *backup_owner,
                                                          bool kept_by_block)
 {
-  cryptonote::transaction t = create_oxen_name_system_tx(src, hf_version, type, name, value, owner, backup_owner);
+  cryptonote::transaction t = create_quenero_name_system_tx(src, hf_version, type, name, value, owner, backup_owner);
   add_tx(t, true /*can_be_added_to_blockchain*/, ""/*fail_msg*/, kept_by_block);
   return t;
 }
 
 cryptonote::transaction
-oxen_chain_generator::create_and_add_oxen_name_system_tx_update(cryptonote::account_base const &src,
+quenero_chain_generator::create_and_add_quenero_name_system_tx_update(cryptonote::account_base const &src,
                                                                 uint8_t hf_version,
                                                                 ons::mapping_type type,
                                                                 std::string const &name,
@@ -353,37 +353,37 @@ oxen_chain_generator::create_and_add_oxen_name_system_tx_update(cryptonote::acco
                                                                 ons::generic_signature *signature,
                                                                 bool kept_by_block)
 {
-  cryptonote::transaction t = create_oxen_name_system_tx_update(src, hf_version, type, name, value, owner, backup_owner, signature);
+  cryptonote::transaction t = create_quenero_name_system_tx_update(src, hf_version, type, name, value, owner, backup_owner, signature);
   add_tx(t, true /*can_be_added_to_blockchain*/, ""/*fail_msg*/, kept_by_block);
   return t;
 }
 
 cryptonote::transaction
-oxen_chain_generator::create_and_add_oxen_name_system_tx_renew(cryptonote::account_base const &src,
+quenero_chain_generator::create_and_add_quenero_name_system_tx_renew(cryptonote::account_base const &src,
                                                                uint8_t hf_version,
                                                                ons::mapping_type type,
                                                                std::string const &name,
                                                                bool kept_by_block)
 {
-  cryptonote::transaction t = create_oxen_name_system_tx_renew(src, hf_version, type, name);
+  cryptonote::transaction t = create_quenero_name_system_tx_renew(src, hf_version, type, name);
   add_tx(t, true /*can_be_added_to_blockchain*/, ""/*fail_msg*/, kept_by_block);
   return t;
 }
 
 
-cryptonote::transaction oxen_chain_generator::create_and_add_tx(const cryptonote::account_base &src,
+cryptonote::transaction quenero_chain_generator::create_and_add_tx(const cryptonote::account_base &src,
                                                                 const cryptonote::account_public_address &dest,
                                                                 uint64_t amount,
                                                                 uint64_t fee,
                                                                 bool kept_by_block)
 {
   cryptonote::transaction t = create_tx(src, dest, amount, fee);
-  oxen_tx_builder(events_, t, db_.blocks.back().block, src, dest, amount, hf_version_).with_fee(fee).build();
+  quenero_tx_builder(events_, t, db_.blocks.back().block, src, dest, amount, hf_version_).with_fee(fee).build();
   add_tx(t, true /*can_be_added_to_blockchain*/, ""/*fail_msg*/, kept_by_block);
   return t;
 }
 
-cryptonote::transaction oxen_chain_generator::create_and_add_big_tx(
+cryptonote::transaction quenero_chain_generator::create_and_add_big_tx(
         const cryptonote::account_base &src,
         const cryptonote::account_public_address &dest,
         uint64_t junk_size,
@@ -392,55 +392,55 @@ cryptonote::transaction oxen_chain_generator::create_and_add_big_tx(
         bool kept_by_block)
 {
   cryptonote::transaction t = create_tx(src, dest, amount, fee);
-  oxen_tx_builder(events_, t, db_.blocks.back().block, src, dest, amount, hf_version_).with_fee(fee).with_junk(junk_size).build();
+  quenero_tx_builder(events_, t, db_.blocks.back().block, src, dest, amount, hf_version_).with_fee(fee).with_junk(junk_size).build();
   add_tx(t, true /*can_be_added_to_blockchain*/, ""/*fail_msg*/, kept_by_block);
   return t;
 }
 
-cryptonote::transaction oxen_chain_generator::create_and_add_state_change_tx(service_nodes::new_state state, const crypto::public_key &pub_key, uint16_t reasons_all, uint16_t reasons_any, uint64_t height, const std::vector<uint64_t> &voters, uint64_t fee, bool kept_by_block)
+cryptonote::transaction quenero_chain_generator::create_and_add_state_change_tx(masternodes::new_state state, const crypto::public_key &pub_key, uint16_t reasons_all, uint16_t reasons_any, uint64_t height, const std::vector<uint64_t> &voters, uint64_t fee, bool kept_by_block)
 {
   cryptonote::transaction result = create_state_change_tx(state, pub_key, reasons_all, reasons_any, height, voters, fee);
   add_tx(result, true /*can_be_added_to_blockchain*/, "" /*fail_msg*/, kept_by_block);
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_and_add_registration_tx(const cryptonote::account_base &src, const cryptonote::keypair &sn_keys, bool kept_by_block)
+cryptonote::transaction quenero_chain_generator::create_and_add_registration_tx(const cryptonote::account_base &src, const cryptonote::keypair &sn_keys, bool kept_by_block)
 {
   cryptonote::transaction result = create_registration_tx(src, sn_keys);
   add_tx(result, true /*can_be_added_to_blockchain*/, "" /*fail_msg*/, kept_by_block);
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_and_add_staking_tx(const crypto::public_key &pub_key, const cryptonote::account_base &src, uint64_t amount, bool kept_by_block)
+cryptonote::transaction quenero_chain_generator::create_and_add_staking_tx(const crypto::public_key &pub_key, const cryptonote::account_base &src, uint64_t amount, bool kept_by_block)
 {
   cryptonote::transaction result = create_staking_tx(pub_key, src, amount);
   add_tx(result, true /*can_be_added_to_blockchain*/, "" /*fail_msg*/, kept_by_block);
   return result;
 }
 
-oxen_blockchain_entry &oxen_chain_generator::create_and_add_next_block(const std::vector<cryptonote::transaction>& txs, cryptonote::checkpoint_t const *checkpoint, bool can_be_added_to_blockchain, std::string const &fail_msg)
+quenero_blockchain_entry &quenero_chain_generator::create_and_add_next_block(const std::vector<cryptonote::transaction>& txs, cryptonote::checkpoint_t const *checkpoint, bool can_be_added_to_blockchain, std::string const &fail_msg)
 {
-  oxen_blockchain_entry entry   = create_next_block(txs, checkpoint);
-  oxen_blockchain_entry &result = add_block(entry, can_be_added_to_blockchain, fail_msg);
+  quenero_blockchain_entry entry   = create_next_block(txs, checkpoint);
+  quenero_blockchain_entry &result = add_block(entry, can_be_added_to_blockchain, fail_msg);
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_tx(const cryptonote::account_base &src,
+cryptonote::transaction quenero_chain_generator::create_tx(const cryptonote::account_base &src,
                                                         const cryptonote::account_public_address &dest,
                                                         uint64_t amount,
                                                         uint64_t fee) const
 {
   cryptonote::transaction t;
-  oxen_tx_builder(events_, t, db_.blocks.back().block, src, dest, amount, hf_version_).with_fee(fee).build();
+  quenero_tx_builder(events_, t, db_.blocks.back().block, src, dest, amount, hf_version_).with_fee(fee).build();
   return t;
 }
 
 cryptonote::transaction
-oxen_chain_generator::create_registration_tx(const cryptonote::account_base &src,
-                                             const cryptonote::keypair &service_node_keys,
+quenero_chain_generator::create_registration_tx(const cryptonote::account_base &src,
+                                             const cryptonote::keypair &masternode_keys,
                                              uint64_t src_portions,
                                              uint64_t src_operator_cut,
-                                             std::array<oxen_service_node_contribution, 3> const &contributions,
+                                             std::array<quenero_masternode_contribution, 3> const &contributions,
                                              int num_contributors) const
 {
   cryptonote::transaction result = {};
@@ -455,22 +455,22 @@ oxen_chain_generator::create_registration_tx(const cryptonote::account_base &src
     portions.push_back(src_portions);
     for (int i = 0; i < num_contributors; i++)
     {
-      oxen_service_node_contribution const &entry = contributions[i];
+      quenero_masternode_contribution const &entry = contributions[i];
       contributors.push_back(entry.contributor);
       portions.push_back    (entry.portions);
     }
 
     uint64_t new_height    = get_block_height(top().block) + 1;
     uint8_t new_hf_version = get_hf_version_at(new_height);
-    const auto staking_requirement = service_nodes::get_staking_requirement(cryptonote::FAKECHAIN, new_height, new_hf_version);
-    uint64_t amount                = service_nodes::portions_to_amount(portions[0], staking_requirement);
+    const auto staking_requirement = masternodes::get_staking_requirement(cryptonote::FAKECHAIN, new_height, new_hf_version);
+    uint64_t amount                = masternodes::portions_to_amount(portions[0], staking_requirement);
 
     uint64_t unlock_time = 0;
     if (new_hf_version < cryptonote::network_version_11_infinite_staking)
-      unlock_time = new_height + service_nodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
+      unlock_time = new_height + masternodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
 
     std::vector<uint8_t> extra;
-    cryptonote::add_service_node_pubkey_to_tx_extra(extra, service_node_keys.pub);
+    cryptonote::add_masternode_pubkey_to_tx_extra(extra, masternode_keys.pub);
     const uint64_t exp_timestamp = time(nullptr) + STAKING_AUTHORIZATION_EXPIRATION_WINDOW;
 
     crypto::hash hash;
@@ -481,35 +481,35 @@ oxen_chain_generator::create_registration_tx(const cryptonote::account_base &src
     }
 
     crypto::signature signature;
-    crypto::generate_signature(hash, service_node_keys.pub, service_node_keys.sec, signature);
-    add_service_node_register_to_tx_extra(extra, contributors, src_operator_cut, portions, exp_timestamp, signature);
-    add_service_node_contributor_to_tx_extra(extra, contributors.at(0));
-    oxen_tx_builder(events_, result, top().block, src /*from*/, src.get_keys().m_account_address /*to*/, amount, new_hf_version)
+    crypto::generate_signature(hash, masternode_keys.pub, masternode_keys.sec, signature);
+    add_masternode_register_to_tx_extra(extra, contributors, src_operator_cut, portions, exp_timestamp, signature);
+    add_masternode_contributor_to_tx_extra(extra, contributors.at(0));
+    quenero_tx_builder(events_, result, top().block, src /*from*/, src.get_keys().m_account_address /*to*/, amount, new_hf_version)
         .with_tx_type(cryptonote::txtype::stake)
         .with_unlock_time(unlock_time)
         .with_extra(extra)
         .build();
   }
 
-  service_node_keys_[service_node_keys.pub] = service_node_keys.sec; // NOTE: Save generated key for reuse later if we need to interact with the node again
+  masternode_keys_[masternode_keys.pub] = masternode_keys.sec; // NOTE: Save generated key for reuse later if we need to interact with the node again
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_staking_tx(const crypto::public_key &pub_key, const cryptonote::account_base &src, uint64_t amount) const
+cryptonote::transaction quenero_chain_generator::create_staking_tx(const crypto::public_key &pub_key, const cryptonote::account_base &src, uint64_t amount) const
 {
   cryptonote::transaction result = {};
   std::vector<uint8_t> extra;
-  cryptonote::add_service_node_pubkey_to_tx_extra(extra, pub_key);
-  cryptonote::add_service_node_contributor_to_tx_extra(extra, src.get_keys().m_account_address);
+  cryptonote::add_masternode_pubkey_to_tx_extra(extra, pub_key);
+  cryptonote::add_masternode_contributor_to_tx_extra(extra, src.get_keys().m_account_address);
 
   uint64_t new_height    = get_block_height(top().block) + 1;
   uint8_t new_hf_version = get_hf_version_at(new_height);
 
   uint64_t unlock_time = 0;
   if (new_hf_version < cryptonote::network_version_11_infinite_staking)
-    unlock_time = new_height + service_nodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
+    unlock_time = new_height + masternodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
 
-  oxen_tx_builder(events_, result, top().block, src /*from*/, src.get_keys().m_account_address /*to*/, amount, new_hf_version)
+  quenero_tx_builder(events_, result, top().block, src /*from*/, src.get_keys().m_account_address /*to*/, amount, new_hf_version)
       .with_tx_type(cryptonote::txtype::stake)
       .with_unlock_time(unlock_time)
       .with_extra(extra)
@@ -517,45 +517,45 @@ cryptonote::transaction oxen_chain_generator::create_staking_tx(const crypto::pu
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_state_change_tx(service_nodes::new_state state, const crypto::public_key &pub_key, uint16_t reasons_all, uint16_t reasons_any, uint64_t height, const std::vector<uint64_t>& voters, uint64_t fee) const
+cryptonote::transaction quenero_chain_generator::create_state_change_tx(masternodes::new_state state, const crypto::public_key &pub_key, uint16_t reasons_all, uint16_t reasons_any, uint64_t height, const std::vector<uint64_t>& voters, uint64_t fee) const
 {
   if (height == UINT64_MAX)
     height = this->height();
 
   auto hf_version = get_hf_version_at(height + 1);
 
-  service_nodes::quorum_manager const &quorums                   = quorum(height);
-  std::vector<crypto::public_key> const &validator_service_nodes = quorums.obligations->validators;
-  std::vector<crypto::public_key> const &worker_service_nodes    = quorums.obligations->workers;
+  masternodes::quorum_manager const &quorums                   = quorum(height);
+  std::vector<crypto::public_key> const &validator_masternodes = quorums.obligations->validators;
+  std::vector<crypto::public_key> const &worker_masternodes    = quorums.obligations->workers;
 
   size_t worker_index = std::numeric_limits<size_t>::max();
-  for (size_t i = 0; i < worker_service_nodes.size(); i++)
+  for (size_t i = 0; i < worker_masternodes.size(); i++)
   {
-    crypto::public_key const &check_key = worker_service_nodes[i];
+    crypto::public_key const &check_key = worker_masternodes[i];
     if (pub_key == check_key) worker_index = i;
   }
-  assert(worker_index < worker_service_nodes.size());
+  assert(worker_index < worker_masternodes.size());
 
-  using scver = cryptonote::tx_extra_service_node_state_change::version_t;
-  cryptonote::tx_extra_service_node_state_change state_change_extra(
+  using scver = cryptonote::tx_extra_masternode_state_change::version_t;
+  cryptonote::tx_extra_masternode_state_change state_change_extra(
           hf_version >= cryptonote::network_version_18 ? scver::v4_reasons : scver::v0,
           state, height, worker_index, reasons_all, reasons_any, {});
   if (voters.size())
   {
     for (const auto voter_index : voters)
     {
-      auto voter_keys = get_cached_keys(validator_service_nodes[voter_index]);
-      service_nodes::quorum_vote_t vote = service_nodes::make_state_change_vote(state_change_extra.block_height, voter_index, state_change_extra.service_node_index, state, 0, voter_keys);
+      auto voter_keys = get_cached_keys(validator_masternodes[voter_index]);
+      masternodes::quorum_vote_t vote = masternodes::make_state_change_vote(state_change_extra.block_height, voter_index, state_change_extra.masternode_index, state, 0, voter_keys);
       state_change_extra.votes.push_back({vote.signature, (uint32_t)voter_index});
     }
   }
   else
   {
-    for (size_t i = 0; i < service_nodes::STATE_CHANGE_MIN_VOTES_TO_CHANGE_STATE; i++)
+    for (size_t i = 0; i < masternodes::STATE_CHANGE_MIN_VOTES_TO_CHANGE_STATE; i++)
     {
-      auto voter_keys = get_cached_keys(validator_service_nodes[i]);
+      auto voter_keys = get_cached_keys(validator_masternodes[i]);
 
-      service_nodes::quorum_vote_t vote = service_nodes::make_state_change_vote(state_change_extra.block_height, i, state_change_extra.service_node_index, state, 0, voter_keys);
+      masternodes::quorum_vote_t vote = masternodes::make_state_change_vote(state_change_extra.block_height, i, state_change_extra.masternode_index, state, 0, voter_keys);
       state_change_extra.votes.push_back({vote.signature, (uint32_t)i});
     }
   }
@@ -563,10 +563,10 @@ cryptonote::transaction oxen_chain_generator::create_state_change_tx(service_nod
   cryptonote::transaction result;
   {
     std::vector<uint8_t> extra;
-    const bool full_tx_made = cryptonote::add_service_node_state_change_to_tx_extra(result.extra, state_change_extra, hf_version);
+    const bool full_tx_made = cryptonote::add_masternode_state_change_to_tx_extra(result.extra, state_change_extra, hf_version);
     assert(full_tx_made);
     if (fee)
-      oxen_tx_builder(events_, result, top().block, first_miner_, first_miner_.get_keys().m_account_address, 0 /*amount*/, hf_version)
+      quenero_tx_builder(events_, result, top().block, first_miner_, first_miner_.get_keys().m_account_address, 0 /*amount*/, hf_version)
         .with_tx_type(cryptonote::txtype::state_change)
         .with_fee(fee)
         .with_extra(extra)
@@ -581,26 +581,26 @@ cryptonote::transaction oxen_chain_generator::create_state_change_tx(service_nod
   return result;
 }
 
-cryptonote::checkpoint_t oxen_chain_generator::create_service_node_checkpoint(uint64_t block_height, size_t num_votes) const
+cryptonote::checkpoint_t quenero_chain_generator::create_masternode_checkpoint(uint64_t block_height, size_t num_votes) const
 {
-  service_nodes::quorum const &quorum = *get_quorum(service_nodes::quorum_type::checkpointing, block_height);
+  masternodes::quorum const &quorum = *get_quorum(masternodes::quorum_type::checkpointing, block_height);
   assert(num_votes < quorum.validators.size());
 
-  oxen_blockchain_entry const &entry = db_.blocks[block_height];
+  quenero_blockchain_entry const &entry = db_.blocks[block_height];
   crypto::hash const block_hash      = cryptonote::get_block_hash(entry.block);
-  cryptonote::checkpoint_t result    = service_nodes::make_empty_service_node_checkpoint(block_hash, block_height);
+  cryptonote::checkpoint_t result    = masternodes::make_empty_masternode_checkpoint(block_hash, block_height);
   result.signatures.reserve(num_votes);
   for (size_t i = 0; i < num_votes; i++)
   {
     auto keys = get_cached_keys(quorum.validators[i]);
-    service_nodes::quorum_vote_t vote = service_nodes::make_checkpointing_vote(entry.block.major_version, result.block_hash, block_height, i, keys);
-    result.signatures.push_back(service_nodes::quorum_signature(vote.index_in_group, vote.signature));
+    masternodes::quorum_vote_t vote = masternodes::make_checkpointing_vote(entry.block.major_version, result.block_hash, block_height, i, keys);
+    result.signatures.push_back(masternodes::quorum_signature(vote.index_in_group, vote.signature));
   }
 
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx(cryptonote::account_base const &src,
+cryptonote::transaction quenero_chain_generator::create_quenero_name_system_tx(cryptonote::account_base const &src,
                                                                          uint8_t hf_version,
                                                                          ons::mapping_type type,
                                                                          std::string const &name,
@@ -636,12 +636,12 @@ cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx(crypton
   assert(encrypted);
 
   std::vector<uint8_t> extra;
-  cryptonote::tx_extra_oxen_name_system data = cryptonote::tx_extra_oxen_name_system::make_buy(generic_owner, backup_owner, type, name_hash, encrypted_value.to_string(), prev_txid);
-  cryptonote::add_oxen_name_system_to_tx_extra(extra, data);
+  cryptonote::tx_extra_quenero_name_system data = cryptonote::tx_extra_quenero_name_system::make_buy(generic_owner, backup_owner, type, name_hash, encrypted_value.to_string(), prev_txid);
+  cryptonote::add_quenero_name_system_to_tx_extra(extra, data);
   cryptonote::add_burned_amount_to_tx_extra(extra, burn);
   cryptonote::transaction result = {};
-  oxen_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
-      .with_tx_type(cryptonote::txtype::oxen_name_system)
+  quenero_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
+      .with_tx_type(cryptonote::txtype::quenero_name_system)
       .with_extra(extra)
       .with_fee(burn + TESTS_DEFAULT_FEE)
       .build();
@@ -649,7 +649,7 @@ cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx(crypton
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx_update(cryptonote::account_base const &src,
+cryptonote::transaction quenero_chain_generator::create_quenero_name_system_tx_update(cryptonote::account_base const &src,
                                                                                 uint8_t hf_version,
                                                                                 ons::mapping_type type,
                                                                                 std::string const &name,
@@ -694,16 +694,16 @@ cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx_update(
   }
 
   std::vector<uint8_t> extra;
-  cryptonote::tx_extra_oxen_name_system data = cryptonote::tx_extra_oxen_name_system::make_update(*signature, type, name_hash, encrypted_value.to_view(), owner, backup_owner, prev_txid);
-  cryptonote::add_oxen_name_system_to_tx_extra(extra, data);
+  cryptonote::tx_extra_quenero_name_system data = cryptonote::tx_extra_quenero_name_system::make_update(*signature, type, name_hash, encrypted_value.to_view(), owner, backup_owner, prev_txid);
+  cryptonote::add_quenero_name_system_to_tx_extra(extra, data);
 
   cryptonote::block const &head = top().block;
   uint64_t new_height           = get_block_height(top().block) + 1;
   uint8_t new_hf_version        = get_hf_version_at(new_height);
 
   cryptonote::transaction result = {};
-  oxen_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
-      .with_tx_type(cryptonote::txtype::oxen_name_system)
+  quenero_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
+      .with_tx_type(cryptonote::txtype::quenero_name_system)
       .with_extra(extra)
       .with_fee(TESTS_DEFAULT_FEE)
       .build();
@@ -712,25 +712,25 @@ cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx_update(
 }
 
 cryptonote::transaction
-oxen_chain_generator::create_oxen_name_system_tx_update_w_extra(cryptonote::account_base const &src, uint8_t hf_version, cryptonote::tx_extra_oxen_name_system const &ons_extra) const
+quenero_chain_generator::create_quenero_name_system_tx_update_w_extra(cryptonote::account_base const &src, uint8_t hf_version, cryptonote::tx_extra_quenero_name_system const &ons_extra) const
 {
   std::vector<uint8_t> extra;
-  cryptonote::add_oxen_name_system_to_tx_extra(extra, ons_extra);
+  cryptonote::add_quenero_name_system_to_tx_extra(extra, ons_extra);
 
   cryptonote::block const &head = top().block;
   uint64_t new_height           = get_block_height(top().block) + 1;
   uint8_t new_hf_version        = get_hf_version_at(new_height);
 
   cryptonote::transaction result = {};
-  oxen_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
-      .with_tx_type(cryptonote::txtype::oxen_name_system)
+  quenero_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
+      .with_tx_type(cryptonote::txtype::quenero_name_system)
       .with_extra(extra)
       .with_fee(TESTS_DEFAULT_FEE)
       .build();
   return result;
 }
 
-cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx_renew(cryptonote::account_base const &src,
+cryptonote::transaction quenero_chain_generator::create_quenero_name_system_tx_renew(cryptonote::account_base const &src,
                                                                                uint8_t hf_version,
                                                                                ons::mapping_type type,
                                                                                std::string const &name,
@@ -749,15 +749,15 @@ cryptonote::transaction oxen_chain_generator::create_oxen_name_system_tx_renew(c
   uint64_t burn = burn_override.value_or(ons::burn_needed(new_hf_version, type));
 
   std::vector<uint8_t> extra;
-  cryptonote::tx_extra_oxen_name_system data = cryptonote::tx_extra_oxen_name_system::make_renew(type, name_hash, prev_txid);
-  cryptonote::add_oxen_name_system_to_tx_extra(extra, data);
+  cryptonote::tx_extra_quenero_name_system data = cryptonote::tx_extra_quenero_name_system::make_renew(type, name_hash, prev_txid);
+  cryptonote::add_quenero_name_system_to_tx_extra(extra, data);
   cryptonote::add_burned_amount_to_tx_extra(extra, burn);
 
   cryptonote::block const &head = top().block;
 
   cryptonote::transaction result = {};
-  oxen_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
-      .with_tx_type(cryptonote::txtype::oxen_name_system)
+  quenero_tx_builder(events_, result, head, src /*from*/, src.get_keys().m_account_address, 0 /*amount*/, new_hf_version)
+      .with_tx_type(cryptonote::txtype::quenero_name_system)
       .with_extra(extra)
       .with_fee(burn + TESTS_DEFAULT_FEE)
       .build();
@@ -792,7 +792,7 @@ static void fill_nonce_with_test_generator(test_generator *generator, cryptonote
     blk.timestamp++;
 }
 
-void fill_nonce_with_oxen_generator(oxen_chain_generator const *generator, cryptonote::block& blk, const cryptonote::difficulty_type& diffic, uint64_t height)
+void fill_nonce_with_quenero_generator(quenero_chain_generator const *generator, cryptonote::block& blk, const cryptonote::difficulty_type& diffic, uint64_t height)
 {
   cryptonote::randomx_longhash_context randomx_context = {};
   if (generator->blocks().size() && generator->hardfork() >= cryptonote::network_version_12_checkpointing)
@@ -812,10 +812,10 @@ void fill_nonce_with_oxen_generator(oxen_chain_generator const *generator, crypt
     blk.timestamp++;
 }
 
-oxen_blockchain_entry oxen_chain_generator::create_genesis_block(const cryptonote::account_base &miner, uint64_t timestamp)
+quenero_blockchain_entry quenero_chain_generator::create_genesis_block(const cryptonote::account_base &miner, uint64_t timestamp)
 {
   uint64_t height              = 0;
-  oxen_blockchain_entry result = {};
+  quenero_blockchain_entry result = {};
   cryptonote::block &blk       = result.block;
   blk.major_version            = hf_version_;
   blk.minor_version            = hf_version_;
@@ -833,7 +833,7 @@ oxen_blockchain_entry oxen_chain_generator::create_genesis_block(const cryptonot
                                           target_block_weight,
                                           0 /*total_fee*/,
                                           blk.miner_tx,
-                                          cryptonote::oxen_miner_tx_context::miner_block(cryptonote::FAKECHAIN, miner.get_keys().m_account_address),
+                                          cryptonote::quenero_miner_tx_context::miner_block(cryptonote::FAKECHAIN, miner.get_keys().m_account_address),
                                           cryptonote::blobdata(),
                                           hf_version_);
     assert(constructed);
@@ -876,7 +876,7 @@ oxen_blockchain_entry oxen_chain_generator::create_genesis_block(const cryptonot
     }
   }
 
-  fill_nonce_with_oxen_generator(this, blk, TEST_DEFAULT_DIFFICULTY, height);
+  fill_nonce_with_quenero_generator(this, blk, TEST_DEFAULT_DIFFICULTY, height);
   result.block_weight = get_transaction_weight(blk.miner_tx);
   uint64_t block_reward, block_reward_unpenalized;
   cryptonote::get_base_block_reward(0 /*median_weight*/, result.block_weight, 0 /*already_generated_coins*/, block_reward, block_reward_unpenalized, hf_version_, height);
@@ -884,7 +884,7 @@ oxen_blockchain_entry oxen_chain_generator::create_genesis_block(const cryptonot
   return result;
 }
 
-bool oxen_chain_generator::block_begin(oxen_blockchain_entry &entry, oxen_create_block_params &params, const std::vector<cryptonote::transaction> &tx_list) const
+bool quenero_chain_generator::block_begin(quenero_blockchain_entry &entry, quenero_create_block_params &params, const std::vector<cryptonote::transaction> &tx_list) const
 {
   assert(params.hf_version >= params.prev.block.major_version);
   uint64_t height          = get_block_height(params.prev.block) + 1;
@@ -910,29 +910,29 @@ bool oxen_chain_generator::block_begin(oxen_blockchain_entry &entry, oxen_create
   }
 
   // NOTE: Calculate governance
-  cryptonote::oxen_miner_tx_context miner_tx_context;
-  service_nodes::quorum pulse_quorum;
-  std::vector<service_nodes::pubkey_and_sninfo> active_snode_list =
-      params.prev.service_node_state.active_service_nodes_infos();
+  cryptonote::quenero_miner_tx_context miner_tx_context;
+  masternodes::quorum pulse_quorum;
+  std::vector<masternodes::pubkey_and_sninfo> active_snode_list =
+      params.prev.masternode_state.active_masternodes_infos();
 
-  bool pulse_block_is_possible = blk.major_version >= cryptonote::network_version_16_pulse && active_snode_list.size() >= service_nodes::pulse_min_service_nodes(cryptonote::FAKECHAIN);
-  bool make_pulse_block        = (params.type == oxen_create_block_type::automatic && pulse_block_is_possible) || params.type == oxen_create_block_type::pulse;
+  bool pulse_block_is_possible = blk.major_version >= cryptonote::network_version_16_pulse && active_snode_list.size() >= masternodes::pulse_min_masternodes(cryptonote::FAKECHAIN);
+  bool make_pulse_block        = (params.type == quenero_create_block_type::automatic && pulse_block_is_possible) || params.type == quenero_create_block_type::pulse;
 
   if (make_pulse_block)
   {
     // NOTE: Set up Pulse Header
-    blk.pulse.validator_bitset = service_nodes::pulse_validator_bit_mask(); // NOTE: Everyone participates
+    blk.pulse.validator_bitset = masternodes::pulse_validator_bit_mask(); // NOTE: Everyone participates
     blk.pulse.round = params.pulse_round;
     for (size_t i = 0; i < sizeof(blk.pulse.random_value.data); i++)
       blk.pulse.random_value.data[i] = static_cast<char>(tools::uniform_distribution_portable(tools::rng, 256));
 
     // NOTE: Get Pulse Quorum necessary for this block
-    std::vector<crypto::hash> entropy = service_nodes::get_pulse_entropy_for_next_block(db_, params.prev.block, blk.pulse.round);
-    pulse_quorum = service_nodes::generate_pulse_quorum(cryptonote::FAKECHAIN, params.block_leader.key, blk.major_version, active_snode_list, entropy, blk.pulse.round);
-    assert(pulse_quorum.validators.size() == service_nodes::PULSE_QUORUM_NUM_VALIDATORS);
+    std::vector<crypto::hash> entropy = masternodes::get_pulse_entropy_for_next_block(db_, params.prev.block, blk.pulse.round);
+    pulse_quorum = masternodes::generate_pulse_quorum(cryptonote::FAKECHAIN, params.block_leader.key, blk.major_version, active_snode_list, entropy, blk.pulse.round);
+    assert(pulse_quorum.validators.size() == masternodes::PULSE_QUORUM_NUM_VALIDATORS);
     assert(pulse_quorum.workers.size() == 1);
 
-    service_nodes::payout block_producer = {};
+    masternodes::payout block_producer = {};
     if (pulse_quorum.workers[0] == params.block_leader.key)
     {
       block_producer = params.block_leader;
@@ -940,16 +940,16 @@ bool oxen_chain_generator::block_begin(oxen_blockchain_entry &entry, oxen_create
     else
     {
       crypto::public_key block_producer_key = pulse_quorum.workers[0];
-      auto it = params.prev.service_node_state.service_nodes_infos.find(block_producer_key);
-      assert(it != params.prev.service_node_state.service_nodes_infos.end());
-      block_producer = service_nodes::service_node_info_to_payout(block_producer_key, *(it->second));
+      auto it = params.prev.masternode_state.masternodes_infos.find(block_producer_key);
+      assert(it != params.prev.masternode_state.masternodes_infos.end());
+      block_producer = masternodes::masternode_info_to_payout(block_producer_key, *(it->second));
     }
 
-    miner_tx_context = cryptonote::oxen_miner_tx_context::pulse_block(cryptonote::FAKECHAIN, block_producer, params.block_leader);
+    miner_tx_context = cryptonote::quenero_miner_tx_context::pulse_block(cryptonote::FAKECHAIN, block_producer, params.block_leader);
   }
   else
   {
-    miner_tx_context = cryptonote::oxen_miner_tx_context::miner_block(cryptonote::FAKECHAIN, params.miner_acc.get_keys().m_account_address, params.block_leader);
+    miner_tx_context = cryptonote::quenero_miner_tx_context::miner_block(cryptonote::FAKECHAIN, params.miner_acc.get_keys().m_account_address, params.block_leader);
   }
 
   if (blk.major_version >= cryptonote::network_version_10_bulletproofs &&
@@ -972,7 +972,7 @@ bool oxen_chain_generator::block_begin(oxen_blockchain_entry &entry, oxen_create
            i >= 0 && count <= (int)num_blocks;
            i--, count++)
       {
-        oxen_blockchain_entry const &historical_entry = db_.blocks[i];
+        quenero_blockchain_entry const &historical_entry = db_.blocks[i];
         if (historical_entry.block.major_version < cryptonote::network_version_10_bulletproofs) break;
         miner_tx_context.batched_governance += cryptonote::derive_governance_from_block_reward(cryptonote::FAKECHAIN, historical_entry.block, blk.major_version);
       }
@@ -1044,12 +1044,12 @@ bool oxen_chain_generator::block_begin(oxen_blockchain_entry &entry, oxen_create
     assert(blk.signatures.empty());
 
     // NOTE: Fill Pulse Signature Data
-    for (size_t i = 0; i < service_nodes::PULSE_BLOCK_REQUIRED_SIGNATURES; i++)
+    for (size_t i = 0; i < masternodes::PULSE_BLOCK_REQUIRED_SIGNATURES; i++)
     {
-      service_nodes::service_node_keys validator_keys = get_cached_keys(pulse_quorum.validators[i]);
+      masternodes::masternode_keys validator_keys = get_cached_keys(pulse_quorum.validators[i]);
       assert(validator_keys.pub == pulse_quorum.validators[i]);
 
-      service_nodes::quorum_signature signature = {};
+      masternodes::quorum_signature signature = {};
       signature.voter_index                     = i;
       crypto::generate_signature(block_hash, validator_keys.pub, validator_keys.key, signature.signature);
       blk.signatures.push_back(signature);
@@ -1059,46 +1059,46 @@ bool oxen_chain_generator::block_begin(oxen_blockchain_entry &entry, oxen_create
   return true;
 }
 
-void oxen_chain_generator::block_end(oxen_blockchain_entry &entry, oxen_create_block_params const &params) const
+void quenero_chain_generator::block_end(quenero_blockchain_entry &entry, quenero_create_block_params const &params) const
 {
-  entry.service_node_state = params.prev.service_node_state;
-  entry.service_node_state.update_from_block(db_, cryptonote::FAKECHAIN, state_history_, {} /*state_archive*/, {} /*alt_states*/, entry.block, entry.txs, nullptr);
+  entry.masternode_state = params.prev.masternode_state;
+  entry.masternode_state.update_from_block(db_, cryptonote::FAKECHAIN, state_history_, {} /*state_archive*/, {} /*alt_states*/, entry.block, entry.txs, nullptr);
 }
 
-bool oxen_chain_generator::create_block(oxen_blockchain_entry &entry,
-                                        oxen_create_block_params &params,
+bool quenero_chain_generator::create_block(quenero_blockchain_entry &entry,
+                                        quenero_create_block_params &params,
                                         const std::vector<cryptonote::transaction> &tx_list) const
 {
   if (!block_begin(entry, params, tx_list))
     return false;
 
   if (entry.block.signatures.empty())
-    fill_nonce_with_oxen_generator(this, entry.block, TEST_DEFAULT_DIFFICULTY, cryptonote::get_block_height(entry.block));
+    fill_nonce_with_quenero_generator(this, entry.block, TEST_DEFAULT_DIFFICULTY, cryptonote::get_block_height(entry.block));
 
   block_end(entry, params);
   return true;
 }
 
-oxen_create_block_params oxen_chain_generator::next_block_params() const
+quenero_create_block_params quenero_chain_generator::next_block_params() const
 {
-  oxen_blockchain_entry const &prev = top();
+  quenero_blockchain_entry const &prev = top();
   uint64_t next_height              = height() + 1;
 
-  oxen_create_block_params result = {};
+  quenero_create_block_params result = {};
   result.prev                     = prev;
   result.miner_acc                = first_miner_;
   result.timestamp                = prev.block.timestamp + tools::to_seconds(TARGET_BLOCK_TIME);
   result.block_weights            = last_n_block_weights(height(), CRYPTONOTE_REWARD_BLOCKS_WINDOW);
   result.hf_version               = get_hf_version_at(next_height);
-  result.block_leader             = prev.service_node_state.get_block_leader();
+  result.block_leader             = prev.masternode_state.get_block_leader();
   result.total_fee                = 0; // Request chain generator to calculate the fee
   return result;
 }
 
-oxen_blockchain_entry oxen_chain_generator::create_next_block(const std::vector<cryptonote::transaction>& txs, cryptonote::checkpoint_t const *checkpoint)
+quenero_blockchain_entry quenero_chain_generator::create_next_block(const std::vector<cryptonote::transaction>& txs, cryptonote::checkpoint_t const *checkpoint)
 {
-  oxen_blockchain_entry result          = {};
-  oxen_create_block_params block_params = next_block_params();
+  quenero_blockchain_entry result          = {};
+  quenero_create_block_params block_params = next_block_params();
   create_block(result, block_params, txs);
   if (checkpoint)
   {
@@ -1110,7 +1110,7 @@ oxen_blockchain_entry oxen_chain_generator::create_next_block(const std::vector<
   return result;
 }
 
-uint8_t oxen_chain_generator::get_hf_version_at(uint64_t height) const {
+uint8_t quenero_chain_generator::get_hf_version_at(uint64_t height) const {
 
   uint8_t cur_hf_ver = 0;
   for (auto i = 0u; i < hard_forks_.size(); ++i)
@@ -1123,7 +1123,7 @@ uint8_t oxen_chain_generator::get_hf_version_at(uint64_t height) const {
   return cur_hf_ver;
 }
 
-std::vector<uint64_t> oxen_chain_generator::last_n_block_weights(uint64_t height, uint64_t num) const
+std::vector<uint64_t> quenero_chain_generator::last_n_block_weights(uint64_t height, uint64_t num) const
 {
   std::vector<uint64_t> result;
   if (num > height) num = height;
@@ -1158,7 +1158,7 @@ void test_generator::get_block_chain(std::vector<block_info>& blockchain, const 
   std::reverse(blockchain.begin(), blockchain.end());
 }
 
-// TODO(oxen): Copypasta
+// TODO(quenero): Copypasta
 void test_generator::get_block_chain(std::vector<cryptonote::block> &blockchain,
                                      const crypto::hash &head,
                                      size_t n) const
@@ -1215,7 +1215,7 @@ void test_generator::add_block(const cryptonote::block& blk, size_t txs_weight, 
 
 static void manual_calc_batched_governance(const test_generator &generator,
                                            const crypto::hash &head,
-                                           cryptonote::oxen_miner_tx_context &miner_tx_context,
+                                           cryptonote::quenero_miner_tx_context &miner_tx_context,
                                            int hard_fork_version,
                                            uint64_t height)
 {
@@ -1262,7 +1262,7 @@ bool test_generator::construct_block(cryptonote::block &blk,
                                      uint64_t already_generated_coins,
                                      std::vector<uint64_t> &block_weights,
                                      const std::list<cryptonote::transaction> &tx_list,
-                                     const service_nodes::payout &block_leader)
+                                     const masternodes::payout &block_leader)
 {
   /// a temporary workaround
   blk.major_version = m_hf_version;
@@ -1290,7 +1290,7 @@ bool test_generator::construct_block(cryptonote::block &blk,
     txs_weight += get_transaction_weight(tx);
   }
 
-  auto miner_tx_context = cryptonote::oxen_miner_tx_context::miner_block(cryptonote::FAKECHAIN, miner_acc.get_keys().m_account_address, block_leader);
+  auto miner_tx_context = cryptonote::quenero_miner_tx_context::miner_block(cryptonote::FAKECHAIN, miner_acc.get_keys().m_account_address, block_leader);
   blk.miner_tx = {};
   size_t target_block_weight = txs_weight + get_transaction_weight(blk.miner_tx);
   manual_calc_batched_governance(*this, prev_id, miner_tx_context, m_hf_version, height);
@@ -1366,7 +1366,7 @@ bool test_generator::construct_block(cryptonote::block &blk,
                                      const cryptonote::block &blk_prev,
                                      const cryptonote::account_base &miner_acc,
                                      const std::list<cryptonote::transaction> &tx_list /* = {}*/,
-                                     const service_nodes::payout &block_leader)
+                                     const masternodes::payout &block_leader)
 {
   uint64_t height = var::get<cryptonote::txin_gen>(blk_prev.miner_tx.vin.front()).height + 1;
   crypto::hash prev_id = get_block_hash(blk_prev);
@@ -1411,12 +1411,12 @@ bool test_generator::construct_block_manually(
   else
   {
     // TODO: This will work, until size of constructed block is less then CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE
-    cryptonote::oxen_miner_tx_context miner_tx_context = {};
+    cryptonote::quenero_miner_tx_context miner_tx_context = {};
     miner_tx_context.nettype                           = cryptonote::FAKECHAIN;
     manual_calc_batched_governance(*this, prev_id, miner_tx_context, m_hf_version, height);
 
     size_t current_block_weight = txs_weight + get_transaction_weight(blk.miner_tx);
-    if (!construct_miner_tx(height, epee::misc_utils::median(block_weights), already_generated_coins, current_block_weight, miner_fee, blk.miner_tx, cryptonote::oxen_miner_tx_context::miner_block(cryptonote::FAKECHAIN, miner_acc.get_keys().m_account_address), cryptonote::blobdata(), m_hf_version))
+    if (!construct_miner_tx(height, epee::misc_utils::median(block_weights), already_generated_coins, current_block_weight, miner_fee, blk.miner_tx, cryptonote::quenero_miner_tx_context::miner_block(cryptonote::FAKECHAIN, miner_acc.get_keys().m_account_address), cryptonote::blobdata(), m_hf_version))
       return false;
   }
 
@@ -1439,7 +1439,7 @@ bool test_generator::construct_block_manually_tx(cryptonote::block& blk, const c
 
 cryptonote::transaction make_registration_tx(std::vector<test_event_entry>& events,
                                              const cryptonote::account_base& account,
-                                             const cryptonote::keypair& service_node_keys,
+                                             const cryptonote::keypair& masternode_keys,
                                              uint64_t operator_cut,
                                              const std::vector<cryptonote::account_public_address>& contributors,
                                              const std::vector<uint64_t>& portions,
@@ -1447,16 +1447,16 @@ cryptonote::transaction make_registration_tx(std::vector<test_event_entry>& even
                                              uint8_t hf_version)
 {
   const auto new_height          = cryptonote::get_block_height(head) + 1;
-  const auto staking_requirement = service_nodes::get_staking_requirement(cryptonote::FAKECHAIN, new_height, hf_version);
-  uint64_t amount                = service_nodes::portions_to_amount(portions[0], staking_requirement);
+  const auto staking_requirement = masternodes::get_staking_requirement(cryptonote::FAKECHAIN, new_height, hf_version);
+  uint64_t amount                = masternodes::portions_to_amount(portions[0], staking_requirement);
 
   cryptonote::transaction tx;
   uint64_t unlock_time = 0;
   if (hf_version < cryptonote::network_version_11_infinite_staking)
-    unlock_time = new_height + service_nodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
+    unlock_time = new_height + masternodes::staking_num_lock_blocks(cryptonote::FAKECHAIN);
 
   std::vector<uint8_t> extra;
-  cryptonote::add_service_node_pubkey_to_tx_extra(extra, service_node_keys.pub);
+  cryptonote::add_masternode_pubkey_to_tx_extra(extra, masternode_keys.pub);
   const uint64_t exp_timestamp = time(nullptr) + STAKING_AUTHORIZATION_EXPIRATION_WINDOW;
 
   crypto::hash hash;
@@ -1467,13 +1467,13 @@ cryptonote::transaction make_registration_tx(std::vector<test_event_entry>& even
   }
 
   crypto::signature signature;
-  crypto::generate_signature(hash, service_node_keys.pub, service_node_keys.sec, signature);
-  add_service_node_register_to_tx_extra(extra, contributors, operator_cut, portions, exp_timestamp, signature);
-  add_service_node_contributor_to_tx_extra(extra, contributors.at(0));
+  crypto::generate_signature(hash, masternode_keys.pub, masternode_keys.sec, signature);
+  add_masternode_register_to_tx_extra(extra, contributors, operator_cut, portions, exp_timestamp, signature);
+  add_masternode_contributor_to_tx_extra(extra, contributors.at(0));
 
   cryptonote::txtype tx_type = cryptonote::txtype::standard;
   if (hf_version >= cryptonote::network_version_15_ons) tx_type = cryptonote::txtype::stake; // NOTE: txtype stake was not introduced until HF14
-  oxen_tx_builder(events, tx, head, account, account.get_keys().m_account_address, amount, hf_version).with_tx_type(tx_type).with_extra(extra).with_unlock_time(unlock_time).build();
+  quenero_tx_builder(events, tx, head, account, account.get_keys().m_account_address, amount, hf_version).with_tx_type(tx_type).with_extra(extra).with_unlock_time(unlock_time).build();
   events.push_back(tx);
   return tx;
 }
@@ -2216,7 +2216,7 @@ cryptonote::transaction construct_tx_with_fee(std::vector<test_event_entry> &eve
                                               uint64_t fee)
 {
   cryptonote::transaction tx;
-  oxen_tx_builder(events, tx, blk_head, acc_from, acc_to.get_keys().m_account_address, amount, cryptonote::network_version_7).with_fee(fee).build();
+  quenero_tx_builder(events, tx, blk_head, acc_from, acc_to.get_keys().m_account_address, amount, cryptonote::network_version_7).with_fee(fee).build();
   events.push_back(tx);
   return tx;
 }
@@ -2385,14 +2385,14 @@ bool find_block_chain(const std::vector<test_event_entry> &events, std::vector<c
       const auto *blk                   = &var::get<cryptonote::block>(ev);
       block_index[get_block_hash(*blk)] = blk;
     }
-    else if (std::holds_alternative<oxen_blockchain_addable<oxen_block_with_checkpoint>>(ev))
+    else if (std::holds_alternative<quenero_blockchain_addable<quenero_block_with_checkpoint>>(ev))
     {
-      const auto *blk                        = &var::get<oxen_blockchain_addable<oxen_block_with_checkpoint>>(ev);
+      const auto *blk                        = &var::get<quenero_blockchain_addable<quenero_block_with_checkpoint>>(ev);
       block_index[get_block_hash(blk->data.block)] = &blk->data.block;
     }
-    else if (std::holds_alternative<oxen_blockchain_addable<cryptonote::block>>(ev))
+    else if (std::holds_alternative<quenero_blockchain_addable<cryptonote::block>>(ev))
     {
-      const auto *blk = &var::get<oxen_blockchain_addable<cryptonote::block>>(ev);
+      const auto *blk = &var::get<quenero_blockchain_addable<cryptonote::block>>(ev);
       block_index[get_block_hash(blk->data)] = &blk->data;
     }
     else if (std::holds_alternative<cryptonote::transaction>(ev))
@@ -2400,9 +2400,9 @@ bool find_block_chain(const std::vector<test_event_entry> &events, std::vector<c
       const auto &tx                = var::get<cryptonote::transaction>(ev);
       mtx[get_transaction_hash(tx)] = &tx;
     }
-    else if (std::holds_alternative<oxen_blockchain_addable<oxen_transaction>>(ev))
+    else if (std::holds_alternative<quenero_blockchain_addable<quenero_transaction>>(ev))
     {
-      const auto &entry                        = var::get<oxen_blockchain_addable<oxen_transaction>>(ev);
+      const auto &entry                        = var::get<quenero_blockchain_addable<quenero_transaction>>(ev);
       mtx[get_transaction_hash(entry.data.tx)] = &entry.data.tx;
     }
   }
@@ -2430,36 +2430,36 @@ bool find_block_chain(const std::vector<test_event_entry> &events, std::vector<c
   for (const test_event_entry &ev : events)
   {
     if (std::holds_alternative<cryptonote::block>(ev) ||
-        std::holds_alternative<oxen_blockchain_addable<oxen_block_with_checkpoint>>(ev) ||
-        std::holds_alternative<oxen_blockchain_addable<cryptonote::block>>(ev))
+        std::holds_alternative<quenero_blockchain_addable<quenero_block_with_checkpoint>>(ev) ||
+        std::holds_alternative<quenero_blockchain_addable<cryptonote::block>>(ev))
     {
       if (std::holds_alternative<cryptonote::block>(ev))
       {
         const auto *blk                   = &var::get<cryptonote::block>(ev);
         block_index[get_block_hash(*blk)] = blk;
       }
-      else if (std::holds_alternative<oxen_blockchain_addable<oxen_block_with_checkpoint>>(ev))
+      else if (std::holds_alternative<quenero_blockchain_addable<quenero_block_with_checkpoint>>(ev))
       {
-        const auto *blk = &var::get<oxen_blockchain_addable<oxen_block_with_checkpoint>>(ev);
+        const auto *blk = &var::get<quenero_blockchain_addable<quenero_block_with_checkpoint>>(ev);
         block_index[get_block_hash(blk->data.block)] = &blk->data.block;
       }
-      else if (std::holds_alternative<oxen_blockchain_addable<cryptonote::block>>(ev))
+      else if (std::holds_alternative<quenero_blockchain_addable<cryptonote::block>>(ev))
       {
-        const auto *blk = &var::get<oxen_blockchain_addable<cryptonote::block>>(ev);
+        const auto *blk = &var::get<quenero_blockchain_addable<cryptonote::block>>(ev);
         block_index[get_block_hash(blk->data)] = &blk->data;
       }
     }
     else if (std::holds_alternative<cryptonote::transaction>(ev) ||
-             std::holds_alternative<oxen_blockchain_addable<oxen_transaction>>(ev))
+             std::holds_alternative<quenero_blockchain_addable<quenero_transaction>>(ev))
     {
       if (std::holds_alternative<cryptonote::transaction>(ev))
       {
         const auto &tx                = var::get<cryptonote::transaction>(ev);
         mtx[get_transaction_hash(tx)] = &tx;
       }
-      else if (std::holds_alternative<oxen_blockchain_addable<oxen_transaction>>(ev))
+      else if (std::holds_alternative<quenero_blockchain_addable<quenero_transaction>>(ev))
       {
-        const auto &entry                        = var::get<oxen_blockchain_addable<oxen_transaction>>(ev);
+        const auto &entry                        = var::get<quenero_blockchain_addable<quenero_transaction>>(ev);
         mtx[get_transaction_hash(entry.data.tx)] = &entry.data.tx;
       }
     }

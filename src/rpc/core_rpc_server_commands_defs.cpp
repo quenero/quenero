@@ -318,9 +318,8 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_INFO::response)
   KV_SERIALIZE(block_size_median)
   KV_SERIALIZE_OPT(block_weight_median, (uint64_t)0)
   KV_SERIALIZE(start_time)
-  KV_SERIALIZE(service_node)
+  KV_SERIALIZE(masternode)
   KV_SERIALIZE(last_storage_server_ping)
-  KV_SERIALIZE(last_lokinet_ping)
   KV_SERIALIZE(free_space)
   KV_SERIALIZE(offline)
   KV_SERIALIZE(untrusted)
@@ -428,7 +427,7 @@ KV_SERIALIZE_MAP_CODE_BEGIN(block_header_response)
   KV_SERIALIZE_OPT(long_term_weight, (uint64_t)0)
   KV_SERIALIZE(miner_tx_hash)
   KV_SERIALIZE(tx_hashes)
-  KV_SERIALIZE(service_node_winner)
+  KV_SERIALIZE(masternode_winner)
 KV_SERIALIZE_MAP_CODE_END()
 
 
@@ -1023,26 +1022,26 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_QUORUM_STATE::response)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_REGISTRATION_CMD_RAW::request)
   KV_SERIALIZE(args)
   KV_SERIALIZE(make_friendly)
   KV_SERIALIZE(staking_requirement)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_REGISTRATION_CMD_RAW::response)
   KV_SERIALIZE(status)
   KV_SERIALIZE(registration_cmd)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_REGISTRATION_CMD::contribution_t)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_REGISTRATION_CMD::contribution_t)
   KV_SERIALIZE(address)
   KV_SERIALIZE(amount)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_REGISTRATION_CMD::request)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_REGISTRATION_CMD::request)
   KV_SERIALIZE(operator_cut)
   KV_SERIALIZE(contributions)
   KV_SERIALIZE(staking_requirement)
@@ -1050,29 +1049,29 @@ KV_SERIALIZE_MAP_CODE_END()
 
 
 KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_KEYS::response)
-  KV_SERIALIZE(service_node_pubkey)
-  KV_SERIALIZE(service_node_ed25519_pubkey)
-  KV_SERIALIZE(service_node_x25519_pubkey)
+  KV_SERIALIZE(masternode_pubkey)
+  KV_SERIALIZE(masternode_ed25519_pubkey)
+  KV_SERIALIZE(masternode_x25519_pubkey)
   KV_SERIALIZE(status)
 KV_SERIALIZE_MAP_CODE_END()
 
 
 KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_PRIVKEYS::response)
-  KV_SERIALIZE(service_node_privkey)
-  KV_SERIALIZE(service_node_ed25519_privkey)
-  KV_SERIALIZE(service_node_x25519_privkey)
+  KV_SERIALIZE(masternode_privkey)
+  KV_SERIALIZE(masternode_ed25519_privkey)
+  KV_SERIALIZE(masternode_x25519_privkey)
   KV_SERIALIZE(status)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(service_node_contribution)
+KV_SERIALIZE_MAP_CODE_BEGIN(masternode_contribution)
   KV_SERIALIZE(key_image)
   KV_SERIALIZE(key_image_pub_key)
   KV_SERIALIZE(amount)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(service_node_contributor)
+KV_SERIALIZE_MAP_CODE_BEGIN(masternode_contributor)
   KV_SERIALIZE(amount)
   KV_SERIALIZE(reserved)
   KV_SERIALIZE(address)
@@ -1080,11 +1079,11 @@ KV_SERIALIZE_MAP_CODE_BEGIN(service_node_contributor)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::requested_fields_t)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODES::requested_fields_t)
   KV_SERIALIZE(all)
   if (!this_ref.all)
   {
-    KV_SERIALIZE(service_node_pubkey)
+    KV_SERIALIZE(masternode_pubkey)
     KV_SERIALIZE(registration_height)
     KV_SERIALIZE(registration_hf_version)
     KV_SERIALIZE(requested_unlock_height)
@@ -1095,8 +1094,7 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::requested_fields_t)
     KV_SERIALIZE(state_height)
     KV_SERIALIZE(decommission_count)
     KV_SERIALIZE(earned_downtime_blocks)
-    KV_SERIALIZE(service_node_version)
-    KV_SERIALIZE(lokinet_version)
+    KV_SERIALIZE(masternode_version)
     KV_SERIALIZE(storage_server_version)
     KV_SERIALIZE(contributors)
     KV_SERIALIZE(total_contributed)
@@ -1129,8 +1127,8 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::requested_fields_t)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::request)
-  KV_SERIALIZE(service_node_pubkeys);
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODES::request)
+  KV_SERIALIZE(masternode_pubkeys);
   KV_SERIALIZE(include_json);
   KV_SERIALIZE(limit)
   KV_SERIALIZE(active_only)
@@ -1139,13 +1137,13 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::request)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::response::entry)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODES::response::entry)
   const auto* res = stg.template get_context<response>();
   const bool all = !is_store || !res || res->fields.all;
 
   #define KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(var) if (all || res->fields.var) KV_SERIALIZE(var)
 
-  KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(service_node_pubkey);
+  KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(masternode_pubkey);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(registration_height);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(registration_hf_version);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(requested_unlock_height);
@@ -1156,8 +1154,7 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::response::entry)
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(state_height);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(decommission_count);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(earned_downtime_blocks);
-  KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(service_node_version);
-  KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(lokinet_version)
+  KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(masternode_version);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(storage_server_version)
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(contributors);
   KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(total_contributed);
@@ -1184,8 +1181,8 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::response::entry)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::response)
-  if (!unchanged) KV_SERIALIZE_DEPENDENT(service_node_states)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODES::response)
+  if (!unchanged) KV_SERIALIZE_DEPENDENT(masternode_states)
   KV_SERIALIZE(status)
   if (fields.height || fields.all) KV_SERIALIZE(height)
   if (fields.target_height || fields.all) KV_SERIALIZE(target_height)
@@ -1196,13 +1193,13 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODES::response)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_STATUS::request)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_STATUS::request)
   KV_SERIALIZE(include_json);
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_STATUS::response)
-  KV_SERIALIZE(service_node_state)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_STATUS::response)
+  KV_SERIALIZE(masternode_state)
   KV_SERIALIZE(height)
   KV_SERIALIZE(block_hash)
   KV_SERIALIZE(status)
@@ -1217,10 +1214,6 @@ KV_SERIALIZE_MAP_CODE_BEGIN(STORAGE_SERVER_PING::request)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(LOKINET_PING::request)
-  KV_SERIALIZE(version);
-KV_SERIALIZE_MAP_CODE_END()
-
 
 KV_SERIALIZE_MAP_CODE_BEGIN(GET_STAKING_REQUIREMENT::request)
   KV_SERIALIZE(height)
@@ -1234,14 +1227,14 @@ KV_SERIALIZE_MAP_CODE_BEGIN(GET_STAKING_REQUIREMENT::response)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry)
   KV_SERIALIZE(key_image)
   KV_SERIALIZE(unlock_height)
   KV_SERIALIZE(amount)
 KV_SERIALIZE_MAP_CODE_END()
 
 
-KV_SERIALIZE_MAP_CODE_BEGIN(GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::response)
+KV_SERIALIZE_MAP_CODE_BEGIN(GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::response)
   KV_SERIALIZE(blacklist)
   KV_SERIALIZE(status)
 KV_SERIALIZE_MAP_CODE_END()

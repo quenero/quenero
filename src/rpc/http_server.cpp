@@ -14,8 +14,8 @@
 #include "rpc/rpc_args.h"
 #include "version.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "daemon.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon.rpc"
 
 namespace cryptonote::rpc {
 
@@ -573,7 +573,7 @@ namespace cryptonote::rpc {
     });
   }
 
-  static std::unordered_set<oxenmq::OxenMQ*> timer_started;
+  static std::unordered_set<oxenmq::QueneroMQ*> timer_started;
 
   void http_server::start()
   {
@@ -581,7 +581,7 @@ namespace cryptonote::rpc {
       throw std::logic_error{"Cannot call http_server::start() more than once"};
 
     auto net = m_server.nettype();
-    m_server_header = "oxend/"s + (m_restricted ? std::to_string(OXEN_VERSION[0]) : std::string{OXEN_VERSION_FULL})
+    m_server_header = "quenerod/"s + (m_restricted ? std::to_string(QUENERO_VERSION[0]) : std::string{QUENERO_VERSION_FULL})
       + (net == MAINNET ? " mainnet" : net == TESTNET ? " testnet" : net == DEVNET ? " devnet" : net == FAKECHAIN ? " fakenet" : " unknown net");
 
     m_startup_promise.set_value(true);

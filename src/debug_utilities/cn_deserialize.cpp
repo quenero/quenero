@@ -31,13 +31,13 @@
 #include "cryptonote_basic/tx_extra.h"
 #include "cryptonote_core/blockchain.h"
 #include "common/command_line.h"
-#include "oxen_economy.h"
+#include "quenero_economy.h"
 #include "common/hex.h"
 #include "version.h"
 #include <oxenmq/hex.h>
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "debugtools.deserialize"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "debugtools.deserialize"
 
 namespace po = boost::program_options;
 
@@ -67,23 +67,19 @@ struct extra_printer {
     }
   }
   void operator()(const tx_extra_mysterious_minergate& x) { std::cout << "minergate custom: " << oxenmq::to_hex(x.data); }
-  void operator()(const tx_extra_service_node_winner& x) { std::cout << "SN reward winner: " << x.m_service_node_key; }
-  void operator()(const tx_extra_service_node_register& x) { std::cout << "SN registration data"; } // TODO: could parse this further
-  void operator()(const tx_extra_service_node_pubkey& x) { std::cout << "SN pubkey: " << x.m_service_node_key; }
-  void operator()(const tx_extra_service_node_contributor& x) { std::cout << "SN contribution"; } // Can't actually print the address without knowing the network type
-  void operator()(const tx_extra_service_node_deregister_old& x) { std::cout << "SN deregistration (pre-HF12)"; }
+  void operator()(const tx_extra_masternode_winner& x) { std::cout << "SN reward winner: " << x.m_masternode_key; }
+  void operator()(const tx_extra_masternode_register& x) { std::cout << "SN registration data"; } // TODO: could parse this further
+  void operator()(const tx_extra_masternode_pubkey& x) { std::cout << "SN pubkey: " << x.m_masternode_key; }
+  void operator()(const tx_extra_masternode_contributor& x) { std::cout << "SN contribution"; } // Can't actually print the address without knowing the network type
+  void operator()(const tx_extra_masternode_deregister_old& x) { std::cout << "SN deregistration (pre-HF12)"; }
   void operator()(const tx_extra_tx_secret_key& x) { std::cout << "TX secret key: " << tools::type_to_hex(x.key); }
   void operator()(const tx_extra_tx_key_image_proofs& x) { std::cout << "TX key image proofs (" << x.proofs.size() << ")"; }
   void operator()(const tx_extra_tx_key_image_unlock& x) { std::cout << "TX key image unlock: " << x.key_image; }
   void operator()(const tx_extra_burn& x) { std::cout << "Transaction burned fee/payment: " << print_money(x.amount); }
-  void operator()(const tx_extra_oxen_name_system& x) {
+  void operator()(const tx_extra_quenero_name_system& x) {
     std::cout << "ONS " << (x.is_buying() ? "registration" : x.is_updating() ? "update" : "(unknown)");
     switch (x.type)
     {
-      case ons::mapping_type::lokinet: std::cout << " - Lokinet (1y)"; break;
-      case ons::mapping_type::lokinet_2years: std::cout << " - Lokinet (2y)"; break;
-      case ons::mapping_type::lokinet_5years: std::cout << " - Lokinet (5y)"; break;
-      case ons::mapping_type::lokinet_10years: std::cout << " - Lokinet (10y)"; break;
       case ons::mapping_type::session: std::cout << " - Session address"; break;
       case ons::mapping_type::wallet: std::cout << " - Wallet address"; break;
       case ons::mapping_type::update_record_internal:
@@ -91,17 +87,17 @@ struct extra_printer {
           break;
     }
   }
-  void operator()(const tx_extra_service_node_state_change& x) {
+  void operator()(const tx_extra_masternode_state_change& x) {
     std::cout << "SN state change: ";
     switch (x.state)
     {
-      case service_nodes::new_state::decommission: std::cout << "decommission"; break;
-      case service_nodes::new_state::recommission: std::cout << "recommission"; break;
-      case service_nodes::new_state::deregister: std::cout << "deregister"; break;
-      case service_nodes::new_state::ip_change_penalty: std::cout << "ip change penalty"; break;
-      case service_nodes::new_state::_count: std::cout << "(unknown)"; break;
+      case masternodes::new_state::decommission: std::cout << "decommission"; break;
+      case masternodes::new_state::recommission: std::cout << "recommission"; break;
+      case masternodes::new_state::deregister: std::cout << "deregister"; break;
+      case masternodes::new_state::ip_change_penalty: std::cout << "ip change penalty"; break;
+      case masternodes::new_state::_count: std::cout << "(unknown)"; break;
     }
-    std::cout << " for block height " << x.block_height << ", SN index " << x.service_node_index;
+    std::cout << " for block height " << x.block_height << ", SN index " << x.masternode_index;
   }
   template <typename T> void operator()(const T&) { std::cout << "unknown"; }
 };
@@ -155,7 +151,7 @@ int main(int argc, char* argv[])
 
   if (command_line::get_arg(vm, command_line::arg_help))
   {
-    std::cout << "Oxen '" << OXEN_RELEASE_NAME << "' (v" << OXEN_VERSION_FULL << ")\n\n";
+    std::cout << "Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL << ")\n\n";
     std::cout << desc_options << std::endl;
     return 1;
   }

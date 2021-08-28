@@ -14,7 +14,7 @@ def hexstr(key):
     return key.encode(encoder=nacl.encoding.HexEncoder)  #.decode('utf-8')
 
 direct = None
-oxenrpc = None
+quenerorpc = None
 x_key = None
 
 badargs = False
@@ -26,16 +26,16 @@ elif len(sys.argv) == 3 and re.match(r"[0-9a-fA-F]{64}", sys.argv[1]) and re.mat
 else:
     m = re.match(r"((?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+):(\d{4,5})", sys.argv[1])
     if m:
-        oxenrpc = "http://{}:{}/json_rpc".format(m.group(1), m.group(2))
-        r = requests.post(oxenrpc, json={"jsonrpc":"2.0", "id":0, "method":"get_service_node_privkey"}).json()
-        if "result" in r and "service_node_x25519_privkey" in r["result"]:
-            x_key = PrivateKey(r["result"]["service_node_x25519_privkey"], encoder=nacl.encoding.HexEncoder)
-            print("Loaded x25519 keys (pub: {}) from oxend @ {}".format(hexstr(x_key.public_key), sys.argv[1]))
+        quenerorpc = "http://{}:{}/json_rpc".format(m.group(1), m.group(2))
+        r = requests.post(quenerorpc, json={"jsonrpc":"2.0", "id":0, "method":"get_masternode_privkey"}).json()
+        if "result" in r and "masternode_x25519_privkey" in r["result"]:
+            x_key = PrivateKey(r["result"]["masternode_x25519_privkey"], encoder=nacl.encoding.HexEncoder)
+            print("Loaded x25519 keys (pub: {}) from quenerod @ {}".format(hexstr(x_key.public_key), sys.argv[1]))
         else:
             x_key = PrivateKey.generate()
-            print("Generated x25519 key {} (oxend @ {} did not return SN privkeys)".format(hexstr(x_key.public_key), sys.argv[1]))
+            print("Generated x25519 key {} (quenerod @ {} did not return SN privkeys)".format(hexstr(x_key.public_key), sys.argv[1]))
     else:
-        print("Error: {} does not look like a valid oxend RPC host:port value".format(sys.argv[1]), sys.stderr)
+        print("Error: {} does not look like a valid quenerod RPC host:port value".format(sys.argv[1]), sys.stderr)
         badargs = True
 
     for pk in sys.argv[2:]:
@@ -53,18 +53,18 @@ if badargs:
 
 if direct:
     missed = set()
-    states = [{"service_node_pubkey": direct[0], "pubkey_x25519": direct[0], "_connect": direct[1]}]
+    states = [{"masternode_pubkey": direct[0], "pubkey_x25519": direct[0], "_connect": direct[1]}]
 else:
     missed = set(sys.argv[2:])
-    r = requests.post(oxenrpc, json={"jsonrpc":"2.0", "id":0, "method":"get_service_nodes", "params": {
-        "service_node_pubkeys": sys.argv[2:]}}).json()
-    states = r["result"]["service_node_states"] if "result" in r and "service_node_states" in r["result"] else []
+    r = requests.post(quenerorpc, json={"jsonrpc":"2.0", "id":0, "method":"get_masternodes", "params": {
+        "masternode_pubkeys": sys.argv[2:]}}).json()
+    states = r["result"]["masternode_states"] if "result" in r and "masternode_states" in r["result"] else []
 
 
 context = zmq.Context()
 tag = 1
 for s in states:
-    pk = s["service_node_pubkey"]
+    pk = s["masternode_pubkey"]
     if pk in missed:
         missed.remove(pk)
     if "_connect" not in s:

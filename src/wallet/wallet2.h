@@ -47,7 +47,7 @@
 #include "rpc/core_rpc_server_commands_defs.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_core/cryptonote_tx_utils.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "common/unordered_containers_boost_serialization.h"
 #include "common/file.h"
 #include "crypto/chacha.h"
@@ -72,13 +72,13 @@
 #include "pending_tx.h"
 #include "multisig_sig.h"
 
-#include "common/oxen_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 #include "epee/wipeable_string.h"
 
 #include "rpc/http_client.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "wallet.wallet2"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.wallet2"
 
 #define SUBADDRESS_LOOKAHEAD_MAJOR 50
 #define SUBADDRESS_LOOKAHEAD_MINOR 200
@@ -86,12 +86,12 @@
 class Serialization_portability_wallet_Test;
 class wallet_accessor_test;
 
-OXEN_RPC_DOC_INTROSPECT
+QUENERO_RPC_DOC_INTROSPECT
 namespace tools
 {
   static const char *ERR_MSG_NETWORK_VERSION_QUERY_FAILED = tr("Could not query the current network version, try later");
   static const char *ERR_MSG_NETWORK_HEIGHT_QUERY_FAILED = tr("Could not query the current network block height, try later: ");
-  static const char *ERR_MSG_SERVICE_NODE_LIST_QUERY_FAILED = tr("Failed to query daemon for service node list");
+  static const char *ERR_MSG_MASTERNODE_LIST_QUERY_FAILED = tr("Failed to query daemon for masternode list");
   static const char *ERR_MSG_TOO_MANY_TXS_CONSTRUCTED = tr("Constructed too many transations, please sweep_all first");
   static const char *ERR_MSG_EXCEPTION_THROWN = tr("Exception thrown, staking process could not be completed: ");
 
@@ -328,7 +328,7 @@ private:
       bool m_unmined_blink;
       bool m_was_blink;
 
-      bool is_coinbase() const { return ((m_type == wallet::pay_type::miner) || (m_type == wallet::pay_type::service_node) || (m_type == wallet::pay_type::governance)); }
+      bool is_coinbase() const { return ((m_type == wallet::pay_type::miner) || (m_type == wallet::pay_type::masternode) || (m_type == wallet::pay_type::governance)); }
     };
 
     struct address_tx : payment_details
@@ -369,7 +369,7 @@ private:
       std::vector<cryptonote::tx_destination_entry> m_dests;
       crypto::hash m_payment_id;
       uint64_t m_timestamp;
-      uint64_t m_unlock_time; // NOTE(oxen): Not used after TX v2.
+      uint64_t m_unlock_time; // NOTE(quenero): Not used after TX v2.
       std::vector<uint64_t> m_unlock_times;
       uint32_t m_subaddr_account;   // subaddress account of your wallet to be used in this transfer
       std::set<uint32_t> m_subaddr_indices;  // set of address indices used as inputs in this transfer
@@ -734,7 +734,7 @@ private:
     uint64_t unlocked_balance_all(bool strict, uint64_t *blocks_to_unlock = NULL, uint64_t *time_to_unlock = NULL) const;
     void transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
       std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs,
-      uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, const cryptonote::oxen_construct_tx_params &oxen_tx_params);
+      uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, const cryptonote::quenero_construct_tx_params &quenero_tx_params);
 
     void commit_tx(pending_tx& ptx_vector, bool blink = false);
     void commit_tx(std::vector<pending_tx>& ptx_vector, bool blink = false);
@@ -756,7 +756,7 @@ private:
     bool parse_unsigned_tx_from_str(std::string_view unsigned_tx_st, unsigned_tx_set &exported_txs) const;
     bool load_tx(const fs::path& signed_filename, std::vector<pending_tx>& ptx, std::function<bool(const signed_tx_set&)> accept_func = NULL);
     bool parse_tx_from_str(std::string_view signed_tx_st, std::vector<pending_tx> &ptx, std::function<bool(const signed_tx_set &)> accept_func);
-    std::vector<pending_tx> create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra_base, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, cryptonote::oxen_construct_tx_params &tx_params);
+    std::vector<pending_tx> create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra_base, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, cryptonote::quenero_construct_tx_params &tx_params);
 
     std::vector<pending_tx> create_transactions_all(uint64_t below, const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, cryptonote::txtype tx_type = cryptonote::txtype::standard);
     std::vector<pending_tx> create_transactions_single(const crypto::key_image &ki, const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, cryptonote::txtype tx_type = cryptonote::txtype::standard);
@@ -812,11 +812,11 @@ private:
     // These return pairs where .first == true if the request was successful, and .second is a
     // vector of the requested entries.
     //
-    // NOTE(oxen): get_all_service_node caches the result, get_service_nodes doesn't
-    auto get_all_service_nodes()                                    const { return m_node_rpc_proxy.get_all_service_nodes(); }
-    auto get_service_nodes(std::vector<std::string> const &pubkeys) const { return m_node_rpc_proxy.get_service_nodes(pubkeys); }
-    auto get_service_node_blacklisted_key_images()                  const { return m_node_rpc_proxy.get_service_node_blacklisted_key_images(); }
-    std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry> list_current_stakes();
+    // NOTE(quenero): get_all_masternode caches the result, get_masternodes doesn't
+    auto get_all_masternodes()                                    const { return m_node_rpc_proxy.get_all_masternodes(); }
+    auto get_masternodes(std::vector<std::string> const &pubkeys) const { return m_node_rpc_proxy.get_masternodes(pubkeys); }
+    auto get_masternode_blacklisted_key_images()                  const { return m_node_rpc_proxy.get_masternode_blacklisted_key_images(); }
+    std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry> list_current_stakes();
     auto ons_owners_to_names(cryptonote::rpc::ONS_OWNERS_TO_NAMES::request const &request) const { return m_node_rpc_proxy.ons_owners_to_names(request); }
     auto ons_names_to_owners(cryptonote::rpc::ONS_NAMES_TO_OWNERS::request const &request) const { return m_node_rpc_proxy.ons_names_to_owners(request); }
     auto resolve(cryptonote::rpc::ONS_RESOLVE::request const &request) const { return m_node_rpc_proxy.ons_resolve(request); }
@@ -1226,7 +1226,7 @@ private:
 
     // params constructor, accumulates the burn amounts if the priority is
     // a blink and, or a ons tx. If it is a blink TX, ons_burn_type is ignored.
-    static cryptonote::oxen_construct_tx_params construct_params(uint8_t hf_version, cryptonote::txtype tx_type, uint32_t priority, uint64_t extra_burn = 0, ons::mapping_type ons_burn_type = static_cast<ons::mapping_type>(0));
+    static cryptonote::quenero_construct_tx_params construct_params(uint8_t hf_version, cryptonote::txtype tx_type, uint32_t priority, uint64_t extra_burn = 0, ons::mapping_type ons_burn_type = static_cast<ons::mapping_type>(0));
 
     bool is_unattended() const { return m_unattended; }
 
@@ -1329,13 +1329,13 @@ private:
       payment_id_disallowed,
       subaddress_disallowed,
       address_must_be_primary,
-      service_node_list_query_failed,
-      service_node_not_registered,
+      masternode_list_query_failed,
+      masternode_not_registered,
       network_version_query_failed,
       network_height_query_failed,
-      service_node_contribution_maxed,
-      service_node_contributors_maxed,
-      service_node_insufficient_contribution,
+      masternode_contribution_maxed,
+      masternode_contributors_maxed,
+      masternode_insufficient_contribution,
       too_many_transactions_constructed,
       no_blink,
     };
@@ -1350,9 +1350,9 @@ private:
     /// Modifies the `amount` to maximum possible if too large, but rejects if insufficient.
     /// `fraction` is only used to determine the amount if specified zero.
     stake_result check_stake_allowed(const crypto::public_key& sn_key, const cryptonote::address_parse_info& addr_info, uint64_t& amount, double fraction = 0);
-    stake_result create_stake_tx    (const crypto::public_key& service_node_key, uint64_t amount,
+    stake_result create_stake_tx    (const crypto::public_key& masternode_key, uint64_t amount,
                                      double amount_fraction = 0, uint32_t priority = 0, std::set<uint32_t> subaddr_indices = {});
-    enum struct register_service_node_result_status
+    enum struct register_masternode_result_status
     {
       invalid,
       success,
@@ -1364,12 +1364,12 @@ private:
       registration_timestamp_expired,
       registration_timestamp_parse_fail,
       validate_contributor_args_fail,
-      service_node_key_parse_fail,
-      service_node_signature_parse_fail,
-      service_node_register_serialize_to_tx_extra_fail,
+      masternode_key_parse_fail,
+      masternode_signature_parse_fail,
+      masternode_register_serialize_to_tx_extra_fail,
       first_address_must_be_primary_address,
-      service_node_list_query_failed,
-      service_node_cannot_reregister,
+      masternode_list_query_failed,
+      masternode_cannot_reregister,
       insufficient_portions,
       wallet_not_synced,
       too_many_transactions_constructed,
@@ -1377,13 +1377,13 @@ private:
       no_blink,
     };
 
-    struct register_service_node_result
+    struct register_masternode_result
     {
-      register_service_node_result_status status;
+      register_masternode_result_status status;
       std::string                         msg;
       pending_tx                          ptx;
     };
-    register_service_node_result create_register_service_node_tx(const std::vector<std::string> &args_, uint32_t subaddr_account = 0);
+    register_masternode_result create_register_masternode_tx(const std::vector<std::string> &args_, uint32_t subaddr_account = 0);
 
     struct request_stake_unlock_result
     {
@@ -1404,8 +1404,7 @@ private:
     //            The signature is derived from the hash of the previous txid blob and previous value blob of the mapping. By default this is signed using the wallet's spend key as an ed25519 keypair.
     std::vector<pending_tx> ons_create_update_mapping_tx(ons::mapping_type type, std::string name, std::string const *value, std::string const *owner, std::string const *backup_owner, std::string const *signature, std::string *reason, uint32_t priority = 0, uint32_t account_index = 0, std::set<uint32_t> subaddr_indices = {}, std::vector<cryptonote::rpc::ONS_NAMES_TO_OWNERS::response_entry> *response = {});
 
-    // ONS renewal (for lokinet registrations, not for session/wallet)
-    std::vector<pending_tx> ons_create_renewal_tx(ons::mapping_type type, std::string name, std::string *reason, uint32_t priority = 0, uint32_t account_index = 0, std::set<uint32_t> subaddr_indices = {}, std::vector<cryptonote::rpc::ONS_NAMES_TO_OWNERS::response_entry> *response = {});
+       std::vector<pending_tx> ons_create_renewal_tx(ons::mapping_type type, std::string name, std::string *reason, uint32_t priority = 0, uint32_t account_index = 0, std::set<uint32_t> subaddr_indices = {}, std::vector<cryptonote::rpc::ONS_NAMES_TO_OWNERS::response_entry> *response = {});
 
     // Generate just the signature required for putting into ons_update_mapping command in the wallet
     bool ons_make_update_mapping_signature(ons::mapping_type type, std::string name, std::string const *value, std::string const *owner, std::string const *backup_owner, ons::generic_signature &signature, uint32_t account_index = 0, std::string *reason = nullptr);
@@ -1702,14 +1701,14 @@ private:
     inline static std::string default_daemon_address;
   };
 
-  // TODO(oxen): Hmm. We need this here because we make register_service_node do
+  // TODO(quenero): Hmm. We need this here because we make register_masternode do
   // parsing on the wallet2 side instead of simplewallet. This is so that
-  // register_service_node RPC command doesn't make it the wallet_rpc's
+  // register_masternode RPC command doesn't make it the wallet_rpc's
   // responsibility to parse out the string returned from the daemon. We're
   // purposely abstracting that complexity out to just wallet2's responsibility.
 
-  // TODO(oxen): The better question is if anyone is ever going to try use
-  // register service node funded by multiple subaddresses. This is unlikely.
+  // TODO(quenero): The better question is if anyone is ever going to try use
+  // register masternode funded by multiple subaddresses. This is unlikely.
   constexpr std::array<const char* const, 6> allowed_priority_strings = {{"default", "unimportant", "normal", "elevated", "priority", "blink"}};
   bool parse_subaddress_indices(std::string_view arg, std::set<uint32_t>& subaddr_indices, std::string *err_msg = nullptr);
   bool parse_priority          (const std::string& arg, uint32_t& priority);

@@ -53,8 +53,8 @@
 #include "common/lock.h"
 #include "common/util.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "net.cn"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "net.cn"
 
 #define MLOG_P2P_MESSAGE(x) MCINFO("net.p2p.msg", context << x)
 #define MLOGIF_P2P_MESSAGE(init, test, x) \
@@ -69,7 +69,7 @@
   } while(0)
 
 #define MLOG_PEER_STATE(x) \
-  MCINFO(OXEN_DEFAULT_LOG_CATEGORY, context << "[" << epee::string_tools::to_string_hex(context.m_pruning_seed) << "] state: " << x << " in state " << cryptonote::get_protocol_state_string(context.m_state))
+  MCINFO(QUENERO_DEFAULT_LOG_CATEGORY, context << "[" << epee::string_tools::to_string_hex(context.m_pruning_seed) << "] state: " << x << " in state " << cryptonote::get_protocol_state_string(context.m_state))
 
 namespace cryptonote
 {
@@ -912,23 +912,23 @@ namespace cryptonote
 
   //------------------------------------------------------------------------------------------------------------------------  
   template<class t_core>
-  int t_cryptonote_protocol_handler<t_core>::handle_notify_new_service_node_vote(int command, NOTIFY_NEW_SERVICE_NODE_VOTE::request& arg, cryptonote_connection_context& context)
+  int t_cryptonote_protocol_handler<t_core>::handle_notify_new_masternode_vote(int command, NOTIFY_NEW_MASTERNODE_VOTE::request& arg, cryptonote_connection_context& context)
   {
-    MLOG_P2P_MESSAGE("Received NOTIFY_NEW_SERVICE_NODE_VOTE (" << arg.votes.size() << " txes)");
+    MLOG_P2P_MESSAGE("Received NOTIFY_NEW_MASTERNODE_VOTE (" << arg.votes.size() << " txes)");
 
     if(context.m_state != cryptonote_connection_context::state_normal)
       return 1;
 
     if(!is_synchronized() || m_no_sync)
     {
-      LOG_DEBUG_CC(context, "Received new service node vote while syncing, ignored");
+      LOG_DEBUG_CC(context, "Received new masternode vote while syncing, ignored");
       return 1;
     }
 
     for(auto it = arg.votes.begin(); it != arg.votes.end();)
     {
       cryptonote::vote_verification_context vvc = {};
-      m_core.add_service_node_vote(*it, vvc);
+      m_core.add_masternode_vote(*it, vvc);
 
       if (vvc.m_verification_failed)
       {
@@ -948,7 +948,7 @@ namespace cryptonote
     }
 
     if (arg.votes.size())
-      relay_service_node_votes(arg, context);
+      relay_masternode_votes(arg, context);
 
     return 1;
   }
@@ -1392,7 +1392,7 @@ namespace cryptonote
         m_core.pause_mine();
         m_add_timer.resume();
         bool starting = true;
-        OXEN_DEFER
+        QUENERO_DEFER
         {
           m_add_timer.pause();
           m_core.resume_mine();
@@ -1508,7 +1508,7 @@ namespace cryptonote
 
           {
             bool remove_spans = false;
-            OXEN_DEFER
+            QUENERO_DEFER
             {
               if (!m_core.cleanup_handle_incoming_blocks())
                 LOG_PRINT_CCONTEXT_L0("Failure in cleanup_handle_incoming_blocks");
@@ -2358,7 +2358,7 @@ skip:
         }
       }
       MGINFO_YELLOW("\n**********************************************************************\n"
-        << "You are now synchronized with the network. You may now start oxen-wallet-cli.\n"
+        << "You are now synchronized with the network. You may now start quenero-wallet-cli.\n"
         << "\n"
         << "Use the \"help\" command to see the list of available commands.\n"
         << "**********************************************************************");
@@ -2566,11 +2566,11 @@ skip:
   }
   //------------------------------------------------------------------------------------------------------------------------
   template<class t_core>
-  bool t_cryptonote_protocol_handler<t_core>::relay_service_node_votes(NOTIFY_NEW_SERVICE_NODE_VOTE::request& arg, cryptonote_connection_context& exclude_context)
+  bool t_cryptonote_protocol_handler<t_core>::relay_masternode_votes(NOTIFY_NEW_MASTERNODE_VOTE::request& arg, cryptonote_connection_context& exclude_context)
   {
-    bool result = relay_to_synchronized_peers<NOTIFY_NEW_SERVICE_NODE_VOTE>(arg, exclude_context);
+    bool result = relay_to_synchronized_peers<NOTIFY_NEW_MASTERNODE_VOTE>(arg, exclude_context);
     if (result)
-      m_core.set_service_node_votes_relayed(arg.votes);
+      m_core.set_masternode_votes_relayed(arg.votes);
     return result;
   }
   //------------------------------------------------------------------------------------------------------------------------
@@ -2727,7 +2727,7 @@ skip:
       MINFO("Target height decreasing from " << previous_target << " to " << target);
       m_core.set_target_blockchain_height(target);
       if (target == 0 && context.m_state > cryptonote_connection_context::state_before_handshake && !m_stopping)
-        MCWARNING("global", "oxend is now disconnected from the network");
+        MCWARNING("global", "quenerod is now disconnected from the network");
     }
 
     m_block_queue.flush_spans(context.m_connection_id, false);

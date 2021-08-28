@@ -37,7 +37,7 @@ add_library(common
   expect.cpp
   file.cpp
   i18n.cpp
-  oxen.cpp
+  quenero.cpp
   notify.cpp
   password.cpp
   perf_timer.cpp

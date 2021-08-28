@@ -33,14 +33,14 @@
 #include "epee/string_tools.h"
 #include "daemon/command_server.h"
 
-#include "common/oxen_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
 #include <thread>
 #endif
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "daemon"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon"
 
 namespace daemonize {
 
@@ -118,7 +118,7 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
       "print_sn_key"
     , [this](const auto &x) { return m_parser.print_sn_key(x); }
     , "print_sn_key"
-    , "Print this daemon's service node key, if it is one and launched in service node mode."
+    , "Print this daemon's masternode key, if it is one and launched in masternode mode."
     );
   m_command_lookup.set_handler(
       "print_sr"
@@ -130,19 +130,19 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
       "prepare_registration"
     , [this](const auto &) { return m_parser.prepare_registration(); }
     , "prepare_registration"
-    , "Interactive prompt to prepare a service node registration command. The resulting registration command can be run in the command-line wallet to send the registration to the blockchain."
+    , "Interactive prompt to prepare a masternode registration command. The resulting registration command can be run in the command-line wallet to send the registration to the blockchain."
     );
   m_command_lookup.set_handler(
       "print_sn"
     , [this](const auto &x) { return m_parser.print_sn(x); }
     , "print_sn [<pubkey> [...]] [+json|+detail]"
-    , "Print service node registration info for the current height"
+    , "Print masternode registration info for the current height"
     );
   m_command_lookup.set_handler(
       "print_sn_status"
     , [this](const auto &x) { return m_parser.print_sn_status(x); }
     , "print_sn_status [+json|+detail]"
-    , "Print service node registration info for this service node"
+    , "Print masternode registration info for this masternode"
     );
   m_command_lookup.set_handler(
       "is_key_image_spent"
@@ -320,7 +320,7 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
     , "bc_dyn_stats <last_block_count>"
     , "Print the information about current blockchain dynamic state."
     );
-    // TODO(oxen): Implement
+    // TODO(quenero): Implement
 #if 0
     m_command_lookup.set_handler(
       "update"
@@ -351,7 +351,7 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
     , [this](const auto &x) { return m_parser.version(x); }
     , "Print version information."
     );
-#if 0 // TODO(oxen): Pruning not supported because of Service Node List
+#if 0 // TODO(quenero): Pruning not supported because of Masternode List
     m_command_lookup.set_handler(
       "prune_blockchain"
     , [this](const auto &x) { return m_parser.prune_blockchain(x); }
@@ -396,7 +396,7 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
         },
     "");
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     m_command_lookup.set_handler(
       "relay_votes_and_uptime", [rpc_server](const auto&) {
         rpc_server->on_relay_uptime_and_votes();
@@ -458,7 +458,7 @@ bool command_server::start_handling(std::function<void(void)> exit_handler)
 {
   if (m_is_rpc) return false;
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   auto handle_pipe = [&]()
   {
     // TODO(doyle): Hack, don't hook into input until the daemon has completely initialised, i.e. you can print the status
@@ -516,7 +516,7 @@ bool command_server::help(const std::vector<std::string>& args)
 std::string command_server::get_commands_str()
 {
   std::stringstream ss;
-  ss << "Oxen '" << OXEN_RELEASE_NAME << "' (v" << OXEN_VERSION_FULL << ")" << std::endl;
+  ss << "Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL << ")" << std::endl;
   ss << "Commands:\n";
   m_command_lookup.for_each([&ss] (const std::string&, const std::string& usage, const std::string&) {
       ss << "  " << usage << "\n"; });

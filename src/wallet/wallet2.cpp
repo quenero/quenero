@@ -43,7 +43,7 @@
 #include "common/password.h"
 #include "common/string_util.h"
 #include "cryptonote_basic/tx_extra.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "common/rules.h"
 #include "cryptonote_config.h"
 #include "cryptonote_core/tx_sanity_check.h"
@@ -85,11 +85,11 @@
 #include "device/device_cold.hpp"
 #include "device_trezor/device_trezor.hpp"
 
-#include "cryptonote_core/service_node_list.h"
-#include "cryptonote_core/service_node_rules.h"
-#include "common/oxen.h"
-#include "common/oxen_integration_test_hooks.h"
-#include "oxen_economy.h"
+#include "cryptonote_core/masternode_list.h"
+#include "cryptonote_core/masternode_rules.h"
+#include "common/quenero.h"
+#include "common/quenero_integration_test_hooks.h"
+#include "quenero_economy.h"
 #include "epee/string_coding.h"
 
 extern "C"
@@ -104,8 +104,8 @@ using namespace cryptonote;
 
 namespace string_tools = epee::string_tools;
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "wallet.wallet2"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.wallet2"
 
 namespace {
 
@@ -160,7 +160,7 @@ namespace {
 
   std::string get_default_ringdb_path()
   {
-    // remove .oxen, replace with .shared-ringdb
+    // remove .quenero, replace with .shared-ringdb
     return tools::get_default_data_dir().replace_filename(".shared-ringdb").u8string();
   }
 
@@ -226,7 +226,7 @@ namespace {
     }
   }
 
-  size_t get_num_outputs(const std::vector<cryptonote::tx_destination_entry> &dsts, const std::vector<tools::wallet2::transfer_details> &transfers, const std::vector<size_t> &selected_transfers, const oxen_construct_tx_params& tx_params)
+  size_t get_num_outputs(const std::vector<cryptonote::tx_destination_entry> &dsts, const std::vector<tools::wallet2::transfer_details> &transfers, const std::vector<size_t> &selected_transfers, const quenero_construct_tx_params& tx_params)
   {
     size_t outputs = dsts.size();
     uint64_t needed_money = 0;
@@ -237,14 +237,14 @@ namespace {
       found_money += transfers[idx].amount();
     if (found_money != needed_money)
       ++outputs; // change
-    if (outputs < (tx_params.tx_type == cryptonote::txtype::oxen_name_system ? 1 : 2))
+    if (outputs < (tx_params.tx_type == cryptonote::txtype::quenero_name_system ? 1 : 2))
       ++outputs; // extra 0 dummy output
     return outputs;
   }
 
 // Create on-demand to prevent static initialization order fiasco issues.
 struct options {
-  const command_line::arg_descriptor<std::string> daemon_address = {"daemon-address", tools::wallet2::tr("Use oxend RPC at [http://]<host>[:<port>]"), ""};
+  const command_line::arg_descriptor<std::string> daemon_address = {"daemon-address", tools::wallet2::tr("Use quenerod RPC at [http://]<host>[:<port>]"), ""};
   const command_line::arg_descriptor<std::string> daemon_login = {"daemon-login", tools::wallet2::tr("Specify username[:password] for daemon RPC client"), "", true};
   const command_line::arg_descriptor<std::string> proxy = {"proxy", tools::wallet2::tr("Use socks proxy at [socks4a://]<ip>:<port> for daemon connections"), "", true};
   const command_line::arg_descriptor<bool> trusted_daemon = {"trusted-daemon", tools::wallet2::tr("Enable commands which rely on a trusted daemon"), false};
@@ -1110,7 +1110,7 @@ std::vector<std::string> wallet2::has_deprecated_options(const boost::program_op
 {
   std::vector<std::string> warnings;
 
-  // These are deprecated as of oxen 8.x:
+  // These are deprecated as of quenero 8.x:
   if (!command_line::is_arg_defaulted(vm, options().daemon_host))
     warnings.emplace_back("--daemon-host. Use '--daemon-address http://HOSTNAME' instead");
   if (!command_line::is_arg_defaulted(vm, options().daemon_port))
@@ -1724,8 +1724,8 @@ void wallet2::scan_output(const cryptonote::transaction &tx, bool miner_tx, cons
       if (pool) reason = (blink) ? blink_reason : pool_reason;
 
       std::optional<epee::wipeable_string> pwd = m_callback->on_get_password(reason);
-      THROW_WALLET_EXCEPTION_IF(!pwd, error::password_needed, tr("Password is needed to compute key image for incoming OXEN"));
-      THROW_WALLET_EXCEPTION_IF(!verify_password(*pwd), error::password_needed, tr("Invalid password: password is needed to compute key image for incoming OXEN"));
+      THROW_WALLET_EXCEPTION_IF(!pwd, error::password_needed, tr("Password is needed to compute key image for incoming QUENERO"));
+      THROW_WALLET_EXCEPTION_IF(!verify_password(*pwd), error::password_needed, tr("Invalid password: password is needed to compute key image for incoming QUENERO"));
       decrypt_keys(*pwd);
       m_encrypt_keys_after_refresh = *pwd;
     }
@@ -1772,7 +1772,7 @@ void wallet2::scan_output(const cryptonote::transaction &tx, bool miner_tx, cons
     // TODO(doyle): When batched governance comes in, this needs to check that the TX has a governance output, can't assume last one is governance
     if      (vout_index == 0)                  entry.type = wallet::pay_type::miner;
     // else if (vout_index == tx.vout.size() - 1) entry.type = wallet::pay_type::governance;
-    else                                       entry.type = wallet::pay_type::service_node;
+    else                                       entry.type = wallet::pay_type::masternode;
   }
 
   tx_money_got_in_outs.push_back(entry);
@@ -1860,7 +1860,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
   // stored into m_transfers so we cannot determine if the entry in m_transfers
   // came from this transaction or a previous transaction.
 
-  // TODO(oxen): This case might be feasible at all where a key image is
+  // TODO(quenero): This case might be feasible at all where a key image is
   // duplicated in the _same_ tx in different output indexes, because the
   // algorithm for making a key image uses the output index. Investigate, and if
   // it's not feasible to construct a malicious one without absolutely breaking
@@ -1957,10 +1957,10 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
       continue;
     }
 
-    // NOTE(oxen): (miner_tx && m_refresh_type == RefreshOptimiseCoinbase) used
+    // NOTE(quenero): (miner_tx && m_refresh_type == RefreshOptimiseCoinbase) used
     // to be an optimisation step that checks if the first output was destined
     // for us otherwise skip. This is not possible for us because our
-    // block-reward now always has more than 1 output, mining, service node
+    // block-reward now always has more than 1 output, mining, masternode
     // and governance rewards which can all have different dest addresses, so we
     // always need to check all outputs.
     if ((tx.vout.size() > 1 && tools::threadpool::getInstance().get_max_concurrency() > 1 && !is_out_data_ptr) ||
@@ -2990,7 +2990,7 @@ bool wallet2::long_poll_pool_state()
   // How long we sleep (and thus prevent retrying the connection) if we get an error
   const auto error_sleep = m_long_poll_local ? 500ms : 3s;
   // How long we wait for a long poll response before timing out; we add a 5s buffer to the usual
-  // timeout to allow for network latency and oxend response time.
+  // timeout to allow for network latency and quenerod response time.
   m_long_poll_client.set_timeout(cryptonote::rpc::GET_TRANSACTION_POOL_HASHES_BIN::long_poll_timeout + 5s);
 
   using namespace cryptonote::rpc;
@@ -3107,7 +3107,7 @@ std::vector<wallet2::get_pool_state_tx> wallet2::get_pool_state(bool refreshed)
     blink_hashes = std::move(res.tx_hashes);
   }
 
-  OXEN_DEFER {
+  QUENERO_DEFER {
     if (m_encrypt_keys_after_refresh)
     {
       encrypt_keys(*m_encrypt_keys_after_refresh);
@@ -3494,7 +3494,7 @@ void wallet2::refresh(bool trusted_daemon, uint64_t start_height, uint64_t & blo
   // subsequent pulls in this refresh.
   start_height = 0;
 
-  OXEN_DEFER {
+  QUENERO_DEFER {
     if (m_encrypt_keys_after_refresh)
     {
       encrypt_keys(*m_encrypt_keys_after_refresh);
@@ -4994,13 +4994,13 @@ std::string wallet2::make_multisig(const epee::wipeable_string &password,
   std::vector<crypto::secret_key> multisig_keys;
   rct::key spend_pkey = rct::identity();
   rct::key spend_skey;
-  OXEN_DEFER { memwipe(&spend_skey, sizeof(spend_skey)); };
+  QUENERO_DEFER { memwipe(&spend_skey, sizeof(spend_skey)); };
   std::vector<crypto::public_key> multisig_signers;
 
   // decrypt keys
   bool reencrypt = false;
   crypto::chacha_key chacha_key;
-  auto keys_reencryptor = oxen::defer([&] {
+  auto keys_reencryptor = quenero::defer([&] {
     if (reencrypt)
     {
       m_account.encrypt_keys(chacha_key);
@@ -5166,7 +5166,7 @@ std::string wallet2::exchange_multisig_keys(const epee::wipeable_string &passwor
   bool reencrypt = false;
   crypto::chacha_key chacha_key;
   epee::misc_utils::auto_scope_leave_caller keys_reencryptor;
-  OXEN_DEFER {
+  QUENERO_DEFER {
     if (reencrypt)
     {
       m_account.encrypt_keys(chacha_key);
@@ -6398,7 +6398,7 @@ std::string wallet2::transfers_to_csv(const std::vector<wallet::transfer_view>& 
     {
       case wallet::pay_type::in:
       case wallet::pay_type::miner:
-      case wallet::pay_type::service_node:
+      case wallet::pay_type::masternode:
       case wallet::pay_type::governance:
         running_balance += transfer.amount;
         break;
@@ -6649,7 +6649,7 @@ bool wallet2::is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height, 
   auto blockchain_height = get_blockchain_current_height();
   if (block_height == 0 && unmined_blink)
   {
-    // TODO(oxen): this restriction will go away when we add Reblink support, but for now received
+    // TODO(quenero): this restriction will go away when we add Reblink support, but for now received
     // blinks still have to be mined and confirmed like regular transactions before they can be
     // spent (blink without reblink just gives you a guarantee that they will be mined).
     //
@@ -6667,21 +6667,21 @@ bool wallet2::is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height, 
   if (m_offline)
     return true;
 
-  if (!key_image) // TODO(oxen): Try make all callees always pass in a key image for accuracy
+  if (!key_image) // TODO(quenero): Try make all callees always pass in a key image for accuracy
     return true;
 
   {
     std::optional<std::string> failed;
     // FIXME: can just check one here by adding a is_key_image_blacklisted
-    auto [success, blacklist] = m_node_rpc_proxy.get_service_node_blacklisted_key_images();
+    auto [success, blacklist] = m_node_rpc_proxy.get_masternode_blacklisted_key_images();
     if (!success)
     {
       // We'll already have a log message printed containing the request failure reason
-      LOG_PRINT_L1("Failed to query service node for blacklisted transfers, assuming transfer not blacklisted");
+      LOG_PRINT_L1("Failed to query masternode for blacklisted transfers, assuming transfer not blacklisted");
       return true;
     }
 
-    for (cryptonote::rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry const &entry : blacklist)
+    for (cryptonote::rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry const &entry : blacklist)
     {
       crypto::key_image check_image;
       if(!tools::hex_to_type(entry.key_image, check_image))
@@ -6698,14 +6698,14 @@ bool wallet2::is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height, 
   {
     const std::string primary_address = get_address_as_str();
     std::optional<std::string> failed;
-    auto [success, service_nodes_states] = m_node_rpc_proxy.get_contributed_service_nodes(primary_address);
+    auto [success, masternodes_states] = m_node_rpc_proxy.get_contributed_masternodes(primary_address);
     if (!success)
     {
-      LOG_PRINT_L1("Failed to query service node for locked transfers, assuming transfer not locked");
+      LOG_PRINT_L1("Failed to query masternode for locked transfers, assuming transfer not locked");
       return true;
     }
 
-    for (cryptonote::rpc::GET_SERVICE_NODES::response::entry const &entry : service_nodes_states)
+    for (cryptonote::rpc::GET_MASTERNODES::response::entry const &entry : masternodes_states)
     {
       for (auto const& contributor : entry.contributors)
       {
@@ -7180,7 +7180,7 @@ bool wallet2::sign_tx(unsigned_tx_set &exported_txs, std::vector<wallet2::pendin
     std::vector<crypto::secret_key> additional_tx_keys;
     rct::multisig_out msout;
 
-    oxen_construct_tx_params tx_params;
+    quenero_construct_tx_params tx_params;
     tx_params.hf_version = sd.hf_version;
     tx_params.tx_type    = sd.tx_type;
     bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sd.sources, sd.splitted_dsts, sd.change_dts, sd.extra, ptx.tx, sd.unlock_time, tx_key, additional_tx_keys, rct_config, m_multisig ? &msout : NULL, tx_params);
@@ -7652,7 +7652,7 @@ bool wallet2::sign_multisig_tx(multisig_tx_set &exported_txs, std::vector<crypto
     rct::multisig_out msout = ptx.multisig_sigs.front().msout;
     auto sources = sd.sources;
 
-    oxen_construct_tx_params tx_params;
+    quenero_construct_tx_params tx_params;
     tx_params.hf_version      = sd.hf_version;
     tx_params.tx_type         = sd.tx_type;
     rct::RCTConfig rct_config = sd.rct_config;
@@ -7675,7 +7675,7 @@ bool wallet2::sign_multisig_tx(multisig_tx_set &exported_txs, std::vector<crypto
 
         rct::keyV k;
         rct::key skey = rct::zero();
-        OXEN_DEFER {
+        QUENERO_DEFER {
           memwipe(k.data(), k.size() * sizeof(rct::key));
           memwipe(&skey, sizeof(skey));
         };
@@ -7834,13 +7834,13 @@ uint64_t wallet2::get_fee_quantization_mask() const
   return 1;
 }
 
-oxen_construct_tx_params wallet2::construct_params(uint8_t hf_version, txtype tx_type, uint32_t priority, uint64_t extra_burn, ons::mapping_type type)
+quenero_construct_tx_params wallet2::construct_params(uint8_t hf_version, txtype tx_type, uint32_t priority, uint64_t extra_burn, ons::mapping_type type)
 {
-  oxen_construct_tx_params tx_params;
+  quenero_construct_tx_params tx_params;
   tx_params.hf_version = hf_version;
   tx_params.tx_type    = tx_type;
 
-  if (tx_type == txtype::oxen_name_system)
+  if (tx_type == txtype::quenero_name_system)
   {
     assert(priority != tools::tx_priority_blink);
     tx_params.burn_fixed = ons::burn_needed(hf_version, type);
@@ -8117,19 +8117,19 @@ wallet2::stake_result wallet2::check_stake_allowed(const crypto::public_key& sn_
     return result;
   }
 
-  /// check that the service node is registered
-  const auto [success, response] = get_service_nodes({ tools::type_to_hex(sn_key) });
+  /// check that the masternode is registered
+  const auto [success, response] = get_masternodes({ tools::type_to_hex(sn_key) });
   if (!success)
   {
-    result.status = stake_result_status::service_node_list_query_failed;
+    result.status = stake_result_status::masternode_list_query_failed;
     result.msg    = ERR_MSG_NETWORK_VERSION_QUERY_FAILED;
     return result;
   }
 
   if (response.size() != 1)
   {
-    result.status = stake_result_status::service_node_not_registered;
-    result.msg    = tr("Could not find service node in service node list, please make sure it is registered first.");
+    result.status = stake_result_status::masternode_not_registered;
+    result.msg    = tr("Could not find masternode in masternode list, please make sure it is registered first.");
     return result;
   }
 
@@ -8154,7 +8154,7 @@ wallet2::stake_result wallet2::check_stake_allowed(const crypto::public_key& sn_
 
   uint8_t const hf_version   = *res;
   uint64_t max_contrib_total = snode_info.staking_requirement - snode_info.total_reserved;
-  uint64_t min_contrib_total = service_nodes::get_min_node_contribution(hf_version, snode_info.staking_requirement, snode_info.total_reserved, total_existing_contributions);
+  uint64_t min_contrib_total = masternodes::get_min_node_contribution(hf_version, snode_info.staking_requirement, snode_info.total_reserved, total_existing_contributions);
 
   bool is_preexisting_contributor = false;
   for (const auto& contributor : snode_info.contributors)
@@ -8177,16 +8177,16 @@ wallet2::stake_result wallet2::check_stake_allowed(const crypto::public_key& sn_
 
   if (max_contrib_total == 0)
   {
-    result.status = stake_result_status::service_node_contribution_maxed;
-    result.msg = tr("The service node cannot receive any more Loki from this wallet");
+    result.status = stake_result_status::masternode_contribution_maxed;
+    result.msg = tr("The masternode cannot receive any more Loki from this wallet");
     return result;
   }
 
   const bool full = snode_info.contributors.size() >= MAX_NUMBER_OF_CONTRIBUTORS;
   if (full && !is_preexisting_contributor)
   {
-    result.status = stake_result_status::service_node_contributors_maxed;
-    result.msg = tr("The service node already has the maximum number of participants and this wallet is not one of them");
+    result.status = stake_result_status::masternode_contributors_maxed;
+    result.msg = tr("The masternode already has the maximum number of participants and this wallet is not one of them");
     return result;
   }
 
@@ -8202,11 +8202,11 @@ wallet2::stake_result wallet2::check_stake_allowed(const crypto::public_key& sn_
     }
     else
     {
-      result.status = stake_result_status::service_node_insufficient_contribution;
+      result.status = stake_result_status::masternode_insufficient_contribution;
       result.msg.reserve(128);
       result.msg =  tr("You must contribute at least ");
       result.msg += print_money(min_contrib_total);
-      result.msg += tr(" oxen to become a contributor for this service node.");
+      result.msg += tr(" quenero to become a contributor for this masternode.");
       return result;
     }
   }
@@ -8215,7 +8215,7 @@ wallet2::stake_result wallet2::check_stake_allowed(const crypto::public_key& sn_
   {
     result.msg += tr("You may only contribute up to ");
     result.msg += print_money(max_contrib_total);
-    result.msg += tr(" more oxen to this service node. ");
+    result.msg += tr(" more quenero to this masternode. ");
     result.msg += tr("Reducing your stake from ");
     result.msg += print_money(amount);
     result.msg += tr(" to ");
@@ -8228,7 +8228,7 @@ wallet2::stake_result wallet2::check_stake_allowed(const crypto::public_key& sn_
   return result;
 }
 
-wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& service_node_key, uint64_t amount, double amount_fraction, uint32_t priority, std::set<uint32_t> subaddr_indices)
+wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& masternode_key, uint64_t amount, double amount_fraction, uint32_t priority, std::set<uint32_t> subaddr_indices)
 {
   wallet2::stake_result result = {};
   result.status                = wallet2::stake_result_status::invalid;
@@ -8240,7 +8240,7 @@ wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& service
 
   try
   {
-    result = check_stake_allowed(service_node_key, addr_info, amount, amount_fraction);
+    result = check_stake_allowed(masternode_key, addr_info, amount, amount_fraction);
     if (result.status != stake_result_status::success)
       return result;
   }
@@ -8255,8 +8255,8 @@ wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& service
   const cryptonote::account_public_address& address = addr_info.address;
 
   std::vector<uint8_t> extra;
-  add_service_node_pubkey_to_tx_extra(extra, service_node_key);
-  add_service_node_contributor_to_tx_extra(extra, address);
+  add_masternode_pubkey_to_tx_extra(extra, masternode_key);
+  add_masternode_contributor_to_tx_extra(extra, address);
 
   std::vector<cryptonote::tx_destination_entry> dsts;
   cryptonote::tx_destination_entry de = {};
@@ -8284,7 +8284,7 @@ wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& service
     if (priority == tx_priority_blink)
     {
       result.status = stake_result_status::no_blink;
-      result.msg += tr("Service node stakes cannot use blink priority");
+      result.msg += tr("Masternode stakes cannot use blink priority");
       return result;
     }
 
@@ -8296,7 +8296,7 @@ wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& service
       return result;
     }
 
-    oxen_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, txtype::stake, priority);
+    quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, txtype::stake, priority);
     auto ptx_vector      = create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, unlock_at_block, priority, extra, 0, subaddr_indices, tx_params);
     if (ptx_vector.size() == 1)
     {
@@ -8321,11 +8321,11 @@ wallet2::stake_result wallet2::create_stake_tx(const crypto::public_key& service
   return result;
 }
 
-wallet2::register_service_node_result wallet2::create_register_service_node_tx(const std::vector<std::string> &args_, uint32_t subaddr_account)
+wallet2::register_masternode_result wallet2::create_register_masternode_tx(const std::vector<std::string> &args_, uint32_t subaddr_account)
 {
   std::vector<std::string> local_args = args_;
-  register_service_node_result result = {};
-  result.status                       = register_service_node_result_status::invalid;
+  register_masternode_result result = {};
+  result.status                       = register_masternode_result_status::invalid;
 
   //
   // Parse Tx Args
@@ -8337,7 +8337,7 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
     {
       if (!tools::parse_subaddress_indices(local_args[0], subaddr_indices))
       {
-        result.status = register_service_node_result_status::subaddr_indices_parse_fail;
+        result.status = register_masternode_result_status::subaddr_indices_parse_fail;
         result.msg = tr("Could not parse subaddress indices argument: ") + local_args[0];
         return result;
       }
@@ -8350,16 +8350,16 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
 
     if (priority == tx_priority_blink)
     {
-      result.status = register_service_node_result_status::no_blink;
-      result.msg += tr("Service node registrations cannot use blink priority");
+      result.status = register_masternode_result_status::no_blink;
+      result.msg += tr("Masternode registrations cannot use blink priority");
       return result;
     }
 
     if (local_args.size() < 6)
     {
-      result.status = register_service_node_result_status::insufficient_num_args;
+      result.status = register_masternode_result_status::insufficient_num_args;
       result.msg += tr("\nPrepare this command in the daemon with the prepare_registration command");
-      result.msg += tr("\nThis command must be run from the daemon that will be acting as a service node");
+      result.msg += tr("\nThis command must be run from the daemon that will be acting as a masternode");
       return result;
     }
   }
@@ -8370,13 +8370,13 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
   std::optional<uint8_t> hf_version = get_hard_fork_version();
   if (!hf_version)
   {
-    result.status = register_service_node_result_status::network_version_query_failed;
+    result.status = register_masternode_result_status::network_version_query_failed;
     result.msg    = ERR_MSG_NETWORK_VERSION_QUERY_FAILED;
     return result;
   }
 
   uint64_t staking_requirement = 0, bc_height = 0;
-  service_nodes::contributor_args_t contributor_args = {};
+  masternodes::contributor_args_t contributor_args = {};
   {
     std::string err, err2;
     bc_height = std::max(get_daemon_blockchain_height(err),
@@ -8386,25 +8386,25 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
       {
         result.msg = ERR_MSG_NETWORK_HEIGHT_QUERY_FAILED;
         result.msg += (err.empty() ? err2 : err);
-        result.status = register_service_node_result_status::network_height_query_failed;
+        result.status = register_masternode_result_status::network_height_query_failed;
         return result;
       }
 
       if (!is_synced(1))
       {
-        result.status = register_service_node_result_status::wallet_not_synced;
+        result.status = register_masternode_result_status::wallet_not_synced;
         result.msg    = tr("Wallet is not synced. Please synchronise your wallet to the blockchain");
         return result;
       }
     }
 
-    staking_requirement = service_nodes::get_staking_requirement(nettype(), bc_height, *hf_version);
+    staking_requirement = masternodes::get_staking_requirement(nettype(), bc_height, *hf_version);
     std::vector<std::string> const args(local_args.begin(), local_args.begin() + local_args.size() - 3);
-    contributor_args = service_nodes::convert_registration_args(nettype(), args, staking_requirement, *hf_version);
+    contributor_args = masternodes::convert_registration_args(nettype(), args, staking_requirement, *hf_version);
 
     if (!contributor_args.success)
     {
-      result.status = register_service_node_result_status::convert_registration_args_failed;
+      result.status = register_masternode_result_status::convert_registration_args_failed;
       result.msg = tr("Could not convert registration args, reason: ") + contributor_args.err_msg;
       return result;
     }
@@ -8413,10 +8413,10 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
   cryptonote::account_public_address address = contributor_args.addresses[0];
   if (!contains_address(address))
   {
-    result.status = register_service_node_result_status::first_address_must_be_primary_address;
+    result.status = register_masternode_result_status::first_address_must_be_primary_address;
     result.msg = tr(
                     "The first reserved address for this registration does not belong to this wallet.\n"
-                    "Service node operator must specify an address owned by this wallet for service node registration."
+                    "Masternode operator must specify an address owned by this wallet for masternode registration."
                    );
     return result;
   }
@@ -8428,9 +8428,9 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
   size_t const timestamp_index  = local_args.size() - 3;
   size_t const key_index        = local_args.size() - 2;
   size_t const signature_index  = local_args.size() - 1;
-  const std::string &service_node_key_as_str = local_args[key_index];
+  const std::string &masternode_key_as_str = local_args[key_index];
 
-  crypto::public_key service_node_key;
+  crypto::public_key masternode_key;
   crypto::signature signature;
   uint64_t expiration_timestamp = 0;
   {
@@ -8439,52 +8439,52 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
       expiration_timestamp = boost::lexical_cast<uint64_t>(local_args[timestamp_index]);
       if (expiration_timestamp <= (uint64_t)time(nullptr) + 600 /* 10 minutes */)
       {
-        result.status = register_service_node_result_status::registration_timestamp_expired;
+        result.status = register_masternode_result_status::registration_timestamp_expired;
         result.msg    = tr("The registration timestamp has expired.");
         return result;
       }
     }
     catch (const std::exception &e)
     {
-      result.status = register_service_node_result_status::registration_timestamp_expired;
+      result.status = register_masternode_result_status::registration_timestamp_expired;
       result.msg = tr("The registration timestamp failed to parse: ") + local_args[timestamp_index];
       return result;
     }
 
-    if (!tools::hex_to_type(local_args[key_index], service_node_key))
+    if (!tools::hex_to_type(local_args[key_index], masternode_key))
     {
-      result.status = register_service_node_result_status::service_node_key_parse_fail;
-      result.msg = tr("Failed to parse service node pubkey");
+      result.status = register_masternode_result_status::masternode_key_parse_fail;
+      result.msg = tr("Failed to parse masternode pubkey");
       return result;
     }
 
     if (!tools::hex_to_type(local_args[signature_index], signature))
     {
-      result.status = register_service_node_result_status::service_node_signature_parse_fail;
-      result.msg = tr("Failed to parse service node signature");
+      result.status = register_masternode_result_status::masternode_signature_parse_fail;
+      result.msg = tr("Failed to parse masternode signature");
       return result;
     }
   }
 
   try
   {
-      service_nodes::validate_contributor_args(*hf_version, contributor_args);
-      service_nodes::validate_contributor_args_signature(contributor_args, expiration_timestamp, service_node_key, signature);
+      masternodes::validate_contributor_args(*hf_version, contributor_args);
+      masternodes::validate_contributor_args_signature(contributor_args, expiration_timestamp, masternode_key, signature);
   }
-  catch(const service_nodes::invalid_contributions &e)
+  catch(const masternodes::invalid_contributions &e)
   {
-    result.status = register_service_node_result_status::validate_contributor_args_fail;
+    result.status = register_masternode_result_status::validate_contributor_args_fail;
     result.msg    = e.what();
     return result;
   }
 
   std::vector<uint8_t> extra;
-  add_service_node_contributor_to_tx_extra(extra, address);
-  add_service_node_pubkey_to_tx_extra(extra, service_node_key);
-  if (!add_service_node_register_to_tx_extra(extra, contributor_args.addresses, contributor_args.portions_for_operator, contributor_args.portions, expiration_timestamp, signature))
+  add_masternode_contributor_to_tx_extra(extra, address);
+  add_masternode_pubkey_to_tx_extra(extra, masternode_key);
+  if (!add_masternode_register_to_tx_extra(extra, contributor_args.addresses, contributor_args.portions_for_operator, contributor_args.portions, expiration_timestamp, signature))
   {
-    result.status = register_service_node_result_status::service_node_register_serialize_to_tx_extra_fail;
-    result.msg    = tr("Failed to serialize service node registration tx extra");
+    result.status = register_masternode_result_status::masternode_register_serialize_to_tx_extra_fail;
+    result.msg    = tr("Failed to serialize masternode registration tx extra");
     return result;
   }
 
@@ -8493,18 +8493,18 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
   //
   refresh(false);
   {
-    const auto [success, response] = get_service_nodes({service_node_key_as_str});
+    const auto [success, response] = get_masternodes({masternode_key_as_str});
     if (!success)
     {
-      result.status = register_service_node_result_status::service_node_list_query_failed;
+      result.status = register_masternode_result_status::masternode_list_query_failed;
       result.msg    = ERR_MSG_NETWORK_VERSION_QUERY_FAILED;
       return result;
     }
 
     if (response.size() >= 1)
     {
-      result.status = register_service_node_result_status::service_node_cannot_reregister;
-      result.msg    = tr("This service node is already registered");
+      result.status = register_masternode_result_status::masternode_cannot_reregister;
+      result.msg    = tr("This masternode is already registered");
       return result;
     }
   }
@@ -8519,7 +8519,7 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
       uint64_t amount_left                = staking_requirement;
       for (size_t i = 0; i < contributor_args.portions.size(); i++)
       {
-        uint64_t amount = service_nodes::portions_to_amount(staking_requirement, contributor_args.portions[i]);
+        uint64_t amount = masternodes::portions_to_amount(staking_requirement, contributor_args.portions[i]);
         if (i == 0) amount_payable_by_operator += amount;
         amount_left -= amount;
       }
@@ -8537,33 +8537,33 @@ wallet2::register_service_node_result wallet2::create_register_service_node_tx(c
 
     try
     {
-      // NOTE(oxen): We know the address should always be a primary address and has no payment id, so we can ignore the subaddress/payment id field here
+      // NOTE(quenero): We know the address should always be a primary address and has no payment id, so we can ignore the subaddress/payment id field here
       cryptonote::address_parse_info dest = {};
       dest.address                        = address;
 
-      oxen_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, txtype::stake, priority);
+      quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, txtype::stake, priority);
       auto ptx_vector = create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, 0 /* unlock_time */, priority, extra, subaddr_account, subaddr_indices, tx_params);
       if (ptx_vector.size() == 1)
       {
-        result.status = register_service_node_result_status::success;
+        result.status = register_masternode_result_status::success;
         result.ptx    = ptx_vector[0];
       }
       else
       {
-        result.status = register_service_node_result_status::too_many_transactions_constructed;
+        result.status = register_masternode_result_status::too_many_transactions_constructed;
         result.msg    = ERR_MSG_TOO_MANY_TXS_CONSTRUCTED;
       }
     }
     catch (const std::exception& e)
     {
-      result.status = register_service_node_result_status::exception_thrown;
+      result.status = register_masternode_result_status::exception_thrown;
       result.msg    = ERR_MSG_EXCEPTION_THROWN;
       result.msg += e.what();
       return result;
     }
   }
 
-  assert(result.status != register_service_node_result_status::invalid);
+  assert(result.status != register_masternode_result_status::invalid);
   return result;
 }
 
@@ -8575,22 +8575,22 @@ wallet2::request_stake_unlock_result wallet2::can_request_stake_unlock(const cry
 
   std::string const sn_key_as_str = tools::type_to_hex(sn_key);
   {
-    const auto [success, response] = get_service_nodes({{sn_key_as_str}});
+    const auto [success, response] = get_masternodes({{sn_key_as_str}});
     if (!success)
     {
-      result.msg = tr("Failed to retrieve service node data from daemon");
+      result.msg = tr("Failed to retrieve masternode data from daemon");
       return result;
     }
 
     if (response.empty())
     {
-      result.msg = tr("No service node is known for: ") + sn_key_as_str;
+      result.msg = tr("No masternode is known for: ") + sn_key_as_str;
       return result;
     }
 
     cryptonote::account_public_address const primary_address = get_address();
-    std::vector<rpc::service_node_contribution> const *contributions = nullptr;
-    rpc::GET_SERVICE_NODES::response::entry const &node_info = response[0];
+    std::vector<rpc::masternode_contribution> const *contributions = nullptr;
+    rpc::GET_MASTERNODES::response::entry const &node_info = response[0];
     for (auto const &contributor : node_info.contributors)
     {
       address_parse_info address_info = {};
@@ -8605,13 +8605,13 @@ wallet2::request_stake_unlock_result wallet2::can_request_stake_unlock(const cry
 
     if (!contributions)
     {
-      result.msg = tr("No contributions recognised by this wallet in service node: ") + sn_key_as_str;
+      result.msg = tr("No contributions recognised by this wallet in masternode: ") + sn_key_as_str;
       return result;
     }
 
     if (contributions->empty())
     {
-      result.msg = tr("Unexpected 0 contributions in service node for this wallet ") + sn_key_as_str;
+      result.msg = tr("Unexpected 0 contributions in masternode for this wallet ") + sn_key_as_str;
       return result;
     }
 
@@ -8644,18 +8644,18 @@ wallet2::request_stake_unlock_result wallet2::can_request_stake_unlock(const cry
 
       result.msg.append("You are requesting to unlock a stake of: ");
       result.msg.append(cryptonote::print_money(contribution.amount));
-      result.msg.append(" Loki from the service node network.\nThis will schedule the service node: ");
-      result.msg.append(node_info.service_node_pubkey);
+      result.msg.append(" Loki from the masternode network.\nThis will schedule the masternode: ");
+      result.msg.append(node_info.masternode_pubkey);
       result.msg.append(" for deactivation.");
       if (node_info.contributors.size() > 1) {
-          result.msg.append(" The stakes of the service node's ");
+          result.msg.append(" The stakes of the masternode's ");
           result.msg.append(std::to_string(node_info.contributors.size() - 1));
           result.msg.append(" other contributors will unlock at the same time.");
       }
       result.msg.append("\n\n");
 
-      uint64_t unlock_height = service_nodes::get_locked_key_image_unlock_height(nettype(), node_info.registration_height, curr_height);
-      result.msg.append("You will continue receiving rewards until the service node expires at the estimated height: ");
+      uint64_t unlock_height = masternodes::get_locked_key_image_unlock_height(nettype(), node_info.registration_height, curr_height);
+      result.msg.append("You will continue receiving rewards until the masternode expires at the estimated height: ");
       result.msg.append(std::to_string(unlock_height));
       result.msg.append(" (about ");
       result.msg.append(tools::get_human_readable_timespan(std::chrono::seconds((unlock_height - curr_height) * TARGET_BLOCK_TIME)));
@@ -8686,7 +8686,7 @@ wallet2::request_stake_unlock_result wallet2::can_request_stake_unlock(const cry
       }
     }
 
-    add_service_node_pubkey_to_tx_extra(result.ptx.tx.extra, sn_key);
+    add_masternode_pubkey_to_tx_extra(result.ptx.tx.extra, sn_key);
     add_tx_key_image_unlock_to_tx_extra(result.ptx.tx.extra, unlock);
   }
 
@@ -8731,7 +8731,7 @@ static bool try_generate_ons_signature(wallet2 const &wallet, std::string const 
   return true;
 }
 
-static ons_prepared_args prepare_tx_extra_oxen_name_system_values(wallet2 const &wallet,
+static ons_prepared_args prepare_tx_extra_quenero_name_system_values(wallet2 const &wallet,
                                                                   ons::mapping_type type,
                                                                   uint32_t priority,
                                                                   std::string name,
@@ -8747,7 +8747,7 @@ static ons_prepared_args prepare_tx_extra_oxen_name_system_values(wallet2 const 
   ons_prepared_args result = {};
   if (priority == tools::tx_priority_blink)
   {
-    if (reason) *reason = "Can not request a blink TX for Oxen Name Service transactions";
+    if (reason) *reason = "Can not request a blink TX for Quenero Name Service transactions";
     return {};
   }
 
@@ -8855,7 +8855,7 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_buy_mapping_tx(ons::mapping
 {
   std::vector<cryptonote::rpc::ONS_NAMES_TO_OWNERS::response_entry> response;
   constexpr bool make_signature = false;
-  ons_prepared_args prepared_args = prepare_tx_extra_oxen_name_system_values(*this, type, priority, name, &value, owner, backup_owner, make_signature, ons::ons_tx_type::buy, account_index, reason, &response);
+  ons_prepared_args prepared_args = prepare_tx_extra_quenero_name_system_values(*this, type, priority, name, &value, owner, backup_owner, make_signature, ons::ons_tx_type::buy, account_index, reason, &response);
   if (!owner)
     prepared_args.owner = ons::make_monero_owner(get_subaddress({account_index, 0}), account_index != 0);
 
@@ -8863,14 +8863,14 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_buy_mapping_tx(ons::mapping
     return {};
 
   std::vector<uint8_t> extra;
-  auto entry = cryptonote::tx_extra_oxen_name_system::make_buy(
+  auto entry = cryptonote::tx_extra_quenero_name_system::make_buy(
       prepared_args.owner,
       backup_owner ? &prepared_args.backup_owner : nullptr,
       type,
       prepared_args.name_hash,
       prepared_args.encrypted_value.to_string(),
       prepared_args.prev_txid);
-  add_oxen_name_system_to_tx_extra(extra, entry);
+  add_quenero_name_system_to_tx_extra(extra, entry);
 
   std::optional<uint8_t> hf_version = get_hard_fork_version();
   if (!hf_version)
@@ -8879,7 +8879,7 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_buy_mapping_tx(ons::mapping
     return {};
   }
 
-  oxen_construct_tx_params tx_params = wallet2::construct_params(*hf_version, txtype::oxen_name_system, priority, 0, type);
+  quenero_construct_tx_params tx_params = wallet2::construct_params(*hf_version, txtype::quenero_name_system, priority, 0, type);
   auto result = create_transactions_2({} /*dests*/,
                                       CRYPTONOTE_DEFAULT_TX_MIXIN,
                                       0 /*unlock_at_block*/,
@@ -8917,17 +8917,17 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_renewal_tx(
     )
 {
   constexpr bool make_signature = false;
-  ons_prepared_args prepared_args = prepare_tx_extra_oxen_name_system_values(*this, type, priority, name, nullptr, nullptr, nullptr, make_signature, ons::ons_tx_type::renew, account_index, reason, response);
+  ons_prepared_args prepared_args = prepare_tx_extra_quenero_name_system_values(*this, type, priority, name, nullptr, nullptr, nullptr, make_signature, ons::ons_tx_type::renew, account_index, reason, response);
 
   if (!prepared_args)
     return {};
 
   std::vector<uint8_t> extra;
-  auto entry = cryptonote::tx_extra_oxen_name_system::make_renew(
+  auto entry = cryptonote::tx_extra_quenero_name_system::make_renew(
       type,
       prepared_args.name_hash,
       prepared_args.prev_txid);
-  add_oxen_name_system_to_tx_extra(extra, entry);
+  add_quenero_name_system_to_tx_extra(extra, entry);
 
   std::optional<uint8_t> hf_version = get_hard_fork_version();
   if (!hf_version)
@@ -8936,7 +8936,7 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_renewal_tx(
     return {};
   }
 
-  oxen_construct_tx_params tx_params = wallet2::construct_params(*hf_version, txtype::oxen_name_system, priority, 0, type);
+  quenero_construct_tx_params tx_params = wallet2::construct_params(*hf_version, txtype::quenero_name_system, priority, 0, type);
   auto result = create_transactions_2({} /*dests*/,
                                       CRYPTONOTE_DEFAULT_TX_MIXIN,
                                       0 /*unlock_at_block*/,
@@ -8968,7 +8968,7 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_update_mapping_tx(ons::mapp
   }
 
   bool make_signature = signature == nullptr;
-  ons_prepared_args prepared_args = prepare_tx_extra_oxen_name_system_values(*this, type, priority, name, value, owner, backup_owner, make_signature, ons::ons_tx_type::update, account_index, reason, response);
+  ons_prepared_args prepared_args = prepare_tx_extra_quenero_name_system_values(*this, type, priority, name, value, owner, backup_owner, make_signature, ons::ons_tx_type::update, account_index, reason, response);
   if (!prepared_args) return {};
 
   if (!make_signature)
@@ -8981,21 +8981,21 @@ std::vector<wallet2::pending_tx> wallet2::ons_create_update_mapping_tx(ons::mapp
   }
 
   std::vector<uint8_t> extra;
-  auto entry = cryptonote::tx_extra_oxen_name_system::make_update(prepared_args.signature,
+  auto entry = cryptonote::tx_extra_quenero_name_system::make_update(prepared_args.signature,
                                                                   type,
                                                                   prepared_args.name_hash,
                                                                   prepared_args.encrypted_value.to_view(),
                                                                   owner ? &prepared_args.owner : nullptr,
                                                                   backup_owner ? &prepared_args.backup_owner : nullptr,
                                                                   prepared_args.prev_txid);
-  add_oxen_name_system_to_tx_extra(extra, entry);
+  add_quenero_name_system_to_tx_extra(extra, entry);
   std::optional<uint8_t> hf_version = get_hard_fork_version();
   if (!hf_version)
   {
     if (reason) *reason = ERR_MSG_NETWORK_VERSION_QUERY_FAILED;
     return {};
   }
-  oxen_construct_tx_params tx_params = wallet2::construct_params(*hf_version, txtype::oxen_name_system, priority, 0, ons::mapping_type::update_record_internal);
+  quenero_construct_tx_params tx_params = wallet2::construct_params(*hf_version, txtype::quenero_name_system, priority, 0, ons::mapping_type::update_record_internal);
 
   auto result = create_transactions_2({} /*dests*/,
                                       CRYPTONOTE_DEFAULT_TX_MIXIN,
@@ -9045,7 +9045,7 @@ bool wallet2::ons_make_update_mapping_signature(ons::mapping_type type,
 {
   std::vector<cryptonote::rpc::ONS_NAMES_TO_OWNERS::response_entry> response;
   constexpr bool make_signature = true;
-  ons_prepared_args prepared_args = prepare_tx_extra_oxen_name_system_values(*this, type, tx_priority_unimportant, name, value, owner, backup_owner, make_signature, ons::ons_tx_type::update, account_index, reason, &response);
+  ons_prepared_args prepared_args = prepare_tx_extra_quenero_name_system_values(*this, type, tx_priority_unimportant, name, value, owner, backup_owner, make_signature, ons::ons_tx_type::update, account_index, reason, &response);
   if (!prepared_args) return false;
 
   if (prepared_args.prev_txid == crypto::null_hash)
@@ -9078,12 +9078,12 @@ bool wallet2::tx_add_fake_output(std::vector<std::vector<tools::wallet2::get_out
   // check the keys are valid
   if (!rct::isInMainSubgroup(rct::pk2rct(output_public_key)))
   {
-    // TODO(oxen): FIXME(oxen): Payouts to the null service node address are
+    // TODO(quenero): FIXME(quenero): Payouts to the null masternode address are
     // transactions constructed with an invalid public key and fail this check.
 
     // Technically we should not be mixing them- but in test environments like
     // devnet/testnet where there may be extended periods of time where there
-    // are many payouts to the null service node, then during fake output
+    // are many payouts to the null masternode, then during fake output
     // selection they are considered invalid.
 
     // And upon removing all of them, we end up with insufficient outputs to
@@ -9701,7 +9701,7 @@ void wallet2::get_outs(std::vector<std::vector<tools::wallet2::get_outs_entry>> 
           [](const auto& a, const auto& b) { return a.index < b.index; });
     }
 
-    if (ELPP->vRegistry()->allowed(el::Level::Debug, OXEN_DEFAULT_LOG_CATEGORY))
+    if (ELPP->vRegistry()->allowed(el::Level::Debug, QUENERO_DEFAULT_LOG_CATEGORY))
     {
       std::map<uint64_t, std::set<uint64_t>> outs;
       for (const auto &i: get_outputs)
@@ -9885,7 +9885,7 @@ void wallet2::get_outs(std::vector<std::vector<tools::wallet2::get_outs_entry>> 
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
   std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs,
-  uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, const oxen_construct_tx_params &tx_params)
+  uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, const quenero_construct_tx_params &tx_params)
 {
   // throw if attempting a transaction with no destinations
   THROW_WALLET_EXCEPTION_IF(dsts.empty(), error::zero_destination);
@@ -9899,7 +9899,7 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
   // throw if total amount overflows uint64_t
   for(auto& dt: dsts)
   {
-    THROW_WALLET_EXCEPTION_IF(0 == dt.amount && (tx_params.tx_type != txtype::oxen_name_system), error::zero_destination);
+    THROW_WALLET_EXCEPTION_IF(0 == dt.amount && (tx_params.tx_type != txtype::quenero_name_system), error::zero_destination);
     needed_money += dt.amount;
     LOG_PRINT_L2("transfer: adding " << print_money(dt.amount) << ", for a total of " << print_money (needed_money));
     THROW_WALLET_EXCEPTION_IF(needed_money < dt.amount, error::tx_sum_overflow, dsts, fee, m_nettype);
@@ -10053,7 +10053,7 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
   bool update_splitted_dsts                                   = true;
   if (change_dts.amount == 0)
   {
-    if (splitted_dsts.size() == 1 || tx.type == txtype::oxen_name_system)
+    if (splitted_dsts.size() == 1 || tx.type == txtype::quenero_name_system)
     {
       // If the change is 0, send it to a random address, to avoid confusing
       // the sender with a 0 amount output. We send a 0 amount in order to avoid
@@ -10082,7 +10082,7 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
     // NOTE: If ONS, there's already a dummy destination entry in there that
     // we placed in (for fake calculating the TX fees and parts) that we
     // repurpose for change after the fact.
-    if (tx_params.tx_type == txtype::oxen_name_system)
+    if (tx_params.tx_type == txtype::quenero_name_system)
     {
       assert(splitted_dsts.size() == 1);
       splitted_dsts.back() = change_dts;
@@ -10640,7 +10640,7 @@ void wallet2::light_wallet_get_address_txs()
     address_tx.m_block_height = t.height;
     address_tx.m_unlock_time  = t.unlock_time;
     address_tx.m_timestamp = t.timestamp;
-    address_tx.m_type  = t.coinbase ? wallet::pay_type::miner : wallet::pay_type::in; // TODO(oxen): Only accounts for miner, but wait, do we even care about this code? Looks like openmonero code
+    address_tx.m_type  = t.coinbase ? wallet::pay_type::miner : wallet::pay_type::in; // TODO(quenero): Only accounts for miner, but wait, do we even care about this code? Looks like openmonero code
     address_tx.m_mempool  = t.mempool;
     m_light_wallet_address_txs.emplace(tx_hash,address_tx);
 
@@ -10656,7 +10656,7 @@ void wallet2::light_wallet_get_address_txs()
       payment.m_block_height = t.height;
       payment.m_unlock_time  = t.unlock_time;
       payment.m_timestamp = t.timestamp;
-      payment.m_type = t.coinbase ? wallet::pay_type::miner : wallet::pay_type::in; // TODO(oxen): Only accounts for miner, but wait, do we even care about this code? Looks like openmonero code
+      payment.m_type = t.coinbase ? wallet::pay_type::miner : wallet::pay_type::in; // TODO(quenero): Only accounts for miner, but wait, do we even care about this code? Looks like openmonero code
 
       if (t.mempool) {
         if (std::find(unconfirmed_payments_txs.begin(), unconfirmed_payments_txs.end(), tx_hash) == unconfirmed_payments_txs.end()) {
@@ -10837,18 +10837,18 @@ bool wallet2::light_wallet_key_image_is_ours(const crypto::key_image& key_image,
 // This system allows for sending (almost) the entire balance, since it does
 // not generate spurious change in all txes, thus decreasing the instantaneous
 // usable balance.
-std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra_base, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, oxen_construct_tx_params &tx_params)
+std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra_base, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, quenero_construct_tx_params &tx_params)
 {
   //ensure device is let in NONE mode in any case
   hw::device &hwdev = m_account.get_device();
   std::unique_lock hwdev_lock{hwdev};
   hw::mode_resetter rst{hwdev};
 
-  bool const is_ons_tx = (tx_params.tx_type == txtype::oxen_name_system);
+  bool const is_ons_tx = (tx_params.tx_type == txtype::quenero_name_system);
   auto original_dsts = dsts;
   if (is_ons_tx)
   {
-    THROW_WALLET_EXCEPTION_IF(dsts.size() != 0, error::wallet_internal_error, "oxen name system txs must not have any destinations set, has: " + std::to_string(dsts.size()));
+    THROW_WALLET_EXCEPTION_IF(dsts.size() != 0, error::wallet_internal_error, "quenero name system txs must not have any destinations set, has: " + std::to_string(dsts.size()));
     dsts.emplace_back(0, account_public_address{} /*address*/, false /*is_subaddress*/); // NOTE: Create a dummy dest that gets repurposed into the change output.
   }
 
@@ -10958,7 +10958,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
   // early out if we know we can't make it anyway
   // we could also check for being within FEE_PER_KB, but if the fee calculation
   // ever changes, this might be missed, so let this go through
-  const uint64_t min_outputs = tx_params.tx_type == cryptonote::txtype::oxen_name_system ? 1 : 2; // if ons, only request the change output
+  const uint64_t min_outputs = tx_params.tx_type == cryptonote::txtype::quenero_name_system ? 1 : 2; // if ons, only request the change output
   {
     uint64_t min_fee = (
         base_fee.first * estimate_rct_tx_size(1, fake_outs_count, min_outputs, extra.size(), clsag) +
@@ -11572,15 +11572,15 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
   std::optional<uint8_t> hf_version = get_hard_fork_version();
   THROW_WALLET_EXCEPTION_IF(!hf_version, error::get_hard_fork_version_error, "Failed to query current hard fork version");
 
-  oxen_construct_tx_params oxen_tx_params = tools::wallet2::construct_params(*hf_version, tx_type, priority);
+  quenero_construct_tx_params quenero_tx_params = tools::wallet2::construct_params(*hf_version, tx_type, priority);
   uint64_t burn_fixed = 0, burn_percent = 0;
   // Swap these out because we don't want them present for building intermediate temporary tx
   // calculations (which we don't actually use); we'll set them again at the end before we build the
   // real transactions.
-  std::swap(burn_fixed, oxen_tx_params.burn_fixed);
-  std::swap(burn_percent, oxen_tx_params.burn_percent);
+  std::swap(burn_fixed, quenero_tx_params.burn_fixed);
+  std::swap(burn_percent, quenero_tx_params.burn_percent);
   bool burning = burn_fixed || burn_percent;
-  THROW_WALLET_EXCEPTION_IF(burning && oxen_tx_params.hf_version < HF_VERSION_FEE_BURNING, error::wallet_internal_error, "cannot construct transaction: cannot burn amounts under the current hard fork");
+  THROW_WALLET_EXCEPTION_IF(burning && quenero_tx_params.hf_version < HF_VERSION_FEE_BURNING, error::wallet_internal_error, "cannot construct transaction: cannot burn amounts under the current hard fork");
   std::vector<uint8_t> extra_plus; // Copy and modified from input if modification needed
   const std::vector<uint8_t> &extra = burning ? extra_plus : extra_base;
   if (burning)
@@ -11647,7 +11647,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
       cryptonote::transaction test_tx;
       pending_tx test_ptx;
 
-      const size_t num_outputs = get_num_outputs(tx.dsts, m_transfers, tx.selected_transfers, oxen_tx_params);
+      const size_t num_outputs = get_num_outputs(tx.dsts, m_transfers, tx.selected_transfers, quenero_tx_params);
       needed_fee = estimate_fee(tx.selected_transfers.size(), fake_outs_count, num_outputs, extra.size(), clsag, base_fee, fee_percent, fixed_fee, fee_quantization_mask);
 
       // add N - 1 outputs for correct initial fee estimation
@@ -11657,7 +11657,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
       LOG_PRINT_L2("Trying to create a tx now, with " << tx.dsts.size() << " destinations and " <<
         tx.selected_transfers.size() << " outputs");
       transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
-          test_tx, test_ptx, rct_config, oxen_tx_params);
+          test_tx, test_ptx, rct_config, quenero_tx_params);
       auto txBlob = t_serializable_object_to_blob(test_ptx.tx);
       needed_fee = calculate_fee(test_ptx.tx, txBlob.size(), base_fee, fee_percent, fixed_fee, fee_quantization_mask);
       available_for_fee = test_ptx.fee + test_ptx.change_dts.amount;
@@ -11690,7 +11690,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
           dt.amount = dt_amount + dt_residue;
         }
         transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
-            test_tx, test_ptx, rct_config, oxen_tx_params);
+            test_tx, test_ptx, rct_config, quenero_tx_params);
         txBlob = t_serializable_object_to_blob(test_ptx.tx);
         needed_fee = calculate_fee(test_ptx.tx, txBlob.size(), base_fee, fee_percent, fixed_fee, fee_quantization_mask);
         LOG_PRINT_L2("Made an attempt at a final " << get_weight_string(test_ptx.tx, txBlob.size()) << " tx, with " << print_money(test_ptx.fee) <<
@@ -11725,11 +11725,11 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     // the base fee that would apply at 100% (the actual fee here is that times the priority-based
     // fee percent)
     if (burning)
-      oxen_tx_params.burn_fixed = burn_fixed + tx.needed_fee * burn_percent / fee_percent;
+      quenero_tx_params.burn_fixed = burn_fixed + tx.needed_fee * burn_percent / fee_percent;
 
     cryptonote::transaction test_tx;
     pending_tx test_ptx;
-    transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, unlock_time, tx.needed_fee, extra, test_tx, test_ptx, rct_config, oxen_tx_params);
+    transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, unlock_time, tx.needed_fee, extra, test_tx, test_ptx, rct_config, quenero_tx_params);
     auto txBlob = t_serializable_object_to_blob(test_ptx.tx);
     tx.tx = test_tx;
     tx.ptx = test_ptx;
@@ -12873,7 +12873,7 @@ bool wallet2::check_reserve_proof(const cryptonote::account_public_address &addr
     const cryptonote::txout_to_key* const out_key = std::get_if<cryptonote::txout_to_key>(std::addressof(tx.vout[proof.index_in_tx].target));
     THROW_WALLET_EXCEPTION_IF(!out_key, error::wallet_internal_error, "Output key wasn't found");
 
-    // TODO(oxen): We should make a catch-all function that gets all the public
+    // TODO(quenero): We should make a catch-all function that gets all the public
     // keys out into an array and iterate through all insteaad of multiple code
     // paths for additional keys and the main public key storage which can then
     // have multiple keys ..
@@ -12884,11 +12884,11 @@ bool wallet2::check_reserve_proof(const cryptonote::account_public_address &addr
     const bool is_miner = tx.vin.size() == 1 && std::holds_alternative<cryptonote::txin_gen>(tx.vin[0]);
     if (is_miner)
     {
-      // NOTE(oxen): The service node reward is added as a duplicate TX public
+      // NOTE(quenero): The masternode reward is added as a duplicate TX public
       // key instead of into the additional public key, so we need to check upto
       // 2 public keys when we're checking miner transactions.
 
-      // TODO(oxen): This might still be broken for governance rewards since it uses a deterministic key iirc.
+      // TODO(quenero): This might still be broken for governance rewards since it uses a deterministic key iirc.
       crypto::public_key main_keys[2] = {
           get_tx_pub_key_from_extra(tx, 0),
           get_tx_pub_key_from_extra(tx, 1),
@@ -13005,19 +13005,19 @@ uint64_t wallet2::get_approximate_blockchain_height() const
   return approx_blockchain_height;
 }
 
-std::vector<rpc::GET_SERVICE_NODES::response::entry> wallet2::list_current_stakes()
+std::vector<rpc::GET_MASTERNODES::response::entry> wallet2::list_current_stakes()
 {
 
-  std::vector<rpc::GET_SERVICE_NODES::response::entry> service_node_states;
+  std::vector<rpc::GET_MASTERNODES::response::entry> masternode_states;
 
-  auto [success, all_nodes] = this->get_all_service_nodes();
+  auto [success, all_nodes] = this->get_all_masternodes();
   if (!success)
   {
-    return service_node_states;
+    return masternode_states;
   }
 
   cryptonote::account_public_address const primary_address = this->get_address();
-  for (rpc::GET_SERVICE_NODES::response::entry const &node_info : all_nodes)
+  for (rpc::GET_MASTERNODES::response::entry const &node_info : all_nodes)
   {
     for (const auto& contributor : node_info.contributors)
     {
@@ -13030,11 +13030,11 @@ std::vector<rpc::GET_SERVICE_NODES::response::entry> wallet2::list_current_stake
       if (primary_address != address_info.address)
         continue;
 
-      service_node_states.push_back(node_info);
+      masternode_states.push_back(node_info);
     }
   }
 
-  return service_node_states;
+  return masternode_states;
 }
 
 void wallet2::set_ons_cache_record(wallet2::ons_detail detail)
@@ -13356,7 +13356,7 @@ std::pair<size_t, std::vector<std::pair<crypto::key_image, crypto::signature>>> 
     crypto::public_key tx_pub_key;
     if (!try_get_tx_pub_key_using_td(td, tx_pub_key))
     {
-      // TODO(doyle): TODO(oxen): Fallback to old get tx pub key method for
+      // TODO(doyle): TODO(quenero): Fallback to old get tx pub key method for
       // incase for now. But we need to go find out why we can't just use
       // td.m_pk_index for everything? If we were able to decode the output
       // using that, why not use it for everthing?
@@ -13486,7 +13486,7 @@ uint64_t wallet2::import_key_images(const std::vector<std::pair<crypto::key_imag
           error::wallet_internal_error, "Key image out of validity domain: input " + std::to_string(n + offset) + "/"
           + std::to_string(signed_key_images.size()) + ", key image " + key_image_str);
 
-      // TODO(oxen): This can fail in a worse-case scenario. We re-sort blinks
+      // TODO(quenero): This can fail in a worse-case scenario. We re-sort blinks
       // when they arrive out of order (i.e. blink is confirmed in mempool and
       // gets inserted into m_transfers in a different order from the order they
       // are committed to the blockchain).
@@ -13705,7 +13705,7 @@ uint64_t wallet2::import_key_images(const std::vector<std::pair<crypto::key_imag
       pd.m_amount_in = pd.m_amount_out = td.amount();       // fee is unknown
       pd.m_block_height                = 0;                 // spent block height is unknown
       const crypto::hash &spent_txid   = crypto::null_hash; // spent txid is unknown
-      bool stake                       = service_nodes::tx_get_staking_components(td.m_tx, nullptr /*stake*/, td.m_txid);
+      bool stake                       = masternodes::tx_get_staking_components(td.m_tx, nullptr /*stake*/, td.m_txid);
       pd.m_pay_type = stake ? wallet::pay_type::stake : wallet::pay_type::out;
       m_confirmed_txs.insert(std::make_pair(spent_txid, pd));
     }
@@ -13898,7 +13898,7 @@ process:
     crypto::public_key tx_pub_key;
     if (!try_get_tx_pub_key_using_td(td, tx_pub_key))
     {
-      // TODO(doyle): TODO(oxen): Fallback to old get tx pub key method for
+      // TODO(doyle): TODO(quenero): Fallback to old get tx pub key method for
       // incase for now. But we need to go find out why we can't just use
       // td.m_pk_index for everything? If we were able to decode the output
       // using that, why not use it for everthing?
@@ -14083,7 +14083,7 @@ crypto::key_image wallet2::get_multisig_composite_key_image(size_t n) const
   crypto::public_key tx_key;
   if (!try_get_tx_pub_key_using_td(td, tx_key))
   {
-    // TODO(doyle): TODO(oxen): Fallback to old get tx pub key method for
+    // TODO(doyle): TODO(quenero): Fallback to old get tx pub key method for
     // incase for now. But we need to go find out why we can't just use
     // td.m_pk_index for everything? If we were able to decode the output
     // using that, why not use it for everthing?
@@ -14221,7 +14221,7 @@ size_t wallet2::import_multisig(std::vector<cryptonote::blobdata> blobs)
   CHECK_AND_ASSERT_THROW_MES(info.size() + 1 <= m_multisig_signers.size() && info.size() + 1 >= m_multisig_threshold, "Wrong number of multisig sources");
 
   std::vector<std::vector<rct::key>> k;
-  OXEN_DEFER {
+  QUENERO_DEFER {
     for (auto& kv : k)
       memwipe(kv.data(), kv.size() * sizeof(rct::key));
   };
@@ -14353,7 +14353,7 @@ epee::wipeable_string wallet2::decrypt_with_view_secret_key(std::string_view cip
   return decrypt(ciphertext, get_account().get_keys().m_view_secret_key, authenticated);
 }
 
-static constexpr auto uri_prefix = "oxen:"sv;
+static constexpr auto uri_prefix = "quenero:"sv;
 
 //----------------------------------------------------------------------------------------------------
 std::string wallet2::make_uri(const std::string &address, const std::string &payment_id, uint64_t amount, const std::string &tx_description, const std::string &recipient_name, std::string &error) const
@@ -14644,7 +14644,7 @@ bool wallet2::generate_signature_for_request_stake_unlock(const crypto::key_imag
   crypto::public_key tx_pub_key;
   if (!try_get_tx_pub_key_using_td(td, tx_pub_key))
   {
-    // TODO(doyle): TODO(oxen): Fallback to old get tx pub key method for
+    // TODO(doyle): TODO(quenero): Fallback to old get tx pub key method for
     // incase for now. But we need to go find out why we can't just use
     // td.m_pk_index for everything? If we were able to decode the output
     // using that, why not use it for everthing?

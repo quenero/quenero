@@ -2,12 +2,12 @@
 
 #include "crypto/crypto.h"
 #include "cryptonote_config.h"
-#include "service_node_voting.h"
+#include "masternode_voting.h"
 #include <chrono>
 
-namespace service_nodes {
+namespace masternodes {
   constexpr size_t PULSE_QUORUM_ENTROPY_LAG    = 21; // How many blocks back from the tip of the Blockchain to source entropy for the Pulse quorums.
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   constexpr auto PULSE_ROUND_TIME                                   = 20s;
   constexpr auto PULSE_WAIT_FOR_HANDSHAKES_DURATION                 = 3s;
   constexpr auto PULSE_WAIT_FOR_OTHER_VALIDATOR_HANDSHAKES_DURATION = 3s;
@@ -46,12 +46,12 @@ namespace service_nodes {
   static_assert(PULSE_QUORUM_NUM_VALIDATORS >= PULSE_BLOCK_REQUIRED_SIGNATURES);
   static_assert(PULSE_QUORUM_ENTROPY_LAG >= PULSE_QUORUM_SIZE, "We need to pull atleast PULSE_QUORUM_SIZE number of blocks from the Blockchain, we can't if the amount of blocks to go back from the tip of the Blockchain is less than the blocks we need.");
   
-  constexpr size_t pulse_min_service_nodes(cryptonote::network_type nettype)
+  constexpr size_t pulse_min_masternodes(cryptonote::network_type nettype)
   {
     return (nettype == cryptonote::MAINNET) ? 50 : PULSE_QUORUM_SIZE;
   }
-  static_assert(pulse_min_service_nodes(cryptonote::MAINNET) >= PULSE_QUORUM_SIZE);
-  static_assert(pulse_min_service_nodes(cryptonote::TESTNET) >= PULSE_QUORUM_SIZE);
+  static_assert(pulse_min_masternodes(cryptonote::MAINNET) >= PULSE_QUORUM_SIZE);
+  static_assert(pulse_min_masternodes(cryptonote::TESTNET) >= PULSE_QUORUM_SIZE);
 
   constexpr uint16_t pulse_validator_bit_mask()
   {
@@ -61,18 +61,18 @@ namespace service_nodes {
     return result;
   }
 
-  // Service node decommissioning: as service nodes stay up they earn "credits" (measured in blocks)
-  // towards a future outage.  A new service node starts out with INITIAL_CREDIT, and then builds up
-  // CREDIT_PER_DAY for each day the service node remains active up to a maximum of
+  // Masternode decommissioning: as masternodes stay up they earn "credits" (measured in blocks)
+  // towards a future outage.  A new masternode starts out with INITIAL_CREDIT, and then builds up
+  // CREDIT_PER_DAY for each day the masternode remains active up to a maximum of
   // DECOMMISSION_MAX_CREDIT.
   //
-  // If a service node stops sending uptime proofs, a quorum will consider whether the service node
+  // If a masternode stops sending uptime proofs, a quorum will consider whether the masternode
   // has built up enough credits (at least MINIMUM): if so, instead of submitting a deregistration,
-  // it instead submits a decommission.  This removes the service node from the list of active
-  // service nodes both for rewards and for any active network duties.  If the service node comes
+  // it instead submits a decommission.  This removes the masternode from the list of active
+  // masternodes both for rewards and for any active network duties.  If the masternode comes
   // back online (i.e. starts sending the required performance proofs again) before the credits run
-  // out then a quorum will reinstate the service node using a recommission transaction, which adds
-  // the service node back to the bottom of the service node reward list, and resets its accumulated
+  // out then a quorum will reinstate the masternode using a recommission transaction, which adds
+  // the masternode back to the bottom of the masternode reward list, and resets its accumulated
   // credits to RECOMMISSION_CREDIT (see below).  If it does not come back online within the
   // required number of blocks (i.e. the accumulated credit at the point of decommissioning) then a
   // quorum will send a permanent deregistration transaction to the network, starting a 30-day
@@ -138,7 +138,7 @@ namespace service_nodes {
   constexpr int16_t TIMESTAMP_MAX_MISSABLE_VOTES  = 4;
   constexpr int16_t TIMESYNC_MAX_UNSYNCED_VOTES   = 4;
   static_assert(CHECKPOINT_MAX_MISSABLE_VOTES < QUORUM_VOTE_CHECK_COUNT,
-                "The maximum number of votes a service node can miss cannot be greater than the amount of checkpoint "
+                "The maximum number of votes a masternode can miss cannot be greater than the amount of checkpoint "
                 "quorums they must participate in before we check if they should be deregistered or not.");
 
   constexpr int BLINK_QUORUM_INTERVAL = 5; // We generate a new sub-quorum every N blocks (two consecutive quorums are needed for a blink signature)
@@ -153,7 +153,7 @@ namespace service_nodes {
   constexpr size_t   STATE_CHANGE_MIN_NODES_TO_TEST          = 50;
   constexpr uint64_t VOTE_LIFETIME                           = BLOCKS_EXPECTED_IN_HOURS(2);
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   constexpr size_t STATE_CHANGE_QUORUM_SIZE               = 5;
   constexpr size_t STATE_CHANGE_MIN_VOTES_TO_CHANGE_STATE = 1;
   constexpr size_t CHECKPOINT_QUORUM_SIZE                 = 5;
@@ -172,7 +172,7 @@ namespace service_nodes {
   static_assert(STATE_CHANGE_MIN_VOTES_TO_CHANGE_STATE <= STATE_CHANGE_QUORUM_SIZE, "The number of votes required to kick can't exceed the actual quorum size, otherwise we never kick.");
   static_assert(CHECKPOINT_MIN_VOTES <= CHECKPOINT_QUORUM_SIZE, "The number of votes required to add a checkpoint can't exceed the actual quorum size, otherwise we never add checkpoints.");
   static_assert(BLINK_MIN_VOTES <= BLINK_SUBQUORUM_SIZE, "The number of votes required can't exceed the actual blink subquorum size, otherwise we never approve.");
-#ifndef OXEN_ENABLE_INTEGRATION_TEST_HOOKS
+#ifndef QUENERO_ENABLE_INTEGRATION_TEST_HOOKS
   static_assert(BLINK_MIN_VOTES > BLINK_SUBQUORUM_SIZE / 2, "Blink approvals must require a majority of quorum members to prevent conflicting, signed blinks.");
 #endif
 
@@ -196,7 +196,7 @@ namespace service_nodes {
   constexpr size_t   IDEAL_SWARM_SIZE                 = MIN_SWARM_SIZE + IDEAL_SWARM_MARGIN;
   constexpr size_t   EXCESS_BASE                      = MIN_SWARM_SIZE;
   constexpr size_t   NEW_SWARM_SIZE                   = IDEAL_SWARM_SIZE;
-  // The lower swarm percentile that will be randomly filled with new service nodes
+  // The lower swarm percentile that will be randomly filled with new masternodes
   constexpr size_t   FILL_SWARM_LOWER_PERCENTILE      = 25;
   // Redistribute snodes from decommissioned swarms to the smallest swarms
   constexpr size_t   DECOMMISSIONED_REDISTRIBUTION_LOWER_PERCENTILE = 0;
@@ -214,7 +214,7 @@ namespace service_nodes {
   constexpr std::array<uint16_t, 3> MIN_STORAGE_SERVER_VERSION{{2, 1, 0}};
   constexpr std::array<uint16_t, 3> MIN_LOKINET_VERSION{{0, 9, 0}};
 
-  // The minimum accepted version number, broadcasted by Service Nodes via uptime proofs for each hardfork
+  // The minimum accepted version number, broadcasted by Masternodes via uptime proofs for each hardfork
   struct proof_version
   {
     uint8_t hardfork;
@@ -222,8 +222,6 @@ namespace service_nodes {
   };
 
   constexpr proof_version MIN_UPTIME_PROOF_VERSIONS[] = {
-    {cryptonote::network_version_18,                      {9,1,0}},
-    {cryptonote::network_version_16_pulse,                {8,1,0}},
     {cryptonote::network_version_15_ons,                  {7,1,2}},
     {cryptonote::network_version_14_blink,                {6,1,0}},
     {cryptonote::network_version_13_enforce_checkpoints,  {5,1,0}},
@@ -263,11 +261,11 @@ namespace service_nodes {
   //If a nodes timestamp varies by this amount of seconds they will be considered out of sync
   constexpr uint8_t THRESHOLD_SECONDS_OUT_OF_SYNC = 30;
 
-  //If the below percentage of service nodes are out of sync we will consider our clock out of sync
+  //If the below percentage of masternodes are out of sync we will consider our clock out of sync
   constexpr uint8_t MAXIMUM_EXTERNAL_OUT_OF_SYNC = 80;
 
 static_assert(STAKING_PORTIONS != UINT64_MAX, "UINT64_MAX is used as the invalid value for failing to calculate the min_node_contribution");
-// return: UINT64_MAX if (num_contributions > the max number of contributions), otherwise the amount in oxen atomic units
+// return: UINT64_MAX if (num_contributions > the max number of contributions), otherwise the amount in quenero atomic units
 uint64_t get_min_node_contribution            (uint8_t version, uint64_t staking_requirement, uint64_t total_reserved, size_t num_contributions);
 uint64_t get_min_node_contribution_in_portions(uint8_t version, uint64_t staking_requirement, uint64_t total_reserved, size_t num_contributions);
 
@@ -286,7 +284,7 @@ uint64_t portions_to_amount(uint64_t portions, uint64_t staking_requirement);
 
 /// Check if portions are sufficiently large (provided the contributions
 /// are made in the specified order) and don't exceed the required amount
-bool check_service_node_portions(uint8_t version, const std::vector<uint64_t>& portions);
+bool check_masternode_portions(uint8_t version, const std::vector<uint64_t>& portions);
 
 crypto::hash generate_request_stake_unlock_hash(uint32_t nonce);
 uint64_t     get_locked_key_image_unlock_height(cryptonote::network_type nettype, uint64_t node_register_height, uint64_t curr_height);

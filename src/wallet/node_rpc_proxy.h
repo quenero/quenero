@@ -56,10 +56,10 @@ public:
   bool get_fee_quantization_mask(uint64_t &fee_quantization_mask) const;
   std::optional<uint8_t> get_hardfork_version() const;
 
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>>             get_service_nodes(std::vector<std::string> pubkeys) const;
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>>             get_all_service_nodes() const;
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>>             get_contributed_service_nodes(const std::string& contributor) const;
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry>> get_service_node_blacklisted_key_images() const;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>>             get_masternodes(std::vector<std::string> pubkeys) const;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>>             get_all_masternodes() const;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>>             get_contributed_masternodes(const std::string& contributor) const;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry>> get_masternode_blacklisted_key_images() const;
   std::pair<bool, std::vector<cryptonote::rpc::ONS_OWNERS_TO_NAMES::response_entry>>            ons_owners_to_names(cryptonote::rpc::ONS_OWNERS_TO_NAMES::request const &request) const;
   std::pair<bool, std::vector<cryptonote::rpc::ONS_NAMES_TO_OWNERS::response_entry>>            ons_names_to_owners(cryptonote::rpc::ONS_NAMES_TO_OWNERS::request const &request) const;
   std::pair<bool, cryptonote::rpc::ONS_RESOLVE::response>
@@ -116,18 +116,18 @@ private:
   cryptonote::rpc::http_client& m_http_client;
   bool m_offline;
 
-  mutable uint64_t m_service_node_blacklisted_key_images_cached_height;
-  mutable std::vector<cryptonote::rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry> m_service_node_blacklisted_key_images;
+  mutable uint64_t m_masternode_blacklisted_key_images_cached_height;
+  mutable std::vector<cryptonote::rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry> m_masternode_blacklisted_key_images;
 
-  bool update_all_service_nodes_cache(uint64_t height) const;
+  bool update_all_masternodes_cache(uint64_t height) const;
 
   mutable std::mutex m_sn_cache_mutex;
-  mutable uint64_t m_all_service_nodes_cached_height;
-  mutable std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry> m_all_service_nodes;
+  mutable uint64_t m_all_masternodes_cached_height;
+  mutable std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry> m_all_masternodes;
 
-  mutable uint64_t m_contributed_service_nodes_cached_height;
-  mutable std::string m_contributed_service_nodes_cached_address;
-  mutable std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry> m_contributed_service_nodes;
+  mutable uint64_t m_contributed_masternodes_cached_height;
+  mutable std::string m_contributed_masternodes_cached_address;
+  mutable std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry> m_contributed_masternodes;
 
   mutable uint64_t m_height;
   mutable uint64_t m_immutable_height;

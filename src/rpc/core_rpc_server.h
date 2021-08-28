@@ -43,12 +43,12 @@
 #include "p2p/net_node.h"
 #include "cryptonote_protocol/cryptonote_protocol_handler.h"
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
-#include "common/oxen_integration_test_hooks.h"
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
+#include "common/quenero_integration_test_hooks.h"
 #endif
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "daemon.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon.rpc"
 
 namespace boost::program_options {
 class options_description;
@@ -71,11 +71,11 @@ namespace cryptonote::rpc {
   /// For JSON RPC these become an error response with the code as the error.code value and the
   /// string as the error.message.
   /// For HTTP JSON these become a 500 Internal Server Error response with the message as the body.
-  /// For OxenMQ the code becomes the first part of the response and the message becomes the
+  /// For QueneroMQ the code becomes the first part of the response and the message becomes the
   /// second part of the response.
   struct rpc_error : std::runtime_error {
     /// \param code - a signed, 16-bit numeric code.  0 must not be used (as it is used for a
-    /// success code in OxenMQ), and values in the -32xxx range are reserved by JSON-RPC.
+    /// success code in QueneroMQ), and values in the -32xxx range are reserved by JSON-RPC.
     ///
     /// \param message - a message to send along with the error code (see general description above).
     rpc_error(int16_t code, std::string message)
@@ -252,13 +252,13 @@ namespace cryptonote::rpc {
     PRUNE_BLOCKCHAIN::response                          invoke(PRUNE_BLOCKCHAIN::request&& req, rpc_context context);
     GET_OUTPUT_BLACKLIST::response                      invoke(GET_OUTPUT_BLACKLIST::request&& req, rpc_context context);
     GET_QUORUM_STATE::response                          invoke(GET_QUORUM_STATE::request&& req, rpc_context context);
-    GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response     invoke(GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request&& req, rpc_context context);
-    GET_SERVICE_NODE_REGISTRATION_CMD::response         invoke(GET_SERVICE_NODE_REGISTRATION_CMD::request&& req, rpc_context context);
-    GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::response   invoke(GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::request&& req, rpc_context context);
+    GET_MASTERNODE_REGISTRATION_CMD_RAW::response     invoke(GET_MASTERNODE_REGISTRATION_CMD_RAW::request&& req, rpc_context context);
+    GET_MASTERNODE_REGISTRATION_CMD::response         invoke(GET_MASTERNODE_REGISTRATION_CMD::request&& req, rpc_context context);
+    GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::response   invoke(GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::request&& req, rpc_context context);
     GET_SERVICE_KEYS::response                          invoke(GET_SERVICE_KEYS::request&& req, rpc_context context);
     GET_SERVICE_PRIVKEYS::response                      invoke(GET_SERVICE_PRIVKEYS::request&& req, rpc_context context);
-    GET_SERVICE_NODE_STATUS::response                   invoke(GET_SERVICE_NODE_STATUS::request&& req, rpc_context context);
-    GET_SERVICE_NODES::response                         invoke(GET_SERVICE_NODES::request&& req, rpc_context context);
+    GET_MASTERNODE_STATUS::response                   invoke(GET_MASTERNODE_STATUS::request&& req, rpc_context context);
+    GET_MASTERNODES::response                         invoke(GET_MASTERNODES::request&& req, rpc_context context);
     GET_STAKING_REQUIREMENT::response                   invoke(GET_STAKING_REQUIREMENT::request&& req, rpc_context context);
     STORAGE_SERVER_PING::response                       invoke(STORAGE_SERVER_PING::request&& req, rpc_context context);
     LOKINET_PING::response                              invoke(LOKINET_PING::request&& req, rpc_context context);
@@ -272,11 +272,11 @@ namespace cryptonote::rpc {
     ONS_RESOLVE::response                               invoke(ONS_RESOLVE::request&& req, rpc_context context);
     FLUSH_CACHE::response                               invoke(FLUSH_CACHE::request&& req, rpc_context);
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     void on_relay_uptime_and_votes()
     {
       m_core.submit_uptime_proof();
-      m_core.relay_service_node_votes();
+      m_core.relay_masternode_votes();
       std::cout << "Votes and uptime relayed";
       integration_test::write_buffered_stdout();
     }
@@ -313,7 +313,7 @@ namespace cryptonote::rpc {
 private:
     bool check_core_ready();
 
-    void fill_sn_response_entry(GET_SERVICE_NODES::response::entry& entry, const service_nodes::service_node_pubkey_info &sn_info, uint64_t current_height);
+    void fill_sn_response_entry(GET_MASTERNODES::response::entry& entry, const masternodes::masternode_pubkey_info &sn_info, uint64_t current_height);
 
     //utils
     uint64_t get_block_reward(const block& blk);

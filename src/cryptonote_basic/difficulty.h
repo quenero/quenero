@@ -71,7 +71,6 @@ namespace cryptonote
     {
       use_old_lwma,
       hf12_override,
-      hf16_override,
       normal,
     };
 

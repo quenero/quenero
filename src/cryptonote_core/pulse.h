@@ -17,9 +17,9 @@ struct block;
 struct checkpoint_t;
 };
 
-namespace service_nodes
+namespace masternodes
 {
-struct service_node_keys;
+struct masternode_keys;
 };
 
 namespace pulse

@@ -54,11 +54,11 @@
 #include "rpc/rpc_args.h"
 #include "rpc/core_rpc_server_commands_defs.h"
 #include "daemonizer/daemonizer.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "serialization/boost_std_variant.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "wallet.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.rpc"
 
 namespace rpc = cryptonote::rpc;
 using namespace tools::wallet_rpc;
@@ -73,7 +73,7 @@ namespace
   const command_line::arg_descriptor<std::string> arg_wallet_dir = {"wallet-dir", "Directory for newly created wallets"};
   const command_line::arg_descriptor<bool> arg_prompt_for_password = {"prompt-for-password", "Prompts for password when not provided", false};
 
-  constexpr const char default_rpc_username[] = "oxen";
+  constexpr const char default_rpc_username[] = "quenero";
 
   std::optional<tools::password_container> password_prompter(const char *prompt, bool verify)
   {
@@ -500,7 +500,7 @@ namespace tools
 
     m_restricted = command_line::get_arg(m_vm, arg_restricted);
 
-    m_server_header = "oxen-wallet-rpc/"s + (m_restricted ? std::to_string(OXEN_VERSION[0]) : std::string{OXEN_VERSION_STR});
+    m_server_header = "quenero-wallet-rpc/"s + (m_restricted ? std::to_string(QUENERO_VERSION[0]) : std::string{QUENERO_VERSION_STR});
 
     m_cors = {rpc_config.access_control_origins.begin(), rpc_config.access_control_origins.end()};
 
@@ -546,7 +546,7 @@ namespace tools
           epee::string_encoding::base64_encode(rand_128bit.data(), rand_128bit.size())
         );
 
-        std::string temp = "oxen-wallet-rpc." + std::to_string(port) + ".login";
+        std::string temp = "quenero-wallet-rpc." + std::to_string(port) + ".login";
         rpc_login_file = tools::private_file::create(temp);
         if (!rpc_login_file.handle())
         {
@@ -882,7 +882,7 @@ namespace tools
             if (!dnssec_valid)
               throw wallet_rpc_error{error_code::WRONG_ADDRESS, "Invalid DNSSEC for "s + std::string{url}};
             if (addresses.empty())
-              throw wallet_rpc_error{error_code::WRONG_ADDRESS, "No Oxen address found at "s + std::string{url}};
+              throw wallet_rpc_error{error_code::WRONG_ADDRESS, "No Quenero address found at "s + std::string{url}};
             return addresses[0];
           }))
           throw wallet_rpc_error{error_code::WRONG_ADDRESS, "Invalid address: "s + std::string{addr_or_url}};
@@ -897,7 +897,7 @@ namespace tools
           if (!dnssec_valid)
             throw wallet_rpc_error{error_code::WRONG_ADDRESS, "Invalid DNSSEC for "s + std::string{url}};
           if (addresses.empty())
-            throw wallet_rpc_error{error_code::WRONG_ADDRESS, "No Oxen address found at "s + std::string{url}};
+            throw wallet_rpc_error{error_code::WRONG_ADDRESS, "No Quenero address found at "s + std::string{url}};
           return addresses[0];
         }))
         throw wallet_rpc_error{error_code::WRONG_ADDRESS, "Invalid address: "s + std::string{addr_or_url}};
@@ -1049,7 +1049,7 @@ namespace tools
       std::optional<uint8_t> hf_version = m_wallet->get_hard_fork_version();
       if (!hf_version)
         throw wallet_rpc_error{error_code::HF_QUERY_FAILED, tools::ERR_MSG_NETWORK_VERSION_QUERY_FAILED};
-      cryptonote::oxen_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
+      cryptonote::quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
       std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, tx_params);
 
       if (ptx_vector.empty())
@@ -1084,7 +1084,7 @@ namespace tools
       if (!hf_version)
         throw wallet_rpc_error{error_code::HF_QUERY_FAILED, tools::ERR_MSG_NETWORK_VERSION_QUERY_FAILED};
 
-      cryptonote::oxen_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
+      cryptonote::quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
       LOG_PRINT_L2("on_transfer_split calling create_transactions_2");
       std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, tx_params);
       LOG_PRINT_L2("on_transfer_split called create_transactions_2");
@@ -2008,12 +2008,12 @@ namespace tools
 
     for (wallet::transfer_view& entry : transfers)
     {
-      // TODO(oxen): This discrepancy between having to use pay_type if type is
+      // TODO(quenero): This discrepancy between having to use pay_type if type is
       // empty and type if pay type is neither is super unintuitive.
       if (entry.pay_type == wallet::pay_type::in ||
           entry.pay_type == wallet::pay_type::miner ||
           entry.pay_type == wallet::pay_type::governance ||
-          entry.pay_type == wallet::pay_type::service_node)
+          entry.pay_type == wallet::pay_type::masternode)
       {
         res.in.push_back(std::move(entry));
       }
@@ -2993,7 +2993,7 @@ namespace {
   //------------------------------------------------------------------------------------------------------------------------------
 
   //
-  // Oxen
+  // Quenero
   //
   STAKE::response wallet_rpc_server::invoke(STAKE::request&& req)
   {
@@ -3005,8 +3005,8 @@ namespace {
     if (!cryptonote::get_account_address_from_str(addr_info, m_wallet->nettype(), req.destination))
       throw wallet_rpc_error{error_code::WRONG_ADDRESS, std::string("Unparsable address given: ") + req.destination};
 
-    if (!tools::hex_to_type(req.service_node_key, snode_key))
-      throw wallet_rpc_error{error_code::WRONG_KEY, std::string("Unparsable service node key given: ") + req.service_node_key};
+    if (!tools::hex_to_type(req.masternode_key, snode_key))
+      throw wallet_rpc_error{error_code::WRONG_KEY, std::string("Unparsable masternode key given: ") + req.masternode_key};
 
     tools::wallet2::stake_result stake_result = m_wallet->create_stake_tx(snode_key, req.amount, 0 /*amount_fraction*/, req.priority, req.subaddr_indices);
     if (stake_result.status != tools::wallet2::stake_result_status::success)
@@ -3020,23 +3020,23 @@ namespace {
     return res;
   }
 
-  REGISTER_SERVICE_NODE::response wallet_rpc_server::invoke(REGISTER_SERVICE_NODE::request&& req)
+  REGISTER_MASTERNODE::response wallet_rpc_server::invoke(REGISTER_MASTERNODE::request&& req)
   {
     require_open();
-    REGISTER_SERVICE_NODE::response res{};
+    REGISTER_MASTERNODE::response res{};
 
     std::vector<std::string> args;
-    boost::split(args, req.register_service_node_str, boost::is_any_of(" "));
+    boost::split(args, req.register_masternode_str, boost::is_any_of(" "));
 
     if (args.size() > 0)
     {
-      if (args[0] == "register_service_node")
+      if (args[0] == "register_masternode")
         args.erase(args.begin());
     }
 
-    // NOTE(oxen): Pre-emptively set subaddr_account to 0. We don't support onwards from Infinite Staking which is when this call was implemented.
-    tools::wallet2::register_service_node_result register_result = m_wallet->create_register_service_node_tx(args, 0 /*subaddr_account*/);
-    if (register_result.status != tools::wallet2::register_service_node_result_status::success)
+    // NOTE(quenero): Pre-emptively set subaddr_account to 0. We don't support onwards from Infinite Staking which is when this call was implemented.
+    tools::wallet2::register_masternode_result register_result = m_wallet->create_register_masternode_tx(args, 0 /*subaddr_account*/);
+    if (register_result.status != tools::wallet2::register_masternode_result_status::success)
       throw wallet_rpc_error{error_code::TX_NOT_POSSIBLE, register_result.msg};
 
     std::vector<tools::wallet2::pending_tx> ptx_vector = {register_result.ptx};
@@ -3052,8 +3052,8 @@ namespace {
     CAN_REQUEST_STAKE_UNLOCK::response res{};
 
     crypto::public_key snode_key             = {};
-    if (!tools::hex_to_type(req.service_node_key, snode_key))
-      throw wallet_rpc_error{error_code::WRONG_KEY, std::string("Unparsable service node key given: ") + req.service_node_key};
+    if (!tools::hex_to_type(req.masternode_key, snode_key))
+      throw wallet_rpc_error{error_code::WRONG_KEY, std::string("Unparsable masternode key given: ") + req.masternode_key};
 
     tools::wallet2::request_stake_unlock_result unlock_result = m_wallet->can_request_stake_unlock(snode_key);
     res.can_unlock = unlock_result.success;
@@ -3061,15 +3061,15 @@ namespace {
     return res;
   }
 
-  // TODO(oxen): Deprecate this and make it return the TX as hex? Then just transfer it as normal? But these have no fees and or amount .. so maybe not?
+  // TODO(quenero): Deprecate this and make it return the TX as hex? Then just transfer it as normal? But these have no fees and or amount .. so maybe not?
   REQUEST_STAKE_UNLOCK::response wallet_rpc_server::invoke(REQUEST_STAKE_UNLOCK::request&& req)
   {
     require_open();
     REQUEST_STAKE_UNLOCK::response res{};
 
     crypto::public_key snode_key             = {};
-    if (!tools::hex_to_type(req.service_node_key, snode_key))
-      throw wallet_rpc_error{error_code::WRONG_KEY, std::string("Unparsable service node key given: ") + req.service_node_key};
+    if (!tools::hex_to_type(req.masternode_key, snode_key))
+      throw wallet_rpc_error{error_code::WRONG_KEY, std::string("Unparsable masternode key given: ") + req.masternode_key};
 
     tools::wallet2::request_stake_unlock_result unlock_result = m_wallet->can_request_stake_unlock(snode_key);
     if (unlock_result.success)
@@ -3284,8 +3284,6 @@ namespace {
     {
       auto& entry = res.known_names.emplace_back();
       auto& type = entry_types.emplace_back(details.type);
-      if (type > ons::mapping_type::lokinet && type <= ons::mapping_type::lokinet_10years)
-        type = ons::mapping_type::lokinet;
       entry.type = ons::mapping_type_str(type);
       entry.hashed = details.hashed_name;
       entry.name = details.name;
@@ -3297,7 +3295,7 @@ namespace {
 
     uint64_t curr_height = req.include_expired ? m_wallet->get_blockchain_current_height() : 0;
 
-    // Query oxend for the full record info
+    // Query quenerod for the full record info
     for (auto it = res.known_names.begin(); it != res.known_names.end(); )
     {
       const size_t num_entries = std::distance(it, res.known_names.end());
@@ -3606,12 +3604,12 @@ int main(int argc, char **argv)
 
   auto [vm, should_terminate] = wallet_args::main(
     argc, argv,
-    "oxen-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
-    tools::wallet_rpc_server::tr("This is the RPC oxen wallet. It needs to connect to a oxen\ndaemon to work correctly."),
+    "quenero-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
+    tools::wallet_rpc_server::tr("This is the RPC quenero wallet. It needs to connect to a quenero\ndaemon to work correctly."),
     desc_params, hidden_params,
     po::positional_options_description(),
     [](const std::string &s, bool emphasis){ epee::set_console_color(emphasis ? epee::console_color_white : epee::console_color_default, emphasis); std::cout << s << std::endl; if (emphasis) epee::reset_console_color(); },
-    "oxen-wallet-rpc.log",
+    "quenero-wallet-rpc.log",
     true
   );
   if (!vm)

@@ -40,16 +40,16 @@
 #include "cryptonote_basic/difficulty.h"
 #include "crypto/hash.h"
 #include "cryptonote_config.h"
-#include "cryptonote_core/service_node_voting.h"
+#include "cryptonote_core/masternode_voting.h"
 #include "common/varint.h"
 #include "common/perf_timer.h"
 #include "common/meta.h"
 #include "common/hex.h"
 #include "checkpoints/checkpoints.h"
 
-#include "cryptonote_core/service_node_quorum_cop.h"
-#include "cryptonote_core/service_node_list.h"
-#include "common/oxen.h"
+#include "cryptonote_core/masternode_quorum_cop.h"
+#include "cryptonote_core/masternode_list.h"
+#include "common/quenero.h"
 
 namespace cryptonote {
 
@@ -133,7 +133,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the node's current height.
   struct GET_HEIGHT : PUBLIC, LEGACY
   {
@@ -146,14 +146,14 @@ namespace rpc {
       std::string status;         // Generic RPC error code. "OK" is the success value.
       bool untrusted;             // If the result is obtained using bootstrap mode, and therefore not trusted `true`, or otherwise `false`.
       std::string hash;           // Hash of the block at the current height
-      uint64_t immutable_height;  // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Service Node, or 1 hardcoded checkpoint, 0 if N/A).
+      uint64_t immutable_height;  // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Masternode, or 1 hardcoded checkpoint, 0 if N/A).
       std::string immutable_hash; // Hash of the highest block in the chain that can not be reorganized.
 
       KV_MAP_SERIALIZABLE
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get all blocks info. Binary request.
   struct GET_BLOCKS_FAST : PUBLIC, BINARY
   {
@@ -198,7 +198,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get blocks by height. Binary request.
   struct GET_BLOCKS_BY_HEIGHT : PUBLIC, BINARY
   {
@@ -222,7 +222,7 @@ namespace rpc {
   };
 
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the known blocks hashes which are not on the main chain.
   struct GET_ALT_BLOCKS_HASHES : PUBLIC, BINARY
   {
@@ -239,7 +239,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get hashes. Binary request.
   struct GET_HASHES_FAST : PUBLIC, BINARY
   {
@@ -265,7 +265,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up one or more transactions by hash.
   struct GET_TRANSACTIONS : PUBLIC, LEGACY
   {
@@ -293,7 +293,7 @@ namespace rpc {
       {
         std::optional<bool> old_dereg; // Will be present and set to true iff this record is an old (pre-HF12) deregistration field
         std::string type;              // "dereg", "decom", "recom", or "ip" indicating the state change type
-        uint64_t height;               // The voting block height for the changing service node and validators
+        uint64_t height;               // The voting block height for the changing masternode and validators
         uint32_t index;                // The index of all tested nodes at the given height for which this state change applies
         std::vector<uint32_t> voters;  // The position of validators in the testing quorum who validated and voted for this state change. This typically contains just 7 required voter slots (of 10 eligible voters).
         std::optional<std::vector<std::string>> reasons; // Reasons for the decommissioning/deregistration as reported by the voting quorum.  This contains any reasons that all voters agreed on, one or more of: "uptime" (missing uptime proofs), "checkpoints" (missed checkpoint votes), "pulse" (missing pulse votes), "storage" (storage server pings failed), "timecheck" (time sync pings failed), "timesync" (time was out of sync)
@@ -305,8 +305,8 @@ namespace rpc {
         std::optional<bool> buy;                 // Provided and true iff this is an ONS buy record
         std::optional<bool> update;              // Provided and true iff this is an ONS record update
         std::optional<bool> renew;               // Provided and true iff this is an ONS record renewal
-        std::string type;                        // The ONS request type.  For registrations: "lokinet", "session", "wallet"; for a record update: "update"
-        std::optional<uint64_t> blocks;          // The registration length in blocks (only applies to lokinet registrations; session/wallet registrations do not expire)
+        std::string type;                        // The ONS request type.  For registrations:  "session", "wallet"; for a record update: "update"
+        std::optional<uint64_t> blocks;          // The registration length in blocks (only applies to session/wallet registrations do not expire)
         std::string name_hash;                   // The hashed name of the record being purchased/updated, in hex (the actual name is not provided on the blockchain).
         std::optional<std::string> prev_txid;    // For an update, this points at the txid of the previous ons update transaction.
         std::optional<std::string> value;        // The encrypted value of the record, in hex.  Note that this is encrypted using the actual name itself (*not* the hashed name).
@@ -316,16 +316,16 @@ namespace rpc {
       };
 
       std::optional<std::string> pubkey;            // The tx extra public key
-      std::optional<uint64_t> burn_amount;          // The amount of OXEN that this transaction burns
+      std::optional<uint64_t> burn_amount;          // The amount of QUENERO that this transaction burns
       std::optional<std::string> extra_nonce;       // Optional extra nonce value (in hex); will be empty if nonce is recognized as a payment id
       std::optional<std::string> payment_id;        // The payment ID, if present. This is either a 16 hex character (8-byte) encrypted payment id, or a 64 hex character (32-byte) deprecated, unencrypted payment ID
       std::optional<uint32_t> mm_depth;             // (Merge-mining) the merge-mined depth
       std::optional<std::string> mm_root;           // (Merge-mining) the merge mining merkle root hash
       std::vector<std::string> additional_pubkeys;  // Additional public keys
-      std::optional<std::string> sn_winner;         // Service node block reward winner public key
-      std::optional<std::string> sn_pubkey;         // Service node public key (e.g. for registrations, stakes, unlocks)
-      std::optional<sn_reg_info> sn_registration;   // Service node registration details
-      std::optional<std::string> sn_contributor;    // Service node contributor wallet address (for stakes)
+      std::optional<std::string> sn_winner;         // Masternode block reward winner public key
+      std::optional<std::string> sn_pubkey;         // Masternode public key (e.g. for registrations, stakes, unlocks)
+      std::optional<sn_reg_info> sn_registration;   // Masternode registration details
+      std::optional<std::string> sn_contributor;    // Masternode contributor wallet address (for stakes)
       std::optional<state_change> sn_state_change;  // A state change transaction (deregistration, decommission, recommission, ip change)
       std::optional<std::string> tx_secret_key;     // The transaction secret key, included in registrations/stakes to decrypt transaction amounts and recipients
       std::vector<std::string> locked_key_images;   // Key image(s) locked by the transaction (for registrations, stakes)
@@ -381,7 +381,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Check if outputs have been spent using the key image associated with the output.
   struct IS_KEY_IMAGE_SPENT : PUBLIC, LEGACY
   {
@@ -413,7 +413,7 @@ namespace rpc {
   };
 
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get global outputs of transactions. Binary request.
   struct GET_TX_GLOBAL_OUTPUTS_INDEXES : PUBLIC, BINARY
   {
@@ -437,7 +437,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct get_outputs_out
   {
     uint64_t amount; // Amount of Loki in TXID.
@@ -446,7 +446,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get outputs. Binary request.
   struct GET_OUTPUTS_BIN : PUBLIC, BINARY
   {
@@ -484,7 +484,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct GET_OUTPUTS : PUBLIC, LEGACY
   {
     static constexpr auto names() { return NAMES("get_outs"); }
@@ -521,7 +521,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Broadcast a raw transaction to the network.
   struct SEND_RAW_TX : PUBLIC, LEGACY
   {
@@ -551,7 +551,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Start mining on the daemon.
   struct START_MINING : LEGACY
   {
@@ -570,7 +570,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Stop mining on the daemon.
   struct STOP_MINING : LEGACY
   {
@@ -580,7 +580,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the mining status of the daemon.
   struct MINING_STATUS : LEGACY
   {
@@ -603,7 +603,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Retrieve general information about the state of your node and the network.
   // Note that all of the std::optional<> fields here are not included if the request is a public
   // (restricted) RPC request.
@@ -617,7 +617,7 @@ namespace rpc {
       std::string status;                   // General RPC error code. "OK" means everything looks good.
       uint64_t height;                      // Current length of longest chain known to daemon.
       uint64_t target_height;               // The height of the next block in the chain.
-      uint64_t immutable_height;            // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Service Node, or 1 hardcoded checkpoint, 0 if N/A).
+      uint64_t immutable_height;            // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Masternode, or 1 hardcoded checkpoint, 0 if N/A).
       uint64_t pulse_ideal_timestamp;       // For pulse blocks this is the ideal timestamp of the next block, that is, the timestamp if the network was operating with perfect 2-minute blocks since the pulse hard fork.
       uint64_t pulse_target_timestamp;      // For pulse blocks this is the target timestamp of the next block, which targets 2 minutes after the previous block but will be slightly faster/slower if the previous block is behind/ahead of the ideal timestamp.
       uint64_t difficulty;                  // Network difficulty (analogous to the strength of the network).
@@ -640,10 +640,9 @@ namespace rpc {
       uint64_t block_weight_limit;          // Maximum allowed block weight.
       uint64_t block_size_median;           // Median block size of latest 100 blocks.
       uint64_t block_weight_median;         // Median block weight of latest 100 blocks.
-      std::optional<bool> service_node;                    // Will be true if the node is running in --service-node mode.
+      std::optional<bool> masternode;                    // Will be true if the node is running in --service-node mode.
       std::optional<uint64_t> start_time;                  // Start time of the daemon, as UNIX time.
-      std::optional<uint64_t> last_storage_server_ping;    // Last ping time of the storage server (0 if never or not running as a service node)
-      std::optional<uint64_t> last_lokinet_ping;           // Last ping time of lokinet (0 if never or not running as a service node)
+      std::optional<uint64_t> last_storage_server_ping;    // Last ping time of the storage server (0 if never or not running as a masternode)
       std::optional<uint64_t> free_space;                  // Available disk space on the node.
       bool offline;                         // States if the node is offline (`true`) or online (`false`).
       bool untrusted;                       // States if the result is obtained using the bootstrap mode, and is therefore not trusted (`true`), or when the daemon is fully synced (`false`).
@@ -659,7 +658,7 @@ namespace rpc {
   };
 
   //-----------------------------------------------
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct GET_NET_STATS : LEGACY
   {
     static constexpr auto names() { return NAMES("get_net_stats"); }
@@ -679,7 +678,7 @@ namespace rpc {
   };
 
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Save the blockchain. The blockchain does not need saving and is always saved when modified,
   // however it does a sync to flush the filesystem cache onto the disk for safety purposes against Operating System or Hardware crashes.
   struct SAVE_BC : LEGACY
@@ -690,7 +689,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up how many blocks are in the longest chain known to the node.
   struct GETBLOCKCOUNT : PUBLIC
   {
@@ -706,7 +705,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up a block's hash by its height.
   struct GETBLOCKHASH : PUBLIC
   {
@@ -723,7 +722,7 @@ namespace rpc {
     using response = std::string;          // Block hash (string).
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get a block template on which mining a new block.
   struct GETBLOCKTEMPLATE : PUBLIC
   {
@@ -757,7 +756,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Submit a mined block to the network.
   struct SUBMITBLOCK : PUBLIC
   {
@@ -773,7 +772,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Developer only.
   struct GENERATEBLOCKS : RPC_COMMAND
   {
@@ -799,11 +798,11 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct block_header_response
   {
-      uint8_t major_version;                  // The major version of the oxen protocol at this block height.
-      uint8_t minor_version;                  // The minor version of the oxen protocol at this block height.
+      uint8_t major_version;                  // The major version of the quenero protocol at this block height.
+      uint8_t minor_version;                  // The minor version of the quenero protocol at this block height.
       uint64_t timestamp;                     // The unix time at which the block was recorded into the blockchain.
       std::string prev_hash;                  // The hash of the block immediately preceding this block in the chain.
       uint32_t nonce;                         // A cryptographic random one-time number used in mining a Loki block.
@@ -813,8 +812,8 @@ namespace rpc {
       std::string hash;                       // The hash of this block.
       difficulty_type difficulty;             // The strength of the Loki network based on mining power.
       difficulty_type cumulative_difficulty;  // The cumulative strength of the Loki network based on mining power.
-      uint64_t reward;                        // The amount of new generated in this block and rewarded to the miner, foundation and service Nodes. Note: 1 OXEN = 1e9 atomic units.
-      uint64_t miner_reward;                  // The amount of new generated in this block and rewarded to the miner. Note: 1 OXEN = 1e9 atomic units.
+      uint64_t reward;                        // The amount of new generated in this block and rewarded to the miner, foundation and service Nodes. Note: 1 QUENERO = 1e9 atomic units.
+      uint64_t miner_reward;                  // The amount of new generated in this block and rewarded to the miner. Note: 1 QUENERO = 1e9 atomic units.
       uint64_t block_size;                    // The block size in bytes.
       uint64_t block_weight;                  // The block weight in bytes.
       uint64_t num_txes;                      // Number of transactions in the block, not counting the coinbase tx.
@@ -822,12 +821,12 @@ namespace rpc {
       uint64_t long_term_weight;              // Long term weight of the block.
       std::string miner_tx_hash;              // The TX hash of the miner transaction
       std::vector<std::string> tx_hashes;     // The TX hashes of all non-coinbase transactions (requires `get_tx_hashes`)
-      std::string service_node_winner;        // Service node that received a reward for this block
+      std::string masternode_winner;        // Masternode that received a reward for this block
 
       KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Block header information for the most recent block is easily retrieved with this method. No inputs are needed.
   struct GET_LAST_BLOCK_HEADER : PUBLIC
   {
@@ -851,7 +850,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Block header information can be retrieved using either a block's hash or height. This method includes a block's hash as an input parameter to retrieve basic information about the block.
   struct GET_BLOCK_HEADER_BY_HASH : PUBLIC
   {
@@ -878,7 +877,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Similar to get_block_header_by_hash above, this method includes a block's height as an input parameter to retrieve basic information about the block.
   struct GET_BLOCK_HEADER_BY_HEIGHT : PUBLIC
   {
@@ -905,7 +904,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Full block information can be retrieved by either block height or hash, like with the above block header calls.
   // For full block information, both lookups use the same method, but with different input parameters.
   struct GET_BLOCK : PUBLIC
@@ -934,7 +933,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the known peers list.
   struct GET_PEER_LIST : LEGACY
   {
@@ -951,7 +950,7 @@ namespace rpc {
       uint64_t id;           // Peer id.
       std::string host;      // IP address in string format.
       uint32_t ip;           // IP address in integer format.
-      uint16_t port;         // TCP port the peer is using to connect to oxen network.
+      uint16_t port;         // TCP port the peer is using to connect to quenero network.
       uint16_t rpc_port;     // RPC port the peer is using
       uint64_t last_seen;    // Unix time at which the peer has been seen for the last time
       uint32_t pruning_seed; //
@@ -981,7 +980,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct public_node
   {
     std::string host;
@@ -994,7 +993,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Query the daemon's peerlist and retrieve peers who have set their public rpc port.
   struct GET_PUBLIC_NODES : PUBLIC
   {
@@ -1018,7 +1017,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the log hash rate display mode.
   struct SET_LOG_HASH_RATE : LEGACY
   {
@@ -1034,7 +1033,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the daemon log level. By default, log level is set to `0`.  For more fine-tuned logging
   // control set the set_log_categories command instead.
   struct SET_LOG_LEVEL : LEGACY
@@ -1051,7 +1050,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the daemon log categories. Categories are represented as a comma separated list of `<Category>:<level>` (similarly to syslog standard `<Facility>:<Severity-level>`), where:
   // Category is one of the following: * (all facilities), default, net, net.http, net.p2p, logging, net.trottle, blockchain.db, blockchain.db.lmdb, bcutil, checkpoints, net.dns, net.dl,
   // i18n, perf,stacktrace, updates, account, cn ,difficulty, hardfork, miner, blockchain, txpool, cn.block_queue, net.cn, daemon, debugtools.deserialize, debugtools.objectsizes, device.ledger,
@@ -1085,7 +1084,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct tx_info
   {
     std::string id_hash;                // The transaction ID hash.
@@ -1111,7 +1110,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct spent_key_image_info
   {
     std::string id_hash;                 // Key image.
@@ -1120,7 +1119,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Show information about valid transactions seen by the node but not yet mined into a block,
   // as well as spent key image information for the txpool in the node's memory.
   struct GET_TRANSACTION_POOL : PUBLIC, LEGACY
@@ -1146,7 +1145,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get hashes from transaction pool. Binary request.
   struct GET_TRANSACTION_POOL_HASHES_BIN : PUBLIC, BINARY
   {
@@ -1172,7 +1171,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get hashes from transaction pool.
   struct GET_TRANSACTION_POOL_HASHES : PUBLIC, LEGACY
   {
@@ -1189,7 +1188,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct tx_backlog_entry
   {
     uint64_t weight;       //
@@ -1197,7 +1196,7 @@ namespace rpc {
     uint64_t time_in_pool;
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get all transaction pool backlog.
   struct GET_TRANSACTION_POOL_BACKLOG : PUBLIC
   {
@@ -1215,7 +1214,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct txpool_histo
   {
     uint32_t txs;   // Number of transactions.
@@ -1224,7 +1223,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct txpool_stats
   {
     uint64_t bytes_total;            // Total size of all transactions in pool.
@@ -1246,7 +1245,7 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the transaction pool statistics.
   struct GET_TRANSACTION_POOL_STATS : PUBLIC, LEGACY
   {
@@ -1264,7 +1263,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Retrieve information about incoming and outgoing connections to your node.
   struct GET_CONNECTIONS : RPC_COMMAND
   {
@@ -1281,7 +1280,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Similar to get_block_header_by_height above, but for a range of blocks.
   // This method includes a starting block height and an ending block height as
   // parameters to retrieve basic information about the range of blocks.
@@ -1309,7 +1308,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the bootstrap daemon to use for data on the blockchain whilst syncing the chain.
   struct SET_BOOTSTRAP_DAEMON : RPC_COMMAND
   {
@@ -1327,7 +1326,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Send a command to the daemon to safely disconnect and shut down.
   struct STOP_DAEMON : LEGACY
   {
@@ -1337,7 +1336,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get daemon bandwidth limits.
   struct GET_LIMIT : LEGACY
   {
@@ -1356,7 +1355,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set daemon bandwidth limits.
   struct SET_LIMIT : LEGACY
   {
@@ -1380,7 +1379,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Limit number of Outgoing peers.
   struct OUT_PEERS : LEGACY
   {
@@ -1400,7 +1399,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Limit number of Incoming peers.
   struct IN_PEERS : LEGACY
   {
@@ -1420,7 +1419,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up information regarding hard fork voting and readiness.
   struct HARD_FORK_INFO : PUBLIC
   {
@@ -1450,7 +1449,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get list of banned IPs.
   struct GETBANS : RPC_COMMAND
   {
@@ -1476,7 +1475,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Ban another node by IP.
   struct SETBANS : RPC_COMMAND
   {
@@ -1502,7 +1501,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Determine whether a given IP address is banned
   struct BANNED : RPC_COMMAND
   {
@@ -1525,7 +1524,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Flush tx ids from transaction pool..
   struct FLUSH_TRANSACTION_POOL : RPC_COMMAND
   {
@@ -1541,7 +1540,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get a histogram of output amounts. For all amounts (possibly filtered by parameters),
   // gives the number of outputs on the chain for that amount. RingCT outputs counts as 0 amount.
   struct GET_OUTPUT_HISTOGRAM : PUBLIC
@@ -1583,7 +1582,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get current RPC protocol version.
   struct GET_VERSION : PUBLIC
   {
@@ -1601,7 +1600,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the coinbase amount and the fees amount for n last blocks starting at particular height.
   struct GET_COINBASE_TX_SUM : RPC_COMMAND
   {
@@ -1620,13 +1619,13 @@ namespace rpc {
       std::string status;       // General RPC error code. "OK" means everything looks good.
       uint64_t emission_amount; // Amount of coinbase reward in atomic units.
       uint64_t fee_amount;      // Amount of fees in atomic units.
-      uint64_t burn_amount;      // Amount of burnt oxen.
+      uint64_t burn_amount;      // Amount of burnt quenero.
 
       KV_MAP_SERIALIZABLE
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Gives an estimation of per-output + per-byte fees
   struct GET_BASE_FEE_ESTIMATE : PUBLIC
   {
@@ -1654,7 +1653,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Display alternative chains seen by the node.
   struct GET_ALTERNATE_CHAINS : RPC_COMMAND
   {
@@ -1683,7 +1682,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Relay a list of transaction IDs.
   struct RELAY_TX : RPC_COMMAND
   {
@@ -1699,7 +1698,7 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get synchronisation information.
   struct SYNC_INFO : RPC_COMMAND
   {
@@ -1749,7 +1748,7 @@ namespace rpc {
   };
 
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct GET_OUTPUT_DISTRIBUTION : PUBLIC
   {
     static constexpr auto names() { return NAMES("get_output_distribution"); }
@@ -1787,7 +1786,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Exactly like GET_OUTPUT_DISTRIBUTION, but does a binary RPC transfer instead of JSON
   struct GET_OUTPUT_DISTRIBUTION_BIN : PUBLIC, BINARY
   {
@@ -1797,7 +1796,7 @@ namespace rpc {
     using response = GET_OUTPUT_DISTRIBUTION::response;
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct POP_BLOCKS : LEGACY
   {
     static constexpr auto names() { return NAMES("pop_blocks"); }
@@ -1818,7 +1817,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct PRUNE_BLOCKCHAIN : RPC_COMMAND
   {
     static constexpr auto names() { return NAMES("prune_blockchain"); }
@@ -1841,7 +1840,7 @@ namespace rpc {
   };
 
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Accesses the list of public keys of the nodes who are participating or being tested in a quorum.
   struct GET_QUORUM_STATE : PUBLIC
   {
@@ -1861,7 +1860,7 @@ namespace rpc {
 
     struct quorum_t
     {
-      std::vector<std::string> validators; // List of service node public keys in the quorum. For obligations quorums these are the testing nodes; for checkpoint and blink these are the participating nodes (there are no workers); for Pulse blink quorums these are the block signers.
+      std::vector<std::string> validators; // List of masternode public keys in the quorum. For obligations quorums these are the testing nodes; for checkpoint and blink these are the participating nodes (there are no workers); for Pulse blink quorums these are the block signers.
       std::vector<std::string> workers; // Public key of the quorum workers. For obligations quorums these are the nodes being tested; for Pulse quorums this is the block producer. Checkpoint and Blink quorums do not populate this field.
 
       KV_MAP_SERIALIZABLE
@@ -1876,7 +1875,7 @@ namespace rpc {
     {
       uint64_t height;          // The height the quorums are relevant for
       uint8_t  quorum_type;     // The quorum type
-      quorum_t quorum;          // Quorum of Service Nodes
+      quorum_t quorum;          // Quorum of Masternodes
 
       KV_MAP_SERIALIZABLE
 
@@ -1897,16 +1896,16 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  struct GET_SERVICE_NODE_REGISTRATION_CMD_RAW : RPC_COMMAND
+  QUENERO_RPC_DOC_INTROSPECT
+  struct GET_MASTERNODE_REGISTRATION_CMD_RAW : RPC_COMMAND
   {
-    static constexpr auto names() { return NAMES("get_service_node_registration_cmd_raw"); }
+    static constexpr auto names() { return NAMES("get_masternode_registration_cmd_raw"); }
 
     struct request
     {
       std::vector<std::string> args; // (Developer) The arguments used in raw registration, i.e. portions
       bool make_friendly;            // Provide information about how to use the command in the result.
-      uint64_t staking_requirement;  // The staking requirement to become a Service Node the registration command will be generated upon
+      uint64_t staking_requirement;  // The staking requirement to become a Masternode the registration command will be generated upon
 
       KV_MAP_SERIALIZABLE
     };
@@ -1914,16 +1913,16 @@ namespace rpc {
     struct response
     {
       std::string status;           // Generic RPC error code. "OK" is the success value.
-      std::string registration_cmd; // The command to execute in the wallet CLI to register the queried daemon as a Service Node.
+      std::string registration_cmd; // The command to execute in the wallet CLI to register the queried daemon as a Masternode.
 
       KV_MAP_SERIALIZABLE
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  struct GET_SERVICE_NODE_REGISTRATION_CMD : RPC_COMMAND
+  QUENERO_RPC_DOC_INTROSPECT
+  struct GET_MASTERNODE_REGISTRATION_CMD : RPC_COMMAND
   {
-    static constexpr auto names() { return NAMES("get_service_node_registration_cmd"); }
+    static constexpr auto names() { return NAMES("get_masternode_registration_cmd"); }
 
     struct contribution_t
     {
@@ -1936,60 +1935,60 @@ namespace rpc {
     struct request
     {
       std::string operator_cut;                  // The percentage of cut per reward the operator receives expressed as a string, i.e. "1.1%"
-      std::vector<contribution_t> contributions; // Array of contributors for this Service Node
-      uint64_t staking_requirement;              // The staking requirement to become a Service Node the registration command will be generated upon
+      std::vector<contribution_t> contributions; // Array of contributors for this Masternode
+      uint64_t staking_requirement;              // The staking requirement to become a Masternode the registration command will be generated upon
 
       KV_MAP_SERIALIZABLE
     };
 
-    using response = GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response;
+    using response = GET_MASTERNODE_REGISTRATION_CMD_RAW::response;
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the service public keys of the queried daemon, encoded in hex.  All three keys are used
-  // when running as a service node; when running as a regular node only the x25519 key is regularly
+  // when running as a masternode; when running as a regular node only the x25519 key is regularly
   // used for some RPC and and node-to-SN communication requests.
   struct GET_SERVICE_KEYS : RPC_COMMAND
   {
-    static constexpr auto names() { return NAMES("get_service_keys", "get_service_node_key"); }
+    static constexpr auto names() { return NAMES("get_service_keys", "get_masternode_key"); }
 
     struct request : EMPTY {};
 
     struct response
     {
-      std::string service_node_pubkey;         // The queried daemon's service node public key.  Will be empty if not running as a service node.
-      std::string service_node_ed25519_pubkey; // The daemon's ed25519 auxiliary public key.
-      std::string service_node_x25519_pubkey;  // The daemon's x25519 auxiliary public key.
+      std::string masternode_pubkey;         // The queried daemon's masternode public key.  Will be empty if not running as a masternode.
+      std::string masternode_ed25519_pubkey; // The daemon's ed25519 auxiliary public key.
+      std::string masternode_x25519_pubkey;  // The daemon's x25519 auxiliary public key.
       std::string status;                      // Generic RPC error code. "OK" is the success value.
 
       KV_MAP_SERIALIZABLE
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the service private keys of the queried daemon, encoded in hex.  Do not ever share
-  // these keys: they would allow someone to impersonate your service node.  All three keys are used
-  // when running as a service node; when running as a regular node only the x25519 key is regularly
+  // these keys: they would allow someone to impersonate your masternode.  All three keys are used
+  // when running as a masternode; when running as a regular node only the x25519 key is regularly
   // used for some RPC and and node-to-SN communication requests.
   struct GET_SERVICE_PRIVKEYS : RPC_COMMAND
   {
-    static constexpr auto names() { return NAMES("get_service_privkeys", "get_service_node_privkey"); }
+    static constexpr auto names() { return NAMES("get_service_privkeys", "get_masternode_privkey"); }
 
     struct request : EMPTY {};
 
     struct response
     {
-      std::string service_node_privkey;         // The queried daemon's service node private key.  Will be empty if not running as a service node.
-      std::string service_node_ed25519_privkey; // The daemon's ed25519 private key (note that this is in sodium's format, which consists of the private and public keys concatenated together)
-      std::string service_node_x25519_privkey;  // The daemon's x25519 private key.
+      std::string masternode_privkey;         // The queried daemon's masternode private key.  Will be empty if not running as a masternode.
+      std::string masternode_ed25519_privkey; // The daemon's ed25519 private key (note that this is in sodium's format, which consists of the private and public keys concatenated together)
+      std::string masternode_x25519_privkey;  // The daemon's x25519 private key.
       std::string status;                       // Generic RPC error code. "OK" is the success value.
 
       KV_MAP_SERIALIZABLE
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  struct service_node_contribution
+  QUENERO_RPC_DOC_INTROSPECT
+  struct masternode_contribution
   {
     std::string key_image;         // The contribution's key image that is locked on the network.
     std::string key_image_pub_key; // The contribution's key image, public key component
@@ -1998,27 +1997,27 @@ namespace rpc {
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  struct service_node_contributor
+  QUENERO_RPC_DOC_INTROSPECT
+  struct masternode_contributor
   {
     uint64_t amount;                                             // The total amount of locked Loki in atomic units for this contributor.
-    uint64_t reserved;                                           // The amount of Loki in atomic units reserved by this contributor for this Service Node.
+    uint64_t reserved;                                           // The amount of Loki in atomic units reserved by this contributor for this Masternode.
     std::string address;                                         // The wallet address for this contributor rewards are sent to and contributions came from.
-    std::vector<service_node_contribution> locked_contributions; // Array of contributions from this contributor.
+    std::vector<masternode_contribution> locked_contributions; // Array of contributions from this contributor.
 
     KV_MAP_SERIALIZABLE
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  // Get information on some, all, or a random subset of Service Nodes.
-  struct GET_SERVICE_NODES : PUBLIC
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on some, all, or a random subset of Masternodes.
+  struct GET_MASTERNODES : PUBLIC
   {
-    static constexpr auto names() { return NAMES("get_service_nodes", "get_n_service_nodes", "get_all_service_nodes"); }
+    static constexpr auto names() { return NAMES("get_masternodes", "get_n_masternodes", "get_all_masternodes"); }
 
     // Boolean values indicate whether corresponding fields should be included in the response
     struct requested_fields_t {
       bool all = false; // If set, overrides any individual requested fields.  Defaults to *true* if "fields" is entirely omitted
-      bool service_node_pubkey;
+      bool masternode_pubkey;
       bool registration_height;
       bool registration_hf_version;
       bool requested_unlock_height;
@@ -2032,8 +2031,7 @@ namespace rpc {
       bool last_decommission_reason_consensus_any;
       bool earned_downtime_blocks;
 
-      bool service_node_version;
-      bool lokinet_version;
+      bool masternode_version;
       bool storage_server_version;
       bool contributors;
       bool total_contributed;
@@ -2069,13 +2067,13 @@ namespace rpc {
 
     struct request
     {
-      std::vector<std::string> service_node_pubkeys; // Array of public keys of registered Service Nodes to get information about. Omit to query all Service Nodes.
+      std::vector<std::string> masternode_pubkeys; // Array of public keys of registered Masternodes to get information about. Omit to query all Masternodes.
       bool include_json;                             // When set, the response's as_json member is filled out.
-      uint32_t limit;                                // If non-zero, select a random sample (in random order) of the given number of service nodes to return from the full list.
-      bool active_only;                              // If true, only include results for active (fully staked, not decommissioned) service nodes.
+      uint32_t limit;                                // If non-zero, select a random sample (in random order) of the given number of masternodes to return from the full list.
+      bool active_only;                              // If true, only include results for active (fully staked, not decommissioned) masternodes.
       std::optional<requested_fields_t> fields;      // If omitted return all fields; otherwise return only the specified fields
 
-      std::string poll_block_hash;                   // If specified this changes the behaviour to only return service node records if the block hash is *not* equal to the given hash; otherwise it omits the records and instead sets `"unchanged": true` in the response. This is primarily used to poll for new results where the requested results only change with new blocks.
+      std::string poll_block_hash;                   // If specified this changes the behaviour to only return masternode records if the block hash is *not* equal to the given hash; otherwise it omits the records and instead sets `"unchanged": true` in the response. This is primarily used to poll for new results where the requested results only change with new blocks.
 
       KV_MAP_SERIALIZABLE
     };
@@ -2084,47 +2082,46 @@ namespace rpc {
     {
 
       struct entry {
-        std::string                           service_node_pubkey;           // The public key of the Service Node.
-        uint64_t                              registration_height;           // The height at which the registration for the Service Node arrived on the blockchain.
-        uint16_t                              registration_hf_version;       // The hard fork at which the registration for the Service Node arrived on the blockchain.
-        uint64_t                              requested_unlock_height;       // The height at which contributions will be released and the Service Node expires. 0 if not requested yet.
-        uint64_t                              last_reward_block_height;      // The height that determines when this service node will next receive a reward.  This field is updated when receiving a reward, but is also updated when a SN is activated, recommissioned, or has an IP change position reset.
-        uint32_t                              last_reward_transaction_index; // When multiple Service Nodes register (or become active/reactivated) at the same height (i.e. have the same last_reward_block_height), this field contains the activating transaction position in the block which is used to break ties in determining which SN is next in the reward list.
+        std::string                           masternode_pubkey;           // The public key of the Masternode.
+        uint64_t                              registration_height;           // The height at which the registration for the Masternode arrived on the blockchain.
+        uint16_t                              registration_hf_version;       // The hard fork at which the registration for the Masternode arrived on the blockchain.
+        uint64_t                              requested_unlock_height;       // The height at which contributions will be released and the Masternode expires. 0 if not requested yet.
+        uint64_t                              last_reward_block_height;      // The height that determines when this masternode will next receive a reward.  This field is updated when receiving a reward, but is also updated when a SN is activated, recommissioned, or has an IP change position reset.
+        uint32_t                              last_reward_transaction_index; // When multiple Masternodes register (or become active/reactivated) at the same height (i.e. have the same last_reward_block_height), this field contains the activating transaction position in the block which is used to break ties in determining which SN is next in the reward list.
         bool                                  active;                        // True if fully funded and not currently decommissioned (and so `active && !funded` implicitly defines decommissioned)
-        bool                                  funded;                        // True if the required stakes have been submitted to activate this Service Node
-        uint64_t                              state_height;                  // If active: the state at which the service node became active (i.e. fully staked height, or last recommissioning); if decommissioned: the decommissioning height; if awaiting: the last contribution (or registration) height
-        uint32_t                              decommission_count;            // The number of times the Service Node has been decommissioned since registration
+        bool                                  funded;                        // True if the required stakes have been submitted to activate this Masternode
+        uint64_t                              state_height;                  // If active: the state at which the masternode became active (i.e. fully staked height, or last recommissioning); if decommissioned: the decommissioning height; if awaiting: the last contribution (or registration) height
+        uint32_t                              decommission_count;            // The number of times the Masternode has been decommissioned since registration
         uint16_t                              last_decommission_reason_consensus_all;      // The reason for the last decommission as voted by all SNs
         uint16_t                              last_decommission_reason_consensus_any;      // The reason for the last decommission as voted by any SNs
         int64_t                               earned_downtime_blocks;        // The number of blocks earned towards decommissioning, or the number of blocks remaining until deregistration if currently decommissioned
-        std::array<uint16_t, 3>               service_node_version;          // The major, minor, patch version of the Service Node respectively.
-        std::array<uint16_t, 3>               lokinet_version;               // The major, minor, patch version of the Service Node's lokinet router.
-        std::array<uint16_t, 3>               storage_server_version;        // The major, minor, patch version of the Service Node's storage server.
-        std::vector<service_node_contributor> contributors;                  // Array of contributors, contributing to this Service Node.
-        uint64_t                              total_contributed;             // The total amount of Loki in atomic units contributed to this Service Node.
-        uint64_t                              total_reserved;                // The total amount of Loki in atomic units reserved in this Service Node.
-        uint64_t                              staking_requirement;           // The staking requirement in atomic units that is required to be contributed to become a Service Node.
+        std::array<uint16_t, 3>               masternode_version;          // The major, minor, patch version of the Masternode respectively.
+        std::array<uint16_t, 3>               storage_server_version;        // The major, minor, patch version of the Masternode's storage server.
+        std::vector<masternode_contributor> contributors;                  // Array of contributors, contributing to this Masternode.
+        uint64_t                              total_contributed;             // The total amount of Loki in atomic units contributed to this Masternode.
+        uint64_t                              total_reserved;                // The total amount of Loki in atomic units reserved in this Masternode.
+        uint64_t                              staking_requirement;           // The staking requirement in atomic units that is required to be contributed to become a Masternode.
         uint64_t                              portions_for_operator;         // The operator percentage cut to take from each reward expressed in portions, see cryptonote_config.h's STAKING_PORTIONS.
-        uint64_t                              swarm_id;                      // The identifier of the Service Node's current swarm.
+        uint64_t                              swarm_id;                      // The identifier of the Masternode's current swarm.
         std::string                           operator_address;              // The wallet address of the operator to which the operator cut of the staking reward is sent to.
-        std::string                           public_ip;                     // The public ip address of the service node
+        std::string                           public_ip;                     // The public ip address of the masternode
         uint16_t                              storage_port;                  // The port number associated with the storage server
         uint16_t                              storage_lmq_port;              // The port number associated with the storage server (oxenmq interface)
         uint16_t                              quorumnet_port;                // The port for direct SN-to-SN communication
-        std::string                           pubkey_ed25519;                // The service node's ed25519 public key for auxiliary services
-        std::string                           pubkey_x25519;                 // The service node's x25519 public key for auxiliary services
+        std::string                           pubkey_ed25519;                // The masternode's ed25519 public key for auxiliary services
+        std::string                           pubkey_x25519;                 // The masternode's x25519 public key for auxiliary services
 
-        // Service Node Testing
-        uint64_t                                last_uptime_proof;                   // The last time this Service Node's uptime proof was relayed by at least 1 Service Node other than itself in unix epoch time.
+        // Masternode Testing
+        uint64_t                                last_uptime_proof;                   // The last time this Masternode's uptime proof was relayed by at least 1 Masternode other than itself in unix epoch time.
         bool                                    storage_server_reachable;            // True if this storage server is currently passing tests for the purposes of SN node testing: true if the last test passed, or if it has been unreachable for less than an hour; false if it has been failing tests for more than an hour (and thus is considered unreachable).
         uint64_t                                storage_server_first_unreachable;    // If the last test we received was a failure, this field contains the timestamp when failures started.  Will be 0 if the last result was a success or the node has not yet been tested.  (To disinguish between these cases check storage_server_last_reachable).
-        uint64_t                                storage_server_last_unreachable;     // The last time this Service Node failed a ping test (regardless of whether or not it is currently failing); 0 if it never failed a test since startup.
-        uint64_t                                storage_server_last_reachable;       // The last time we received a successful ping response for this Service Node (whether or not it is currently failing); 0 if we have never received a success since startup.
+        uint64_t                                storage_server_last_unreachable;     // The last time this Masternode failed a ping test (regardless of whether or not it is currently failing); 0 if it never failed a test since startup.
+        uint64_t                                storage_server_last_reachable;       // The last time we received a successful ping response for this Masternode (whether or not it is currently failing); 0 if we have never received a success since startup.
 
-        std::vector<service_nodes::participation_entry> checkpoint_participation;    // Of the last N checkpoints the Service Node is in a checkpointing quorum, record whether or not the Service Node voted to checkpoint a block
-        std::vector<service_nodes::participation_entry> pulse_participation;         // Of the last N pulse blocks the Service Node is in a pulse quorum, record whether or not the Service Node voted (participated) in that block
-        std::vector<service_nodes::timestamp_participation_entry> timestamp_participation;         // Of the last N timestamp messages, record whether or not the Service Node was in sync with the network
-        std::vector<service_nodes::timesync_entry> timesync_status;         // Of the last N timestamp messages, record whether or not the Service Node responded
+        std::vector<masternodes::participation_entry> checkpoint_participation;    // Of the last N checkpoints the Masternode is in a checkpointing quorum, record whether or not the Masternode voted to checkpoint a block
+        std::vector<masternodes::participation_entry> pulse_participation;         // Of the last N pulse blocks the Masternode is in a pulse quorum, record whether or not the Masternode voted (participated) in that block
+        std::vector<masternodes::timestamp_participation_entry> timestamp_participation;         // Of the last N timestamp messages, record whether or not the Masternode was in sync with the network
+        std::vector<masternodes::timesync_entry> timesync_status;         // Of the last N timestamp messages, record whether or not the Masternode responded
 
         KV_MAP_SERIALIZABLE
       };
@@ -2132,11 +2129,11 @@ namespace rpc {
       requested_fields_t fields; // @NoLokiRPCDocGen Internal use only, not serialized
       bool polling_mode;         // @NoLokiRPCDocGen Internal use only, not serialized
 
-      std::vector<entry> service_node_states; // Array of service node registration information
+      std::vector<entry> masternode_states; // Array of masternode registration information
       uint64_t    height;                     // Current block's height.
       uint64_t    target_height;              // Blockchain's target height.
       std::string block_hash;                 // Current block's hash.
-      bool        unchanged;                  // Will be true (and `service_node_states` omitted) if you gave the current block hash to poll_block_hash
+      bool        unchanged;                  // Will be true (and `masternode_states` omitted) if you gave the current block hash to poll_block_hash
       uint8_t     hardfork;                   // Current hardfork version.
       std::string status;                     // Generic RPC error code. "OK" is the success value.
       std::string as_json;                    // If `include_json` is set in the request, this contains the json representation of the `entry` data structure
@@ -2146,11 +2143,11 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  // Get information on the queried daemon's Service Node state.
-  struct GET_SERVICE_NODE_STATUS : RPC_COMMAND
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on the queried daemon's Masternode state.
+  struct GET_MASTERNODE_STATUS : RPC_COMMAND
   {
-    static constexpr auto names() { return NAMES("get_service_node_status"); }
+    static constexpr auto names() { return NAMES("get_masternode_status"); }
 
     struct request
     {
@@ -2161,7 +2158,7 @@ namespace rpc {
 
     struct response
     {
-      GET_SERVICE_NODES::response::entry service_node_state; // Service node registration information
+      GET_MASTERNODES::response::entry masternode_state; // Masternode registration information
       uint64_t    height;                     // Current block's height.
       std::string block_hash;                 // Current block's hash.
       std::string status;                     // Generic RPC error code. "OK" is the success value.
@@ -2171,7 +2168,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct STORAGE_SERVER_PING : RPC_COMMAND
   {
     static constexpr auto names() { return NAMES("storage_server_ping"); }
@@ -2187,22 +2184,8 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  struct LOKINET_PING : RPC_COMMAND
-  {
-    static constexpr auto names() { return NAMES("lokinet_ping"); }
-
-    struct request
-    {
-      std::array<uint16_t, 3> version; // Lokinet version
-      KV_MAP_SERIALIZABLE
-    };
-
-    struct response : STATUS {};
-  };
-
-  OXEN_RPC_DOC_INTROSPECT
-  // Get the required amount of Loki to become a Service Node at the queried height.
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get the required amount of Loki to become a Masternode at the queried height.
   // For devnet and testnet values, ensure the daemon is started with the
   // `--devnet` or `--testnet` flags respectively.
   struct GET_STAKING_REQUIREMENT : PUBLIC
@@ -2226,11 +2209,11 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  // Get information on blacklisted Service Node key images.
-  struct GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES : PUBLIC
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on blacklisted Masternode key images.
+  struct GET_MASTERNODE_BLACKLISTED_KEY_IMAGES : PUBLIC
   {
-    static constexpr auto names() { return NAMES("get_service_node_blacklisted_key_images"); }
+    static constexpr auto names() { return NAMES("get_masternode_blacklisted_key_images"); }
 
     struct request : EMPTY {};
 
@@ -2252,7 +2235,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get information on output blacklist.
   struct GET_OUTPUT_BLACKLIST : PUBLIC, BINARY
   {
@@ -2269,8 +2252,8 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  // Query hardcoded/service node checkpoints stored for the blockchain. Omit all arguments to retrieve the latest "count" checkpoints.
+  QUENERO_RPC_DOC_INTROSPECT
+  // Query hardcoded/masternode checkpoints stored for the blockchain. Omit all arguments to retrieve the latest "count" checkpoints.
   struct GET_CHECKPOINTS : PUBLIC
   {
     static constexpr auto names() { return NAMES("get_checkpoints"); }
@@ -2293,7 +2276,7 @@ namespace rpc {
       std::string signature; // The signature generated by the voter in the quorum
 
       quorum_signature_serialized() = default;
-      quorum_signature_serialized(service_nodes::quorum_signature const &entry)
+      quorum_signature_serialized(masternodes::quorum_signature const &entry)
       : voter_index(entry.voter_index)
       , signature(tools::type_to_hex(entry.signature)) { }
 
@@ -2308,10 +2291,10 @@ namespace rpc {
     struct checkpoint_serialized
     {
       uint8_t version;
-      std::string type;                                    // Either "Hardcoded" or "ServiceNode" for checkpoints generated by Service Nodes or declared in the code
+      std::string type;                                    // Either "Hardcoded" or "ServiceNode" for checkpoints generated by Masternodes or declared in the code
       uint64_t height;                                     // The height the checkpoint is relevant for
       std::string block_hash;                              // The block hash the checkpoint is specifying
-      std::vector<quorum_signature_serialized> signatures; // Signatures from Service Nodes who agree on the block hash
+      std::vector<quorum_signature_serialized> signatures; // Signatures from Masternodes who agree on the block hash
       uint64_t prev_height;                                // The previous height the checkpoint is based off
 
       checkpoint_serialized() = default;
@@ -2323,7 +2306,7 @@ namespace rpc {
       , prev_height(checkpoint.prev_height)
       {
         signatures.reserve(checkpoint.signatures.size());
-        for (service_nodes::quorum_signature const &entry : checkpoint.signatures)
+        for (masternodes::quorum_signature const &entry : checkpoint.signatures)
           signatures.push_back(entry);
       }
 
@@ -2349,11 +2332,11 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
-  // Query hardcoded/service node checkpoints stored for the blockchain. Omit all arguments to retrieve the latest "count" checkpoints.
+  QUENERO_RPC_DOC_INTROSPECT
+  // Query hardcoded/masternode checkpoints stored for the blockchain. Omit all arguments to retrieve the latest "count" checkpoints.
   struct GET_SN_STATE_CHANGES : PUBLIC
   {
-    static constexpr auto names() { return NAMES("get_service_nodes_state_changes"); }
+    static constexpr auto names() { return NAMES("get_masternodes_state_changes"); }
 
     static constexpr uint64_t HEIGHT_SENTINEL_VALUE = std::numeric_limits<uint64_t>::max() - 1;
     struct request
@@ -2382,7 +2365,7 @@ namespace rpc {
   };
 
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct REPORT_PEER_SS_STATUS : RPC_COMMAND
   {
     static constexpr auto names() { return NAMES("report_peer_storage_server_status"); }
@@ -2390,7 +2373,7 @@ namespace rpc {
     struct request
     {
       std::string type; // test type (currently used: ["reachability"])
-      std::string pubkey; // service node pubkey
+      std::string pubkey; // masternode pubkey
       bool passed; // whether the node is passing the test
 
       KV_MAP_SERIALIZABLE
@@ -2416,9 +2399,9 @@ namespace rpc {
     struct response : STATUS {};
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the name mapping for a Loki Name Service entry. Loki currently supports mappings
-  // for Session and Lokinet.
+  // for Session.
   struct ONS_NAMES_TO_OWNERS : PUBLIC
   {
     static constexpr auto names() { return NAMES("ons_names_to_owners", "lns_names_to_owners"); }
@@ -2428,7 +2411,7 @@ namespace rpc {
     struct request_entry
     {
       std::string name_hash; // The 32-byte BLAKE2b hash of the name to resolve to a public key via Loki Name Service. The value must be provided either in hex (64 hex digits) or base64 (44 characters with padding, or 43 characters without).
-      std::vector<uint16_t> types; // If empty, query all types. Currently supported types are 0 (session) and 2 (lokinet). In future updates more mapping types will be available.
+      std::vector<uint16_t> types; // If empty, query all types. Currently supported types are 0 (session). In future updates more mapping types will be available.
 
       KV_MAP_SERIALIZABLE
     };
@@ -2444,7 +2427,7 @@ namespace rpc {
     struct response_entry
     {
       uint64_t entry_index;     // The index in request_entry's `entries` array that was resolved via Loki Name Service.
-      ons::mapping_type type;   // The type of Loki Name Service entry that the owner owns: currently supported values are 0 (session), 1 (wallet) and 2 (lokinet)
+      ons::mapping_type type;   // The type of Loki Name Service entry that the owner owns: currently supported values are 0 (session), 1 (wallet)
       std::string name_hash;    // The hash of the name that was queried, in base64
       std::string owner;        // The public key that purchased the Loki Name Service entry.
       std::optional<std::string> backup_owner; // The backup public key that the owner specified when purchasing the Loki Name Service entry. Omitted if no backup owner.
@@ -2465,7 +2448,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get all the name mappings for the queried owner. The owner can be either a ed25519 public key or Monero style
   // public key; by default purchases are owned by the spend public key of the purchasing wallet.
   struct ONS_OWNERS_TO_NAMES : PUBLIC
@@ -2484,7 +2467,7 @@ namespace rpc {
     struct response_entry
     {
       uint64_t    request_index;   // (Deprecated) The index in request's `entries` array that was resolved via Loki Name Service.
-      ons::mapping_type type;      // The category the Loki Name Service entry belongs to; currently 0 for Session, 1 for Wallet and 2 for Lokinet.
+      ons::mapping_type type;      // The category the Loki Name Service entry belongs to; currently 0 for Session, 1 for Wallet.
       std::string name_hash;       // The hash of the name that the owner purchased via Loki Name Service in base64
       std::string owner;           // The backup public key specified by the owner that purchased the Loki Name Service entry.
       std::optional<std::string> backup_owner; // The backup public key specified by the owner that purchased the Loki Name Service entry. Omitted if no backup owner.
@@ -2505,13 +2488,13 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Performs a simple ONS lookup of a BLAKE2b-hashed name.  This RPC method is meant for simple,
   // single-value resolutions that do not care about registration details, etc.; if you need more
   // information use ONS_NAMES_TO_OWNERS instead.
   //
   // Technical details: the returned value is encrypted using the name itself so that neither this
-  // oxend responding to the RPC request nor any other blockchain observers can (easily) obtain the
+  // quenerod responding to the RPC request nor any other blockchain observers can (easily) obtain the
   // name of registered addresses or the registration details.  Thus, from a client's point of view,
   // resolving an ONS record involves:
   //
@@ -2530,7 +2513,7 @@ namespace rpc {
 
     struct request
     {
-      uint16_t type;         // The ONS type (mandatory); currently supported values are: 0 = session, 1 = wallet, 2 = lokinet.
+      uint16_t type;         // The ONS type (mandatory); currently supported values are: 0 = session, 1 = wallet.
       std::string name_hash; // The 32-byte BLAKE2b hash of the name to look up, encoded as 64 hex digits or 44/43 base64 characters (with/without padding).
 
       KV_MAP_SERIALIZABLE
@@ -2545,7 +2528,7 @@ namespace rpc {
     };
   };
 
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Clear TXs from the daemon cache, currently only the cache storing TX hashes that were previously verified bad by the daemon.
   struct FLUSH_CACHE : RPC_COMMAND
   {
@@ -2627,16 +2610,15 @@ namespace rpc {
     POP_BLOCKS,
     PRUNE_BLOCKCHAIN,
     GET_QUORUM_STATE,
-    GET_SERVICE_NODE_REGISTRATION_CMD_RAW,
-    GET_SERVICE_NODE_REGISTRATION_CMD,
+    GET_MASTERNODE_REGISTRATION_CMD_RAW,
+    GET_MASTERNODE_REGISTRATION_CMD,
     GET_SERVICE_KEYS,
     GET_SERVICE_PRIVKEYS,
-    GET_SERVICE_NODES,
-    GET_SERVICE_NODE_STATUS,
+    GET_MASTERNODES,
+    GET_MASTERNODE_STATUS,
     STORAGE_SERVER_PING,
-    LOKINET_PING,
     GET_STAKING_REQUIREMENT,
-    GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES,
+    GET_MASTERNODE_BLACKLISTED_KEY_IMAGES,
     GET_OUTPUT_BLACKLIST,
     GET_CHECKPOINTS,
     GET_SN_STATE_CHANGES,

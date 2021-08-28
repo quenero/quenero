@@ -63,11 +63,11 @@
 #include "checkpoints/checkpoints.h"
 #include "cryptonote_basic/hardfork.h"
 #include "blockchain_db/blockchain_db.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "pulse.h"
 
 struct sqlite3;
-namespace service_nodes { class service_node_list; };
+namespace masternodes { class masternode_list; };
 namespace tools { class Notify; }
 
 namespace cryptonote
@@ -130,7 +130,7 @@ namespace cryptonote
      *
      * @param tx_pool a reference to the transaction pool to be kept by the Blockchain
      */
-    Blockchain(tx_memory_pool& tx_pool, service_nodes::service_node_list& service_node_list);
+    Blockchain(tx_memory_pool& tx_pool, masternodes::masternode_list& masternode_list);
 
     /**
      * @brief Blockchain destructor
@@ -385,14 +385,14 @@ namespace cryptonote
      * @brief creates the next block suitable for using in a Pulse enabled network
      *
      * @param b return-by-reference block to be filled in
-     * @param block_producer the service node that will receive the block reward
+     * @param block_producer the masternode that will receive the block reward
      * @param round the current pulse round the block is being generated for
      * @param validator_bitset the bitset indicating which validators in the quorum are participating in constructing the block.
      * @param ex_nonce extra data to be added to the miner transaction's extra
      *
      * @return true if block template filled in successfully, else false
      */
-    bool create_next_pulse_block_template(block& b, const service_nodes::payout& block_producer, uint8_t round, uint16_t validator_bitset, uint64_t& height);
+    bool create_next_pulse_block_template(block& b, const masternodes::payout& block_producer, uint8_t round, uint16_t validator_bitset, uint64_t& height);
 
     /**
      * @brief checks if a block is known about with a given hash
@@ -982,10 +982,10 @@ namespace cryptonote
       return *m_db;
     }
 
-    /// @brief return a reference to the service node list
-    const service_nodes::service_node_list &get_service_node_list() const { return m_service_node_list; }
-    /// @brief return a reference to the service node list
-    service_nodes::service_node_list &get_service_node_list() { return m_service_node_list; }
+    /// @brief return a reference to the masternode list
+    const masternodes::masternode_list &get_masternode_list() const { return m_masternode_list; }
+    /// @brief return a reference to the masternode list
+    masternodes::masternode_list &get_masternode_list() { return m_masternode_list; }
 
     /**
      * @brief get a number of outputs of a specific amount
@@ -1108,12 +1108,12 @@ namespace cryptonote
     {
       bool                   is_miner;
       account_public_address miner_address;
-      service_nodes::payout  service_node_payout;
+      masternodes::payout  masternode_payout;
     };
 
     bool create_block_template_internal(block& b, const crypto::hash *from_block, block_template_info const &info, difficulty_type& di, uint64_t& height, uint64_t& expected_reward, const blobdata& ex_nonce);
 
-    bool load_missing_blocks_into_oxen_subsystems();
+    bool load_missing_blocks_into_quenero_subsystems();
 
     // TODO: evaluate whether or not each of these typedefs are left over from blockchain_storage
     typedef std::unordered_set<crypto::key_image> key_images_container;
@@ -1126,7 +1126,7 @@ namespace cryptonote
     BlockchainDB* m_db;
 
     tx_memory_pool&                   m_tx_pool;
-    service_nodes::service_node_list& m_service_node_list;
+    masternodes::masternode_list& m_masternode_list;
     ons::name_system_db               m_ons_db;
 
     mutable std::recursive_mutex m_blockchain_lock; // TODO: add here reader/writer lock

@@ -123,7 +123,7 @@ namespace tools
       "Failed to get hashes",
       "Failed to get out indices",
       "Failed to get random outs",
-      "Failed to get service node data",
+      "Failed to get masternode data",
       "Failed to get hard fork version",
     };
     enum failed_rpc_request_message_indices
@@ -132,7 +132,7 @@ namespace tools
       get_hashes_error_message_index,
       get_out_indices_error_message_index,
       get_outs_error_message_index,
-      get_service_nodes_error_message_index,
+      get_masternodes_error_message_index,
       get_hard_fork_version_error_message_index,
     };
 
@@ -384,7 +384,7 @@ namespace tools
     //----------------------------------------------------------------------------------------------------
     typedef failed_rpc_request<refresh_error, get_blocks_error_message_index> get_blocks_error;
     //----------------------------------------------------------------------------------------------------
-    typedef failed_rpc_request<refresh_error, get_service_nodes_error_message_index> get_service_nodes_error;
+    typedef failed_rpc_request<refresh_error, get_masternodes_error_message_index> get_masternodes_error;
     //----------------------------------------------------------------------------------------------------
     typedef failed_rpc_request<refresh_error, get_hashes_error_message_index> get_hashes_error;
     //----------------------------------------------------------------------------------------------------

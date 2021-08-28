@@ -1,0 +1,7 @@
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && apt-get -y install apt-utils ca-certificates
+COPY quenero-deb-key.gpg /etc/apt/trusted.gpg.d/quenero.gpg
+RUN echo "deb https://deb.quenero.io focal main" > /etc/apt/sources.list.d/quenero.list && \
+    apt-get update

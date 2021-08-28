@@ -1,13 +1,13 @@
-# Provides a pytest fixture of a configured service node network with 20 service nodes, 3 regular
+# Provides a pytest fixture of a configured masternode network with 20 masternodes, 3 regular
 # nodes, and 3 wallets (each connected to a different node).
 #
-# The 20 service nodes are registered, have mined enough to make the blink quorum active, and have
+# The 20 masternodes are registered, have mined enough to make the blink quorum active, and have
 # sent uptime proofs to each other.
 #
-# The 3 nodes are ordinary, non-service node nodes.
+# The 3 nodes are ordinary, non-masternode nodes.
 #
 # The 3 wallets are named alice, bob, and mike.
-# - "mike the miner" is the miner and operator of the service nodes and so has an endlessly
+# - "mike the miner" is the miner and operator of the masternodes and so has an endlessly
 #   increasing supply of coins as blocks are mined.
 # - alice and bob will have any existing funds transferred to mike but may still have tx history of
 # previous tests.  (The wallet-emptying sweep to mike, however, may not yet be confirmed).
@@ -62,9 +62,9 @@ class SNNetwork:
 
         vprint("Using '{}' for data files and logs".format(datadir))
 
-        nodeopts = dict(oxend=self.binpath+'/oxend', datadir=datadir)
+        nodeopts = dict(quenerod=self.binpath+'/quenerod', datadir=datadir)
 
-        self.sns = [Daemon(service_node=True, **nodeopts) for _ in range(sns)]
+        self.sns = [Daemon(masternode=True, **nodeopts) for _ in range(sns)]
         self.nodes = [Daemon(**nodeopts) for _ in range(nodes)]
 
         self.all_nodes = self.sns + self.nodes
@@ -74,7 +74,7 @@ class SNNetwork:
             self.wallets.append(Wallet(
                 node=self.nodes[len(self.wallets) % len(self.nodes)],
                 name=name,
-                rpc_wallet=self.binpath+'/oxen-wallet-rpc',
+                rpc_wallet=self.binpath+'/quenero-wallet-rpc',
                 datadir=datadir))
 
         self.alice, self.bob, self.mike = self.wallets
@@ -86,22 +86,22 @@ class SNNetwork:
                 if i != k:
                     self.all_nodes[i].add_peer(self.all_nodes[k])
 
-        vprint("Starting new oxend service nodes with RPC on {} ports".format(self.sns[0].listen_ip), end="")
+        vprint("Starting new quenerod masternodes with RPC on {} ports".format(self.sns[0].listen_ip), end="")
         for sn in self.sns:
             vprint(" {}".format(sn.rpc_port), end="", flush=True, timestamp=False)
             sn.start()
         vprint(timestamp=False)
-        vprint("Starting new regular oxend nodes with RPC on {} ports".format(self.nodes[0].listen_ip), end="")
+        vprint("Starting new regular quenerod nodes with RPC on {} ports".format(self.nodes[0].listen_ip), end="")
         for d in self.nodes:
             vprint(" {}".format(d.rpc_port), end="", flush=True, timestamp=False)
             d.start()
         vprint(timestamp=False)
 
-        vprint("Waiting for all oxend's to get ready")
+        vprint("Waiting for all quenerod's to get ready")
         for d in self.all_nodes:
             d.wait_for_json_rpc("get_info")
 
-        vprint("Oxends are ready. Starting wallets")
+        vprint("Quenerods are ready. Starting wallets")
 
         for w in self.wallets:
             vprint("Starting new RPC wallet {w.name} at {w.listen_ip}:{w.rpc_port}".format(w=w))
@@ -124,7 +124,7 @@ class SNNetwork:
         # 6(N-5) blocks, plus the 30 lock time on coinbase TXes = 6N more blocks (after the initial
         # 5 registrations).
         self.mine(50)
-        vprint("Submitting first round of service node registrations: ", end="", flush=True)
+        vprint("Submitting first round of masternode registrations: ", end="", flush=True)
         for sn in self.sns[0:5]:
             self.mike.register_sn(sn)
             vprint(".", end="", flush=True, timestamp=False)
@@ -134,7 +134,7 @@ class SNNetwork:
 
             self.mine(6*len(self.sns))
 
-            vprint("Submitting more service node registrations: ", end="", flush=True)
+            vprint("Submitting more masternode registrations: ", end="", flush=True)
             for sn in self.sns[5:]:
                 self.mike.register_sn(sn)
                 vprint(".", end="", flush=True, timestamp=False)
@@ -152,12 +152,12 @@ class SNNetwork:
         for sn in self.sns:
             sn.ping()
 
-        all_service_nodes_proofed = lambda sn: all(x['quorumnet_port'] > 0 for x in
-                sn.json_rpc("get_n_service_nodes", {"fields":{"quorumnet_port":True}}).json()['result']['service_node_states'])
+        all_masternodes_proofed = lambda sn: all(x['quorumnet_port'] > 0 for x in
+                sn.json_rpc("get_n_masternodes", {"fields":{"quorumnet_port":True}}).json()['result']['masternode_states'])
 
         vprint("Waiting for proofs to propagate: ", end="", flush=True)
         for sn in self.sns:
-            wait_for(lambda: all_service_nodes_proofed(sn), timeout=120)
+            wait_for(lambda: all_masternodes_proofed(sn), timeout=120)
             vprint(".", end="", flush=True, timestamp=False)
         vprint(timestamp=False)
         vprint("Done.")
@@ -258,7 +258,7 @@ snn = None
 
 @pytest.fixture
 def net(pytestconfig, tmp_path, binary_dir):
-    """Fixture that returns the service node network.  It is persistent across tests: the first time
+    """Fixture that returns the masternode network.  It is persistent across tests: the first time
     it loads it starts the daemons and wallets, mines a bunch of blocks and submits SN
     registrations.  On subsequent loads it mines 5 blocks so that mike always has some available
     funds, and sets alice and bob to new wallets."""
@@ -266,7 +266,7 @@ def net(pytestconfig, tmp_path, binary_dir):
     if not snn:
         verbose = pytestconfig.getoption('verbose') >= 2
         if verbose:
-            print("\nConstructing initial service node network")
+            print("\nConstructing initial masternode network")
         snn = SNNetwork(datadir=tmp_path, binpath=binary_dir)
     else:
         snn.alice.new_wallet()
@@ -311,22 +311,22 @@ def chuck(net):
     nodes will not have received proofs (and so can't be used to submit blinks).
     """
 
-    chuck = Wallet(node=net.nodes[0], name='Chuck', rpc_wallet=net.binpath+'/oxen-wallet-rpc', datadir=net.datadir)
+    chuck = Wallet(node=net.nodes[0], name='Chuck', rpc_wallet=net.binpath+'/quenero-wallet-rpc', datadir=net.datadir)
     chuck.ready(wallet="chuck")
 
-    hidden_node = Daemon(oxend=net.binpath+'/oxend', datadir=net.datadir)
-    bridge_node = Daemon(oxend=net.binpath+'/oxend', datadir=net.datadir)
+    hidden_node = Daemon(quenerod=net.binpath+'/quenerod', datadir=net.datadir)
+    bridge_node = Daemon(quenerod=net.binpath+'/quenerod', datadir=net.datadir)
     for x in (4, 7):
         bridge_node.add_peer(net.all_nodes[x])
     bridge_node.add_peer(hidden_node)
     hidden_node.add_peer(bridge_node)
 
-    vprint("Starting new chuck oxend bridge node with RPC on {}:{}".format(bridge_node.listen_ip, bridge_node.rpc_port))
+    vprint("Starting new chuck quenerod bridge node with RPC on {}:{}".format(bridge_node.listen_ip, bridge_node.rpc_port))
     bridge_node.start()
     bridge_node.wait_for_json_rpc("get_info")
     net.sync(extra_nodes=[bridge_node], extra_wallets=[chuck])
 
-    vprint("Starting new chuck oxend hidden node with RPC on {}:{}".format(hidden_node.listen_ip, hidden_node.rpc_port))
+    vprint("Starting new chuck quenerod hidden node with RPC on {}:{}".format(hidden_node.listen_ip, hidden_node.rpc_port))
     hidden_node.start()
     hidden_node.wait_for_json_rpc("get_info")
     net.sync(extra_nodes=[hidden_node, bridge_node], extra_wallets=[chuck])
@@ -336,7 +336,7 @@ def chuck(net):
     # wallet then copy the underlying wallet file.
     chuck.refresh()
     chuck.stop()
-    chuck.hidden = Wallet(node=hidden_node, name='Chuck (hidden)', rpc_wallet=net.binpath+'/oxen-wallet-rpc', datadir=net.datadir)
+    chuck.hidden = Wallet(node=hidden_node, name='Chuck (hidden)', rpc_wallet=net.binpath+'/quenero-wallet-rpc', datadir=net.datadir)
 
     import shutil
     import os

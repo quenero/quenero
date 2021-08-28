@@ -36,9 +36,9 @@
 #include "epee/net/net_utils_base.h"
 #include "cryptonote_basic/blobdatatype.h"
 
-#include "common/oxen.h"
+#include "common/quenero.h"
 
-namespace service_nodes
+namespace masternodes
 {
   struct quorum_vote_t;
 };
@@ -99,7 +99,7 @@ namespace cryptonote
   /************************************************************************/
   /*                                                                      */
   /************************************************************************/
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct serializable_blink_metadata {
     crypto::hash tx_hash;
     uint64_t height;
@@ -112,7 +112,7 @@ namespace cryptonote
   /************************************************************************/
   /*                                                                      */
   /************************************************************************/
-  OXEN_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct block_complete_entry
   {
     blobdata block;
@@ -323,12 +323,12 @@ namespace cryptonote
     };
   };
 
-  struct NOTIFY_NEW_SERVICE_NODE_VOTE
+  struct NOTIFY_NEW_MASTERNODE_VOTE
   {
     const static int ID = BC_COMMANDS_POOL_BASE + 16;
     struct request
     {
-      std::vector<service_nodes::quorum_vote_t> votes;
+      std::vector<masternodes::quorum_vote_t> votes;
 
       KV_MAP_SERIALIZABLE
     };

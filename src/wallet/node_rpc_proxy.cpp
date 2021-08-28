@@ -49,15 +49,15 @@ NodeRPCProxy::NodeRPCProxy(rpc::http_client& http_client)
 
 void NodeRPCProxy::invalidate()
 {
-  m_service_node_blacklisted_key_images_cached_height = 0;
-  m_service_node_blacklisted_key_images.clear();
+  m_masternode_blacklisted_key_images_cached_height = 0;
+  m_masternode_blacklisted_key_images.clear();
 
-  m_all_service_nodes_cached_height = 0;
-  m_all_service_nodes.clear();
+  m_all_masternodes_cached_height = 0;
+  m_all_masternodes.clear();
 
-  m_contributed_service_nodes_cached_height = 0;
-  m_contributed_service_nodes_cached_address.clear();
-  m_contributed_service_nodes.clear();
+  m_contributed_masternodes_cached_height = 0;
+  m_contributed_masternodes_cached_address.clear();
+  m_contributed_masternodes.clear();
 
   m_height = 0;
   m_immutable_height = 0;
@@ -224,31 +224,31 @@ bool NodeRPCProxy::get_fee_quantization_mask(uint64_t &fee_quantization_mask) co
   return true;
 }
 
-std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>> NodeRPCProxy::get_service_nodes(std::vector<std::string> pubkeys) const
+std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>> NodeRPCProxy::get_masternodes(std::vector<std::string> pubkeys) const
 {
-  rpc::GET_SERVICE_NODES::request req{};
-  req.service_node_pubkeys = std::move(pubkeys);
-  return get_result_pair<rpc::GET_SERVICE_NODES>(req, [](auto&& res) { return std::move(res.service_node_states); });
+  rpc::GET_MASTERNODES::request req{};
+  req.masternode_pubkeys = std::move(pubkeys);
+  return get_result_pair<rpc::GET_MASTERNODES>(req, [](auto&& res) { return std::move(res.masternode_states); });
 }
 
-// Updates the cache of all service nodes; the mutex lock must be already held
-bool NodeRPCProxy::update_all_service_nodes_cache(uint64_t height) const {
+// Updates the cache of all masternodes; the mutex lock must be already held
+bool NodeRPCProxy::update_all_masternodes_cache(uint64_t height) const {
   if (m_offline)
     return false;
 
   try {
-    auto res = invoke_json_rpc<rpc::GET_SERVICE_NODES>({});
-    m_all_service_nodes_cached_height = height;
-    m_all_service_nodes = std::move(res.service_node_states);
+    auto res = invoke_json_rpc<rpc::GET_MASTERNODES>({});
+    m_all_masternodes_cached_height = height;
+    m_all_masternodes = std::move(res.masternode_states);
   } catch (...) { return false; }
 
   return true;
 }
 
 
-std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>> NodeRPCProxy::get_all_service_nodes() const
+std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>> NodeRPCProxy::get_all_masternodes() const
 {
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>> result;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>> result;
   auto& [success, sns] = result;
   success = false;
 
@@ -258,10 +258,10 @@ std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>
 
   {
     std::lock_guard lock{m_sn_cache_mutex};
-    if (m_all_service_nodes_cached_height != height && !update_all_service_nodes_cache(height))
+    if (m_all_masternodes_cached_height != height && !update_all_masternodes_cache(height))
       return result;
 
-    sns = m_all_service_nodes;
+    sns = m_all_masternodes;
   }
 
   success = true;
@@ -270,9 +270,9 @@ std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>
 
 // Filtered version of the above that caches the filtered result as long as used on the same
 // contributor at the same height (which is very common, for example, for wallet balance lookups).
-std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>> NodeRPCProxy::get_contributed_service_nodes(const std::string &contributor) const
+std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>> NodeRPCProxy::get_contributed_masternodes(const std::string &contributor) const
 {
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>> result;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODES::response::entry>> result;
   auto& [success, sns] = result;
   success = false;
 
@@ -282,32 +282,32 @@ std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODES::response::entry>
 
   {
     std::lock_guard lock{m_sn_cache_mutex};
-    if (m_contributed_service_nodes_cached_height != height || m_contributed_service_nodes_cached_address != contributor) {
-      if (m_all_service_nodes_cached_height != height && !update_all_service_nodes_cache(height))
+    if (m_contributed_masternodes_cached_height != height || m_contributed_masternodes_cached_address != contributor) {
+      if (m_all_masternodes_cached_height != height && !update_all_masternodes_cache(height))
         return result;
 
-      m_contributed_service_nodes.clear();
-      std::copy_if(m_all_service_nodes.begin(), m_all_service_nodes.end(), std::back_inserter(m_contributed_service_nodes),
+      m_contributed_masternodes.clear();
+      std::copy_if(m_all_masternodes.begin(), m_all_masternodes.end(), std::back_inserter(m_contributed_masternodes),
           [&contributor](const auto& sn)
           {
             return std::any_of(sn.contributors.begin(), sn.contributors.end(),
                 [&contributor](const auto& c) { return contributor == c.address; });
           }
       );
-      m_contributed_service_nodes_cached_height = height;
-      m_contributed_service_nodes_cached_address = contributor;
+      m_contributed_masternodes_cached_height = height;
+      m_contributed_masternodes_cached_address = contributor;
     }
 
-    sns = m_contributed_service_nodes;
+    sns = m_contributed_masternodes;
   }
 
   success = true;
   return result;
 }
 
-std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry>> NodeRPCProxy::get_service_node_blacklisted_key_images() const
+std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry>> NodeRPCProxy::get_masternode_blacklisted_key_images() const
 {
-  std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry>> result;
+  std::pair<bool, std::vector<cryptonote::rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry>> result;
   auto& [success, sns] = result;
   success = false;
 
@@ -317,18 +317,18 @@ std::pair<bool, std::vector<cryptonote::rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IM
 
   {
     std::lock_guard lock{m_sn_cache_mutex};
-    if (m_service_node_blacklisted_key_images_cached_height != height)
+    if (m_masternode_blacklisted_key_images_cached_height != height)
     {
       try {
-        auto res = invoke_json_rpc<rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES>({});
-        m_service_node_blacklisted_key_images_cached_height = height;
-        m_service_node_blacklisted_key_images               = std::move(res.blacklist);
+        auto res = invoke_json_rpc<rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES>({});
+        m_masternode_blacklisted_key_images_cached_height = height;
+        m_masternode_blacklisted_key_images               = std::move(res.blacklist);
       } catch (...) {
         return result;
       }
     }
 
-    sns = m_service_node_blacklisted_key_images;
+    sns = m_masternode_blacklisted_key_images;
   }
 
   success = true;

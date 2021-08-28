@@ -1,4 +1,4 @@
-# Oxen
+# Quenero
 
 <p align="center">
     <a href="https://github.com/loki-project/loki/commits/dev"><img alt="pipeline status" src="https://gitlab.com/lokiproject/loki/badges/dev/pipeline.svg" /></a>
@@ -10,25 +10,25 @@ Portions Copyright (c) 2012-2013 The Cryptonote developers.
 
 ## Development resources
 
-- Web: [oxen.io](https://oxen.io)
-- Telegram: [t.me/OxenCommunity](https://t.me/Oxen_Community)
-- Mail: [team@oxen.io](mailto:team@oxen.io)
-- GitHub: [https://github.com/oxen-io/oxen-core](https://github.com/oxen-io/oxen-core)
+- Web: [quenero.io](https://quenero.io)
+- Telegram: [t.me/QueneroCommunity](https://t.me/Quenero_Community)
+- Mail: [team@quenero.io](mailto:team@quenero.io)
+- GitHub: [https://github.com/quenero-io/quenero-core](https://github.com/quenero-io/quenero-core)
 - Discord: [https://discord.gg/67GXfD6](https://discord.gg/67GXfD6)
 
 ## Vulnerability disclosure
 
-- Check out our [Vulnerability Response Process](https://github.com/oxen-io/oxen-docs/blob/master/docs/Contributing/VULNERABILITY_RESPONSE_LOKI.md), encourages prompt disclosure of any Vulnerabilities
+- Check out our [Vulnerability Response Process](https://github.com/quenero-io/quenero-docs/blob/master/docs/Contributing/VULNERABILITY_RESPONSE_LOKI.md), encourages prompt disclosure of any Vulnerabilities
 
 ## Information
 
-Oxen is a private cryptocurrency based on Monero. Oxen currently offers an incentivised full node layer, over the coming months we will be looking to support a secondary p2p network (Lokinet) and a messenger that offers private communications based on the Signal protocol (Session).
+Quenero is a private cryptocurrency based on Monero. Quenero currently offers an incentivised full node layer, over the coming months we will be looking to support a secondary p2p network (Lokinet) and a messenger that offers private communications based on the Signal protocol (Session).
 
 More information on the project can be found on the website and in the whitepaper.
 
-Oxen is an open source project, and we encourage contributions from anyone with something to offer. For more information on contributing, please contact team@oxen.io
+Quenero is an open source project, and we encourage contributions from anyone with something to offer. For more information on contributing, please contact team@quenero.io
 
-## Compiling Oxen from source
+## Compiling Quenero from source
 
 ### Dependencies
 
@@ -49,7 +49,7 @@ library archives (`.a`).
 | Boost        | 1.65          | NO       | `libboost-all-dev`[2]  | `boost`      | `boost-devel`       | NO       | C++ libraries    |
 | OpenSSL      | basically any | NO       | `libssl-dev`           | `openssl`    | `openssl-devel`     | NO       | sha256 sum       |
 | libzmq       | 4.3.0         | YES      | `libzmq3-dev`          | `zeromq`     | `zeromq-devel`      | NO       | ZeroMQ library   |
-| sqlite3      | ?             | YES      | `libsqlite3-dev`       | `sqlite`     | `sqlite-devel`      | NO       | Oxen Name System |
+| sqlite3      | ?             | YES      | `libsqlite3-dev`       | `sqlite`     | `sqlite-devel`      | NO       | Quenero Name System |
 | libunbound   | 1.4.16        | NO       | `libunbound-dev`       | `unbound`    | `unbound-devel`     | NO       | DNS resolver     |
 | libsodium    | 1.0.9         | YES      | `libsodium-dev`        | `libsodium`  | `libsodium-devel`   | NO       | cryptography     |
 | libcurl      | 4.0           | NO       | `libcurl4-openssl-dev` | `curl`       | `curl-devel`        | NO       | HTTP RPC         |
@@ -88,34 +88,34 @@ FreeBSD one liner for required to build dependencies
 
 ### Build instructions
 
-Oxen uses the CMake build system which is used by creating a build directory and invoke cmake before building.
+Quenero uses the CMake build system which is used by creating a build directory and invoke cmake before building.
 
 #### On Linux and macOS
 
-You do not have to build from source if you are on debian or ubuntu as we have apt repositories with pre-built oxen packages on `deb.oxen.io`.
+You do not have to build from source if you are on debian or ubuntu as we have apt repositories with pre-built quenero packages on `deb.quenero.io`.
 
 You can install these using:
 
-	$ sudo curl -so /etc/apt/trusted.gpg.d/oxen.gpg https://deb.oxen.io/pub.gpg
-	$ echo "deb https://deb.oxen.io $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/oxen.list
+	$ sudo curl -so /etc/apt/trusted.gpg.d/quenero.gpg https://deb.quenero.io/pub.gpg
+	$ echo "deb https://deb.quenero.io $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/quenero.list
 	$ sudo apt update
-	$ sudo apt install oxend
+	$ sudo apt install quenerod
 
 if you want to build a dev build you can do the following after installing the dependancies above:
 
-	$ git clone --recursive https://github.com/oxen-io/oxen-core.git
-	$ cd oxen-core
+	$ git clone --recursive https://github.com/quenero-io/quenero-core.git
+	$ cd quenero-core
 	$ git submodule update --init --recursive
 	$ mkdir build
 	$ cd build
 	$ cmake ..
 	$ make -j$(nproc)
 
-* The resulting executables can be found in `~/oxen-core/build/bin`
+* The resulting executables can be found in `~/quenero-core/build/bin`
 
-* Add `PATH="$PATH:$HOME/oxen-core/build/bin"` to `.profile`
+* Add `PATH="$PATH:$HOME/quenero-core/build/bin"` to `.profile`
 
-* Run Oxen with `oxend --detach`
+* Run Quenero with `quenerod --detach`
 
 * **Optional**: build and run the test suite to verify the binaries:
 
@@ -154,7 +154,7 @@ the swap file is on the SD card: intensive writes to a swap file on an SD card c
 quickly the SD card wears out.  Devices with 4GB of RAM (such as the 4GB model of the Pi 4B, and
 some other SBC ARM devices) can build without needing swap.
 
-As an alternative, pre-built oxen debs are available for ARM32 and ARM64 for recent
+As an alternative, pre-built quenero debs are available for ARM32 and ARM64 for recent
 Debian/Raspbian/Ubuntu distributions and are often a much better alternative for SBC-class devices.
 If you still want to compile from source, ensure you have enough memory (or swap -- consult your OS
 documentation to learn how to enable or increase swap size) and follow the regular linux build
@@ -224,7 +224,7 @@ application.
     cd loki
     ```
 
-* If you would like a specific [version/tag](https://github.com/oxen-io/oxen-core/tags), do a git checkout for that version. eg. 'v5.1.2'. If you don't care about the version and just want binaries from master, skip this step:
+* If you would like a specific [version/tag](https://github.com/quenero-io/quenero-core/tags), do a git checkout for that version. eg. 'v5.1.2'. If you don't care about the version and just want binaries from master, skip this step:
 	
     ```bash
     git checkout v5.1.2
@@ -242,7 +242,7 @@ application.
     make release-static-win32
     ```
 
-* The resulting executables can be found in `build/<MinGW version>/<oxen version>/release/bin`
+* The resulting executables can be found in `build/<MinGW version>/<quenero version>/release/bin`
 
 * **Optional**: to build Windows binaries suitable for debugging on a 64-bit system, run:
 
@@ -256,12 +256,12 @@ application.
     make debug-static-win32
     ```
 
-* The resulting executables can be found in `build/<MinGW version>/<oxen version>/debug/bin`
+* The resulting executables can be found in `build/<MinGW version>/<quenero version>/debug/bin`
 
 ### On FreeBSD:
 
 The project can be built from scratch by following instructions for Linux above(but use `gmake` instead of `make`). 
-If you are running Oxen in a jail, you need to add `sysvsem="new"` to your jail configuration, otherwise lmdb will throw the error message: `Failed to open lmdb environment: Function not implemented`.
+If you are running Quenero in a jail, you need to add `sysvsem="new"` to your jail configuration, otherwise lmdb will throw the error message: `Failed to open lmdb environment: Function not implemented`.
 
 ### On OpenBSD:
 
@@ -270,9 +270,9 @@ You will need to add a few packages to your system. `pkg_add cmake gmake zeromq 
 The `doxygen` and `graphviz` packages are optional and require the xbase set.
 Running the test suite also requires `py-requests` package.
 
-Build oxen: `env DEVELOPER_LOCAL_TOOLS=1 BOOST_ROOT=/usr/local gmake release-static`
+Build quenero: `env DEVELOPER_LOCAL_TOOLS=1 BOOST_ROOT=/usr/local gmake release-static`
 
-Note: you may encounter the following error, when compiling the latest version of oxen as a normal user:
+Note: you may encounter the following error, when compiling the latest version of quenero as a normal user:
 
 ```
 LLVM ERROR: out of memory
@@ -298,13 +298,13 @@ Then you can run make as usual.
 
 ```bash
 # Build image (for ARM 32-bit)
-docker build -f utils/build_scripts/android32.Dockerfile -t oxen-android .
+docker build -f utils/build_scripts/android32.Dockerfile -t quenero-android .
 # Build image (for ARM 64-bit)
-docker build -f utils/build_scripts/android64.Dockerfile -t oxen-android .
+docker build -f utils/build_scripts/android64.Dockerfile -t quenero-android .
 # Create container
-docker create -it --name oxen-android oxen-android bash
+docker create -it --name quenero-android quenero-android bash
 # Get binaries
-docker cp oxen-android:/src/build/release/bin .
+docker cp quenero-android:/src/build/release/bin .
 ```
 
 ### Building portable statically linked binaries
@@ -341,11 +341,11 @@ You can also cross-compile static binaries on Linux for Windows and macOS with t
 
 The required packages are the names for each toolchain on apt. Depending on your distro, they may have different names.
 
-Using `depends` might also be easier to compile Oxen on Windows than using MSYS. Activate Windows Subsystem for Linux (WSL) with a distro (for example Ubuntu), install the apt build-essentials and follow the `depends` steps as depicted above.
+Using `depends` might also be easier to compile Quenero on Windows than using MSYS. Activate Windows Subsystem for Linux (WSL) with a distro (for example Ubuntu), install the apt build-essentials and follow the `depends` steps as depicted above.
 
 The produced binaries still link libc dynamically. If the binary is compiled on a current distribution, it might not run on an older distribution with an older installation of libc. Passing `-DBACKCOMPAT=ON` to cmake will make sure that the binary will run on systems having at least libc version 2.17.
 
-## Installing Oxen from a package
+## Installing Quenero from a package
 
 Pre-built packages are available for recent Debian and Ubuntu systems (and are often usable on
 Debian or Ubuntu-derived Linux distributions).  For more details see https://deb.imaginary.stream
@@ -356,32 +356,32 @@ You can also build a docker package using:
 
     ```bash
     # Build using all available cores
-    docker build -t oxen-daemon-image .
+    docker build -t quenero-daemon-image .
     
     # or build using a specific number of cores (reduce RAM requirement)
-    docker build --build-arg NPROC=1 -t oxen .
+    docker build --build-arg NPROC=1 -t quenero .
     
     # either run in foreground
-    docker run -it -v /oxen/chain:/root/.oxen -v /oxen/wallet:/wallet -p 22022:22022 oxen 
+    docker run -it -v /quenero/chain:/root/.quenero -v /quenero/wallet:/wallet -p 22022:22022 quenero 
     
     # or in background
-    docker run -it -d -v /oxen/chain:/root/.oxen -v /oxen/wallet:/wallet -p 22022:22022 oxen 
+    docker run -it -d -v /quenero/chain:/root/.quenero -v /quenero/wallet:/wallet -p 22022:22022 quenero 
     ```
 
 * The build needs 3 GB space.
 * Wait one hour or more. For docker, the collect_from_docker_container.sh script will automate downloading the binaries from the docker container.
 
-## Running oxend
+## Running quenerod
 
 The build places the binary in `bin/` sub-directory within the build directory
 from which cmake was invoked (repository root by default). To run in
 foreground:
 
 ```bash
-./bin/oxend
+./bin/quenerod
 ```
 
-To list all available options, run `./bin/oxend --help`.  Options can be
+To list all available options, run `./bin/quenerod --help`.  Options can be
 specified either on the command line or in a configuration file passed by the
 `--config-file` argument.  To specify an option in the configuration file, add
 a line with the syntax `argumentname=value`, where `argumentname` is the name
@@ -390,18 +390,18 @@ of the argument without the leading dashes, for example `log-level=1`.
 To run in background:
 
 ```bash
-./bin/oxend --log-file oxend.log --detach
+./bin/quenerod --log-file quenerod.log --detach
 ```
 
 To run as a systemd service, copy
-[oxend.service](utils/systemd/oxend.service) to `/etc/systemd/system/` and
-[oxend.conf](utils/conf/oxend.conf) to `/etc/`. The [example
-service](utils/systemd/oxend.service) assumes that the user `oxen` exists
+[quenerod.service](utils/systemd/quenerod.service) to `/etc/systemd/system/` and
+[quenerod.conf](utils/conf/quenerod.conf) to `/etc/`. The [example
+service](utils/systemd/quenerod.service) assumes that the user `quenero` exists
 and its home is the data directory specified in the [example
-config](utils/conf/oxend.conf).
+config](utils/conf/quenerod.conf).
 
 If you're on Mac, you may need to add the `--max-concurrency 1` option to
-oxen-wallet-cli, and possibly oxend, if you get crashes refreshing.
+quenero-wallet-cli, and possibly quenerod, if you get crashes refreshing.
 
 ## Internationalization
 
@@ -415,32 +415,32 @@ See [README.i18n.md](README.i18n.md).
 > used solely for relaying transactions received over local RPC. This provides
 > privacy and better protection against surrounding node (sybil) attacks.
 
-While Oxen isn't made to integrate with Tor, it can be used wrapped with torsocks, by
+While Quenero isn't made to integrate with Tor, it can be used wrapped with torsocks, by
 setting the following configuration parameters and environment variables:
 
 * `--p2p-bind-ip 127.0.0.1` on the command line or `p2p-bind-ip=127.0.0.1` in
-  oxend.conf to disable listening for connections on external interfaces.
-* `--no-igd` on the command line or `no-igd=1` in oxend.conf to disable IGD
+  quenerod.conf to disable listening for connections on external interfaces.
+* `--no-igd` on the command line or `no-igd=1` in quenerod.conf to disable IGD
   (UPnP port forwarding negotiation), which is pointless with Tor.
 * `DNS_PUBLIC=tcp` or `DNS_PUBLIC=tcp://x.x.x.x` where x.x.x.x is the IP of the
   desired DNS server, for DNS requests to go over TCP, so that they are routed
-  through Tor. When IP is not specified, oxend uses the default list of
+  through Tor. When IP is not specified, quenerod uses the default list of
   servers defined in [src/common/dns_utils.cpp](src/common/dns_utils.cpp).
-* `TORSOCKS_ALLOW_INBOUND=1` to tell torsocks to allow oxend to bind to interfaces
+* `TORSOCKS_ALLOW_INBOUND=1` to tell torsocks to allow quenerod to bind to interfaces
    to accept connections from the wallet. On some Linux systems, torsocks
    allows binding to localhost by default, so setting this variable is only
    necessary to allow binding to local LAN/VPN interfaces to allow wallets to
    connect from remote hosts. On other systems, it may be needed for local wallets
    as well.
 * Do NOT pass `--detach` when running through torsocks with systemd, (see
-  [utils/systemd/oxend.service](utils/systemd/oxend.service) for details).
+  [utils/systemd/quenerod.service](utils/systemd/quenerod.service) for details).
 * If you use the wallet with a Tor daemon via the loopback IP (eg, 127.0.0.1:9050),
   then use `--untrusted-daemon` unless it is your own hidden service.
 
-Example command line to start oxend through Tor:
+Example command line to start quenerod through Tor:
 
 ```bash
-DNS_PUBLIC=tcp torsocks oxend --p2p-bind-ip 127.0.0.1 --no-igd
+DNS_PUBLIC=tcp torsocks quenerod --p2p-bind-ip 127.0.0.1 --no-igd
 ```
 
 ### Using Tor on Tails
@@ -451,13 +451,13 @@ allow inbound connections. Full example:
 
 ```bash
 sudo iptables -I OUTPUT 2 -p tcp -d 127.0.0.1 -m tcp --dport 22023 -j ACCEPT
-DNS_PUBLIC=tcp torsocks ./oxend --p2p-bind-ip 127.0.0.1 --no-igd --rpc-bind-ip 127.0.0.1 \
+DNS_PUBLIC=tcp torsocks ./quenerod --p2p-bind-ip 127.0.0.1 --no-igd --rpc-bind-ip 127.0.0.1 \
     --data-dir /home/amnesia/Persistent/your/directory/to/the/blockchain
 ```
 
 ## Debugging
 
-This section contains general instructions for debugging failed installs or problems encountered with Oxen. First ensure you are running the latest version built from the Github repo.
+This section contains general instructions for debugging failed installs or problems encountered with Quenero. First ensure you are running the latest version built from the Github repo.
 
 ### Obtaining stack traces and core dumps on Unix systems
 
@@ -470,7 +470,7 @@ Run the build.
 Once it stalls, enter the following command:
 
 ```bash
-gdb /path/to/oxend `pidof oxend`
+gdb /path/to/quenerod `pidof quenerod`
 ```
 
 Type `thread apply all bt` within gdb in order to obtain the stack trace
@@ -483,12 +483,12 @@ Enter `echo core | sudo tee /proc/sys/kernel/core_pattern` to stop cores from be
 
 Run the build.
 
-When it terminates with an output along the lines of "Segmentation fault (core dumped)", there should be a core dump file in the same directory as oxend. It may be named just `core`, or `core.xxxx` with numbers appended.
+When it terminates with an output along the lines of "Segmentation fault (core dumped)", there should be a core dump file in the same directory as quenerod. It may be named just `core`, or `core.xxxx` with numbers appended.
 
 You can now analyse this core dump with `gdb` as follows:
 
 ```bash
-gdb /path/to/oxend /path/to/dumpfile`
+gdb /path/to/quenerod /path/to/dumpfile`
 ```
 
 Print the stack trace with `bt`
@@ -499,13 +499,13 @@ Print the stack trace with `bt`
 coredumpctl -1 gdb
 ```
 
-#### To run Oxen within gdb:
+#### To run Quenero within gdb:
 
-Type `gdb /path/to/oxend`
+Type `gdb /path/to/quenerod`
 
 Pass command-line options with `--args` followed by the relevant arguments
 
-Type `run` to run oxend
+Type `run` to run quenerod
 
 ### Analysing memory corruption
 
@@ -513,17 +513,17 @@ There are two tools available:
 
 #### ASAN
 
-Configure Oxen with the -D SANITIZE=ON cmake flag, eg:
+Configure Quenero with the -D SANITIZE=ON cmake flag, eg:
 
 ```bash
 cd build/debug && cmake -D SANITIZE=ON -D CMAKE_BUILD_TYPE=Debug ../..
 ```
 
-You can then run the oxen tools normally. Performance will typically halve.
+You can then run the quenero tools normally. Performance will typically halve.
 
 #### valgrind
 
-Install valgrind and run as `valgrind /path/to/oxend`. It will be very slow.
+Install valgrind and run as `valgrind /path/to/quenerod`. It will be very slow.
 
 ### LMDB
 
@@ -532,7 +532,7 @@ Instructions for debugging suspected blockchain corruption as per @HYC
 There is an `mdb_stat` command in the LMDB source that can print statistics about the database but it's not routinely built. This can be built with the following command:
 
 ```bash
-cd ~/oxen/external/db_drivers/liblmdb && make
+cd ~/quenero/external/db_drivers/liblmdb && make
 ```
 
 The output of `mdb_stat -ea <path to blockchain dir>` will indicate inconsistencies in the blocks, block_heights and block_info table.
@@ -547,13 +547,13 @@ These records are dumped as hex data, where the first line is the key and the se
 
 ### Socket-based
 
-Because of the nature of the socket-based protocols that drive Oxen, certain protocol weaknesses are somewhat unavoidable at this time. While these weaknesses can theoretically be fully mitigated, the effort required (the means) may not justify the ends. As such, please consider taking the following precautions if you are a Oxen node operator:
+Because of the nature of the socket-based protocols that drive Quenero, certain protocol weaknesses are somewhat unavoidable at this time. While these weaknesses can theoretically be fully mitigated, the effort required (the means) may not justify the ends. As such, please consider taking the following precautions if you are a Quenero node operator:
 
-- Run `oxend` on a "secured" machine. If operational security is not your forte, at a very minimum, have a dedicated a computer running `oxend` and **do not** browse the web, use email clients, or use any other potentially harmful apps on your `oxend` machine. **Do not click links or load URL/MUA content on the same machine**. Doing so may potentially exploit weaknesses in commands which accept "localhost" and "127.0.0.1".
-- If you plan on hosting a public "remote" node, start `oxend` with `--restricted-rpc`. This is a must.
+- Run `quenerod` on a "secured" machine. If operational security is not your forte, at a very minimum, have a dedicated a computer running `quenerod` and **do not** browse the web, use email clients, or use any other potentially harmful apps on your `quenerod` machine. **Do not click links or load URL/MUA content on the same machine**. Doing so may potentially exploit weaknesses in commands which accept "localhost" and "127.0.0.1".
+- If you plan on hosting a public "remote" node, start `quenerod` with `--restricted-rpc`. This is a must.
 
 ### Blockchain-based
 
 Certain blockchain "features" can be considered "bugs" if misused correctly. Consequently, please consider the following:
 
-- When receiving Oxen, be aware that it may be locked for an arbitrary time if the sender elected to, preventing you from spending that Oxen until the lock time expires. You may want to hold off acting upon such a transaction until the unlock time lapses. To get a sense of that time, you can consider the remaining blocktime until unlock as seen in the `show_transfers` command.
+- When receiving Quenero, be aware that it may be locked for an arbitrary time if the sender elected to, preventing you from spending that Quenero until the lock time expires. You may want to hold off acting upon such a transaction until the unlock time lapses. To get a sense of that time, you can consider the remaining blocktime until unlock as seen in the `show_transfers` command.

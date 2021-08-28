@@ -72,10 +72,10 @@ extern "C" {
 #include "common/i18n.h"
 #include "epee/net/local_ip.h"
 
-#include "common/oxen_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "cn"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "cn"
 
 DISABLE_VS_WARNINGS(4355)
 
@@ -115,7 +115,7 @@ namespace cryptonote
   };
   const command_line::arg_descriptor<bool> arg_dev_allow_local  = {
     "dev-allow-local-ips"
-  , "Allow a local IPs for local and received service node public IP (for local testing only)"
+  , "Allow a local IPs for local and received masternode public IP (for local testing only)"
   , false
   };
   const command_line::arg_descriptor<std::string, false, true, 2> arg_data_dir = {
@@ -180,25 +180,25 @@ namespace cryptonote
   , "Set maximum txpool weight in bytes."
   , DEFAULT_TXPOOL_MAX_WEIGHT
   };
-  static const command_line::arg_descriptor<bool> arg_service_node  = {
+  static const command_line::arg_descriptor<bool> arg_masternode  = {
     "service-node"
-  , "Run as a service node, option 'service-node-public-ip' must be set"
+  , "Run as a masternode, option 'service-node-public-ip' must be set"
   };
   static const command_line::arg_descriptor<std::string> arg_public_ip = {
     "service-node-public-ip"
-  , "Public IP address on which this service node's services (such as the Loki "
+  , "Public IP address on which this masternode's services (such as the Loki "
     "storage server) are accessible. This IP address will be advertised to the "
-    "network via the service node uptime proofs. Required if operating as a "
-    "service node."
+    "network via the masternode uptime proofs. Required if operating as a "
+    "masternode."
   };
   static const command_line::arg_descriptor<uint16_t> arg_storage_server_port = {
     "storage-server-port", "Deprecated option, ignored.", 0};
   static const command_line::arg_descriptor<uint16_t, false, true, 2> arg_quorumnet_port = {
     "quorumnet-port"
-  , "The port on which this service node listen for direct connections from other "
-    "service nodes for quorum messages.  The port must be publicly reachable "
+  , "The port on which this masternode listen for direct connections from other "
+    "masternodes for quorum messages.  The port must be publicly reachable "
     "on the `--service-node-public-ip' address and binds to the p2p IP address."
-    " Only applies when running as a service node."
+    " Only applies when running as a masternode."
   , config::QNET_DEFAULT_PORT
   , {{ &cryptonote::arg_testnet_on, &cryptonote::arg_devnet_on }}
   , [](std::array<bool, 2> testnet_devnet, bool defaulted, uint16_t val) -> uint16_t {
@@ -209,7 +209,7 @@ namespace cryptonote
   };
   static const command_line::arg_descriptor<bool> arg_omq_quorumnet_public{
     "lmq-public-quorumnet",
-    "Allow the curve-enabled quorumnet address (for a Service Node) to be used for public RPC commands as if passed to --lmq-curve-public. "
+    "Allow the curve-enabled quorumnet address (for a Masternode) to be used for public RPC commands as if passed to --lmq-curve-public. "
       "Note that even without this option the quorumnet port can be used for RPC commands by --lmq-admin and --lmq-user pubkeys.",
     false};
   static const command_line::arg_descriptor<std::string> arg_block_notify = {
@@ -233,7 +233,7 @@ namespace cryptonote
     "block-rate-notify"
   , "Run a program when the block rate undergoes large fluctuations. This might "
     "be a sign of large amounts of hash rate going on and off the Loki network, "
-    "or could be a sign that oxend is not properly synchronizing with the network. %t will be replaced "
+    "or could be a sign that quenerod is not properly synchronizing with the network. %t will be replaced "
     "by the number of minutes for the observation window, %b by the number of "
     "blocks observed within that window, and %e by the number of blocks that was "
     "expected in that window."
@@ -247,7 +247,7 @@ namespace cryptonote
 
   static const command_line::arg_descriptor<uint64_t> arg_store_quorum_history = {
     "store-quorum-history",
-    "Store the service node quorum history for the last N blocks to allow historic quorum lookups "
+    "Store the masternode quorum history for the last N blocks to allow historic quorum lookups "
     "(e.g. by a block explorer).  Specify the number of blocks of history to store, or 1 to store "
     "the entire history.  Requires considerably more memory and block chain storage.",
     0};
@@ -261,15 +261,15 @@ namespace cryptonote
   quorumnet_new_proc *quorumnet_new = [](core&) -> void* { need_core_init("quorumnet_new"sv); };
   quorumnet_init_proc *quorumnet_init = [](core&, void*) { need_core_init("quorumnet_init"sv); };
   quorumnet_delete_proc *quorumnet_delete = [](void*&) { need_core_init("quorumnet_delete"sv); };
-  quorumnet_relay_obligation_votes_proc *quorumnet_relay_obligation_votes = [](void*, const std::vector<service_nodes::quorum_vote_t>&) { need_core_init("quorumnet_relay_obligation_votes"sv); };
+  quorumnet_relay_obligation_votes_proc *quorumnet_relay_obligation_votes = [](void*, const std::vector<masternodes::quorum_vote_t>&) { need_core_init("quorumnet_relay_obligation_votes"sv); };
   quorumnet_send_blink_proc *quorumnet_send_blink = [](core&, const std::string&) -> std::future<std::pair<blink_result, std::string>> { need_core_init("quorumnet_send_blink"sv); };
-  quorumnet_pulse_relay_message_to_quorum_proc *quorumnet_pulse_relay_message_to_quorum = [](void *, pulse::message const &, service_nodes::quorum const &, bool) -> void { need_core_init("quorumnet_pulse_relay_message_to_quorum"sv); };
+  quorumnet_pulse_relay_message_to_quorum_proc *quorumnet_pulse_relay_message_to_quorum = [](void *, pulse::message const &, masternodes::quorum const &, bool) -> void { need_core_init("quorumnet_pulse_relay_message_to_quorum"sv); };
 
   //-----------------------------------------------------------------------------------------------
   core::core()
   : m_mempool(m_blockchain_storage)
-  , m_service_node_list(m_blockchain_storage)
-  , m_blockchain_storage(m_mempool, m_service_node_list)
+  , m_masternode_list(m_blockchain_storage)
+  , m_blockchain_storage(m_mempool, m_masternode_list)
   , m_quorum_cop(*this)
   , m_miner(this, [this](const cryptonote::block &b, uint64_t height, unsigned int threads, crypto::hash &hash) {
     hash = cryptonote::get_block_longhash_w_blockchain(m_nettype, &m_blockchain_storage, b, height, threads);
@@ -281,10 +281,8 @@ namespace cryptonote
   , m_last_json_checkpoints_update(0)
   , m_nettype(UNDEFINED)
   , m_last_storage_server_ping(0)
-  , m_last_lokinet_ping(0)
   , m_pad_transactions(false)
   , ss_version{0}
-  , lokinet_version{0}
   {
     m_checkpoints_updating.clear();
   }
@@ -343,14 +341,14 @@ namespace cryptonote
     command_line::add_arg(desc, arg_offline);
     command_line::add_arg(desc, arg_block_download_max_size);
     command_line::add_arg(desc, arg_max_txpool_weight);
-    command_line::add_arg(desc, arg_service_node);
+    command_line::add_arg(desc, arg_masternode);
     command_line::add_arg(desc, arg_public_ip);
     command_line::add_arg(desc, arg_storage_server_port);
     command_line::add_arg(desc, arg_quorumnet_port);
 
     command_line::add_arg(desc, arg_pad_transactions);
     command_line::add_arg(desc, arg_block_notify);
-#if 0 // TODO(oxen): Pruning not supported because of Service Node List
+#if 0 // TODO(quenero): Pruning not supported because of Masternode List
     command_line::add_arg(desc, arg_prune_blockchain);
 #endif
     command_line::add_arg(desc, arg_reorg_notify);
@@ -358,7 +356,7 @@ namespace cryptonote
     command_line::add_arg(desc, arg_keep_alt_blocks);
 
     command_line::add_arg(desc, arg_store_quorum_history);
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     command_line::add_arg(desc, integration_test::arg_hardforks_override);
     command_line::add_arg(desc, integration_test::arg_pipe_name);
 #endif
@@ -388,11 +386,11 @@ namespace cryptonote
 
 
     if (command_line::get_arg(vm, arg_dev_allow_local))
-      m_service_node_list.debug_allow_local_ips = true;
+      m_masternode_list.debug_allow_local_ips = true;
 
-    m_service_node = command_line::get_arg(vm, arg_service_node);
+    m_masternode = command_line::get_arg(vm, arg_masternode);
 
-    if (m_service_node) {
+    if (m_masternode) {
       /// TODO: parse these options early, before we start p2p server etc?
       m_quorumnet_port = command_line::get_arg(vm, arg_quorumnet_port);
 
@@ -411,8 +409,8 @@ namespace cryptonote
         }
 
         if (!epee::net_utils::is_ip_public(m_sn_public_ip)) {
-          if (m_service_node_list.debug_allow_local_ips) {
-            MWARNING("Address given for public-ip is not public; allowing it because dev-allow-local-ips was specified. This service node WILL NOT WORK ON THE PUBLIC OXEN NETWORK!");
+          if (m_masternode_list.debug_allow_local_ips) {
+            MWARNING("Address given for public-ip is not public; allowing it because dev-allow-local-ips was specified. This masternode WILL NOT WORK ON THE PUBLIC QUENERO NETWORK!");
           } else {
             MERROR("Address given for public-ip is not public: " << epee::string_tools::get_ip_string_from_int32(m_sn_public_ip));
             args_okay = false;
@@ -421,13 +419,13 @@ namespace cryptonote
       }
       else
       {
-        MERROR("Please specify an IPv4 public address which the service node & storage server is accessible from with: '--" << arg_public_ip.name << " <ip address>'");
+        MERROR("Please specify an IPv4 public address which the masternode & storage server is accessible from with: '--" << arg_public_ip.name << " <ip address>'");
         args_okay = false;
       }
 
       if (!args_okay) {
-        MERROR("IMPORTANT: One or more required service node-related configuration settings/options were omitted or invalid; "
-                << "please fix them and restart oxend.");
+        MERROR("IMPORTANT: One or more required masternode-related configuration settings/options were omitted or invalid; "
+                << "please fix them and restart quenerod.");
         return false;
       }
     }
@@ -496,19 +494,19 @@ namespace cryptonote
     return std::to_string(seconds % 60) + "s";
   }
 
-  // Returns a bool on whether the service node is currently active
+  // Returns a bool on whether the masternode is currently active
   bool core::is_active_sn() const
   {
     auto info = get_my_sn_info();
     return (info && info->is_active());
   }
 
-  // Returns the service nodes info
-  std::shared_ptr<const service_nodes::service_node_info> core::get_my_sn_info() const
+  // Returns the masternodes info
+  std::shared_ptr<const masternodes::masternode_info> core::get_my_sn_info() const
   {
-    auto& snl = get_service_node_list();
+    auto& snl = get_masternode_list();
     const auto& pubkey = get_service_keys().pub;
-    auto states = snl.get_service_node_list_state({ pubkey });
+    auto states = snl.get_masternode_list_state({ pubkey });
     if (states.empty())
       return nullptr;
     else
@@ -518,22 +516,22 @@ namespace cryptonote
   }
 
   // Returns a string for systemd status notifications such as:
-  // Height: 1234567, SN: active, proof: 55m12s, storage: 4m48s, lokinet: 47s
+  // Height: 1234567, SN: active, proof: 55m12s, storage: 4m48s
   std::string core::get_status_string() const
   {
     std::string s;
     s.reserve(128);
-    s += 'v'; s += OXEN_VERSION_STR;
+    s += 'v'; s += QUENERO_VERSION_STR;
     s += "; Height: ";
     s += std::to_string(get_blockchain_storage().get_current_blockchain_height());
     s += ", SN: ";
-    if (!service_node())
+    if (!masternode())
       s += "no";
     else
     {
-      auto& snl = get_service_node_list();
+      auto& snl = get_masternode_list();
       const auto& pubkey = get_service_keys().pub;
-      auto states = snl.get_service_node_list_state({ pubkey });
+      auto states = snl.get_masternode_list_state({ pubkey });
       if (states.empty())
         s += "not registered";
       else
@@ -553,8 +551,6 @@ namespace cryptonote
         s += time_ago_str(now, last_proof);
         s += ", storage: ";
         s += time_ago_str(now, m_last_storage_server_ping);
-        s += ", lokinet: ";
-        s += time_ago_str(now, m_last_lokinet_ping);
       }
     }
     return s;
@@ -565,7 +561,7 @@ namespace cryptonote
   {
     start_time = std::time(nullptr);
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     const std::string arg_hardforks_override = command_line::get_arg(vm, integration_test::arg_hardforks_override);
 
     std::vector<std::pair<uint8_t, uint64_t>> integration_test_hardforks;
@@ -621,10 +617,10 @@ namespace cryptonote
 
     r = init_service_keys();
     CHECK_AND_ASSERT_MES(r, false, "Failed to create or load service keys");
-    if (m_service_node)
+    if (m_masternode)
     {
-      // Only use our service keys for our service node if we are running in SN mode:
-      m_service_node_list.set_my_service_node_keys(&m_service_keys);
+      // Only use our service keys for our masternode if we are running in SN mode:
+      m_masternode_list.set_my_masternode_keys(&m_service_keys);
     }
 
     auto folder = m_config_folder;
@@ -658,7 +654,7 @@ namespace cryptonote
     bool sync_on_blocks = true;
     uint64_t sync_threshold = 1;
 
-#if !defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS) // In integration mode, don't delete the DB. This should be explicitly done in the tests. Otherwise the more likely behaviour is persisting the DB across multiple daemons in the same test.
+#if !defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS) // In integration mode, don't delete the DB. This should be explicitly done in the tests. Otherwise the more likely behaviour is persisting the DB across multiple daemons in the same test.
     if (m_nettype == FAKECHAIN && !keep_fakechain)
     {
       // reset the db by removing the database file before opening it
@@ -799,17 +795,17 @@ namespace cryptonote
       0
     };
 
-    // Service Nodes
+    // Masternodes
     {
-      m_service_node_list.set_quorum_history_storage(command_line::get_arg(vm, arg_store_quorum_history));
+      m_masternode_list.set_quorum_history_storage(command_line::get_arg(vm, arg_store_quorum_history));
 
-      // NOTE: Implicit dependency. Service node list needs to be hooked before checkpoints.
-      m_blockchain_storage.hook_blockchain_detached(m_service_node_list);
-      m_blockchain_storage.hook_init(m_service_node_list);
-      m_blockchain_storage.hook_validate_miner_tx(m_service_node_list);
-      m_blockchain_storage.hook_alt_block_added(m_service_node_list);
+      // NOTE: Implicit dependency. Masternode list needs to be hooked before checkpoints.
+      m_blockchain_storage.hook_blockchain_detached(m_masternode_list);
+      m_blockchain_storage.hook_init(m_masternode_list);
+      m_blockchain_storage.hook_validate_miner_tx(m_masternode_list);
+      m_blockchain_storage.hook_alt_block_added(m_masternode_list);
 
-      // NOTE: There is an implicit dependency on service node lists being hooked first!
+      // NOTE: There is an implicit dependency on masternode lists being hooked first!
       m_blockchain_storage.hook_init(m_quorum_cop);
       m_blockchain_storage.hook_block_added(m_quorum_cop);
       m_blockchain_storage.hook_blockchain_detached(m_quorum_cop);
@@ -818,7 +814,7 @@ namespace cryptonote
     // Checkpoints
     m_checkpoints_path = m_config_folder / fs::u8path(JSON_HASH_FILE_NAME);
 
-    sqlite3 *ons_db = ons::init_oxen_name_system(ons_db_file_path, db->is_read_only());
+    sqlite3 *ons_db = ons::init_quenero_name_system(ons_db_file_path, db->is_read_only());
     if (!ons_db) return false;
 
     init_oxenmq(vm);
@@ -882,9 +878,9 @@ namespace cryptonote
       bool r = tools::slurp_file(keypath, keystr);
       memcpy(&unwrap(unwrap(privkey)), keystr.data(), sizeof(privkey));
       memwipe(&keystr[0], keystr.size());
-      CHECK_AND_ASSERT_MES(r, false, "failed to load service node key from " + keypath.u8string());
+      CHECK_AND_ASSERT_MES(r, false, "failed to load masternode key from " + keypath.u8string());
       CHECK_AND_ASSERT_MES(keystr.size() == sizeof(privkey), false,
-          "service node key file " + keypath.u8string() + " has an invalid size");
+          "masternode key file " + keypath.u8string() + " has an invalid size");
 
       r = get_pubkey(privkey, pubkey);
       CHECK_AND_ASSERT_MES(r, false, "failed to generate pubkey from secret key");
@@ -899,7 +895,7 @@ namespace cryptonote
       }
 
       bool r = tools::dump_file(keypath, tools::view_guts(privkey));
-      CHECK_AND_ASSERT_MES(r, false, "failed to save service node key to " + keypath.u8string());
+      CHECK_AND_ASSERT_MES(r, false, "failed to save masternode key to " + keypath.u8string());
 
       fs::permissions(keypath, fs::perms::owner_read, ec);
     }
@@ -941,10 +937,10 @@ namespace cryptonote
 
     // Legacy primary SN key file; we only load this if it exists, otherwise we use `key_ed25519`
     // for the primary SN keypair.  (This key predates the Ed25519 keys and so is needed for
-    // backwards compatibility with existing active service nodes.)  The legacy key consists of
+    // backwards compatibility with existing active masternodes.)  The legacy key consists of
     // *just* the private point, but not the seed, and so cannot be used for full Ed25519 signatures
     // (which rely on the seed for signing).
-    if (m_service_node) {
+    if (m_masternode) {
       if (std::error_code ec; !fs::exists(m_config_folder / "key", ec)) {
         epee::wipeable_string privkey_signhash;
         privkey_signhash.resize(crypto_hash_sha512_BYTES);
@@ -972,12 +968,11 @@ namespace cryptonote
       keys.pub = crypto::null_pkey;
     }
 
-    if (m_service_node) {
-      MGINFO_YELLOW("Service node public keys:");
+    if (m_masternode) {
+      MGINFO_YELLOW("Masternode public keys:");
       MGINFO_YELLOW("- primary: " << tools::type_to_hex(keys.pub));
       MGINFO_YELLOW("- ed25519: " << tools::type_to_hex(keys.pub_ed25519));
       // .snode address is the ed25519 pubkey, encoded with base32z and with .snode appended:
-      MGINFO_YELLOW("- lokinet: " << oxenmq::to_base32z(tools::view_guts(keys.pub_ed25519)) << ".snode");
       MGINFO_YELLOW("-  x25519: " << tools::type_to_hex(keys.pub_x25519));
     } else {
       // Only print the x25519 version because it's the only thing useful for a non-SN (for
@@ -1016,8 +1011,8 @@ namespace cryptonote
   // port, and AuthLevel::none for a super restricted mode (generally this is useful when there are
   // also SN-restrictions on commands, i.e. for quorumnet).
   //
-  // check_sn is whether we check an incoming key against known service nodes (and thus return
-  // "true" for the service node access if it checks out).
+  // check_sn is whether we check an incoming key against known masternodes (and thus return
+  // "true" for the masternode access if it checks out).
   //
   oxenmq::AuthLevel core::omq_allow(std::string_view ip, std::string_view x25519_pubkey_str, oxenmq::AuthLevel default_auth) {
     using namespace oxenmq;
@@ -1043,11 +1038,11 @@ namespace cryptonote
   void core::init_oxenmq(const boost::program_options::variables_map& vm) {
     using namespace oxenmq;
     MGINFO("Starting oxenmq");
-    m_omq = std::make_unique<OxenMQ>(
+    m_omq = std::make_unique<QueneroMQ>(
         tools::copy_guts(m_service_keys.pub_x25519),
         tools::copy_guts(m_service_keys.key_x25519),
-        m_service_node,
-        [this](std::string_view x25519_pk) { return m_service_node_list.remote_lookup(x25519_pk); },
+        m_masternode,
+        [this](std::string_view x25519_pk) { return m_masternode_list.remote_lookup(x25519_pk); },
         [](LogLevel level, const char *file, int line, std::string msg) {
           // What a lovely interface (<-- sarcasm)
           if (ELPP->vRegistry()->allowed(easylogging_level(level), "omq"))
@@ -1064,9 +1059,9 @@ namespace cryptonote
         })
     ;
 
-    if (m_service_node)
+    if (m_masternode)
     {
-      // Service nodes always listen for quorumnet data on the p2p IP, quorumnet port
+      // Masternodes always listen for quorumnet data on the p2p IP, quorumnet port
       std::string listen_ip = vm["p2p-bind-ip"].as<std::string>();
       if (listen_ip.empty())
         listen_ip = "0.0.0.0";
@@ -1086,14 +1081,14 @@ namespace cryptonote
   void core::start_oxenmq() {
       update_omq_sns(); // Ensure we have SNs set for the current block before starting
 
-      if (m_service_node)
+      if (m_masternode)
       {
         m_pulse_thread_id = m_omq->add_tagged_thread("pulse");
         m_omq->add_timer([this]() { pulse::main(m_quorumnet_state, *this); },
                          std::chrono::milliseconds(500),
                          false,
                          m_pulse_thread_id);
-        m_omq->add_timer([this]() {this->check_service_node_time();},
+        m_omq->add_timer([this]() {this->check_masternode_time();},
                          5s,
                          false);
       }
@@ -1114,7 +1109,7 @@ namespace cryptonote
     if (m_quorumnet_state)
       quorumnet_delete(m_quorumnet_state);
     m_omq.reset();
-    m_service_node_list.store();
+    m_masternode_list.store();
     m_miner.stop();
     m_mempool.deinit();
     m_blockchain_storage.deinit();
@@ -1469,7 +1464,7 @@ namespace cryptonote
     // this without a lock since these are (for now) just local instances.
     new_blinks.reserve(want_count);
 
-    std::unordered_map<uint64_t, std::shared_ptr<const service_nodes::quorum>> quorum_cache;
+    std::unordered_map<uint64_t, std::shared_ptr<const masternodes::quorum>> quorum_cache;
     for (size_t i = 0; i < blinks.size(); i++)
     {
       if (!want[i])
@@ -1482,10 +1477,10 @@ namespace cryptonote
       // now then there's no point of even trying to do signature validation.
       if (bdata.signature.size() != bdata.position.size() ||  // Each signature must have an associated quorum position
           bdata.signature.size() != bdata.quorum.size()   ||  // and quorum index
-          bdata.signature.size() < service_nodes::BLINK_MIN_VOTES * tools::enum_count<blink_tx::subquorum> || // too few signatures for possible validity
-          bdata.signature.size() > service_nodes::BLINK_SUBQUORUM_SIZE * tools::enum_count<blink_tx::subquorum> || // too many signatures
+          bdata.signature.size() < masternodes::BLINK_MIN_VOTES * tools::enum_count<blink_tx::subquorum> || // too few signatures for possible validity
+          bdata.signature.size() > masternodes::BLINK_SUBQUORUM_SIZE * tools::enum_count<blink_tx::subquorum> || // too many signatures
           blink_tx::quorum_height(bdata.height, blink_tx::subquorum::base) == 0 || // Height is too early (no blink quorum height)
-          std::any_of(bdata.position.begin(), bdata.position.end(), [](const auto &p) { return p >= service_nodes::BLINK_SUBQUORUM_SIZE; }) || // invalid position
+          std::any_of(bdata.position.begin(), bdata.position.end(), [](const auto &p) { return p >= masternodes::BLINK_SUBQUORUM_SIZE; }) || // invalid position
           std::any_of(bdata.quorum.begin(), bdata.quorum.end(), [](const auto &qi) { return qi >= tools::enum_count<blink_tx::subquorum>; }) // invalid quorum index
       ) {
         MINFO("Invalid blink tx " << bdata.tx_hash << ": invalid signature data");
@@ -1499,7 +1494,7 @@ namespace cryptonote
         auto q_height = blink.quorum_height(static_cast<blink_tx::subquorum>(qi));
         auto &q = quorum_cache[q_height];
         if (!q)
-          q = get_quorum(service_nodes::quorum_type::blink, q_height);
+          q = get_quorum(masternodes::quorum_type::blink, q_height);
         if (!q)
         {
           MINFO("Don't have a quorum for height " << q_height << " (yet?), ignoring this blink");
@@ -1654,16 +1649,16 @@ namespace cryptonote
     return true;
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::check_service_node_time()
+  bool core::check_masternode_time()
   {
 
     if(!is_active_sn()) {return true;}
 
-    crypto::public_key pubkey = m_service_node_list.get_random_pubkey();
+    crypto::public_key pubkey = m_masternode_list.get_random_pubkey();
     crypto::x25519_public_key x_pkey{0};
     constexpr std::array<uint16_t, 3> MIN_TIMESTAMP_VERSION{9,1,0};
     std::array<uint16_t,3> proofversion;
-    m_service_node_list.access_proof(pubkey, [&](auto &proof) {
+    m_masternode_list.access_proof(pubkey, [&](auto &proof) {
       x_pkey = proof.pubkey_x25519;
       proofversion = proof.proof->version;
     });
@@ -1686,24 +1681,24 @@ namespace cryptonote
               }
               std::lock_guard<std::mutex> lk(m_sn_timestamp_mutex);
               // Records the variance into the record of our performance (m_sn_times)
-              service_nodes::timesync_entry entry{variance <= service_nodes::THRESHOLD_SECONDS_OUT_OF_SYNC};
+              masternodes::timesync_entry entry{variance <= masternodes::THRESHOLD_SECONDS_OUT_OF_SYNC};
               m_sn_times.add(entry);
 
               // Counts the number of times we have been out of sync
               uint8_t num_sn_out_of_sync = std::count_if(m_sn_times.begin(), m_sn_times.end(),
-                [](const service_nodes::timesync_entry entry) { return !entry.in_sync; });
-              if (num_sn_out_of_sync > (m_sn_times.array.size() * service_nodes::MAXIMUM_EXTERNAL_OUT_OF_SYNC/100)) {
-                MWARNING("service node time might be out of sync");
-                // If we are out of sync record the other service node as in sync
-                m_service_node_list.record_timesync_status(pubkey, true);
+                [](const masternodes::timesync_entry entry) { return !entry.in_sync; });
+              if (num_sn_out_of_sync > (m_sn_times.array.size() * masternodes::MAXIMUM_EXTERNAL_OUT_OF_SYNC/100)) {
+                MWARNING("masternode time might be out of sync");
+                // If we are out of sync record the other masternode as in sync
+                m_masternode_list.record_timesync_status(pubkey, true);
               } else {
-                m_service_node_list.record_timesync_status(pubkey, variance <= service_nodes::THRESHOLD_SECONDS_OUT_OF_SYNC);
+                m_masternode_list.record_timesync_status(pubkey, variance <= masternodes::THRESHOLD_SECONDS_OUT_OF_SYNC);
               }
             } else {
               success = false;
             }
           }
-          m_service_node_list.record_timestamp_participation(pubkey, success);
+          m_masternode_list.record_timestamp_participation(pubkey, success);
         });
     }
     return true;
@@ -1744,7 +1739,7 @@ namespace cryptonote
     if (count == 0)
       return result;
 
-    auto& [emission_amount, total_fee_amount, burnt_oxen] = result;
+    auto& [emission_amount, total_fee_amount, burnt_quenero] = result;
 
     // Caching.
     //
@@ -1769,7 +1764,7 @@ namespace cryptonote
         if (m_coinbase_cache.height && count >= m_coinbase_cache.height) {
           emission_amount = m_coinbase_cache.emissions;
           total_fee_amount = m_coinbase_cache.fees;
-          burnt_oxen = m_coinbase_cache.burnt;
+          burnt_quenero = m_coinbase_cache.burnt;
           start_offset = m_coinbase_cache.height + 1;
           count -= m_coinbase_cache.height;
         }
@@ -1799,7 +1794,7 @@ namespace cryptonote
             // The cache is updated and we can still use it, so update our variables.
             emission_amount = m_coinbase_cache.emissions;
             total_fee_amount = m_coinbase_cache.fees;
-            burnt_oxen = m_coinbase_cache.burnt;
+            burnt_quenero = m_coinbase_cache.burnt;
             count -= m_coinbase_cache.height - start_offset + 1;
             start_offset = m_coinbase_cache.height + 1;
           }
@@ -1815,7 +1810,7 @@ namespace cryptonote
     const uint64_t end = start_offset + count - 1;
     m_blockchain_storage.for_blocks_range(start_offset, end,
       [this, &cache_to, &result, &cache_build_started](uint64_t height, const crypto::hash& hash, const block& b){
-      auto& [emission_amount, total_fee_amount, burnt_oxen] = result;
+      auto& [emission_amount, total_fee_amount, burnt_quenero] = result;
       std::vector<transaction> txs;
       std::vector<crypto::hash> missed_txs;
       uint64_t coinbase_amount = get_outs_money_amount(b.miner_tx);
@@ -1826,7 +1821,7 @@ namespace cryptonote
         tx_fee_amount += get_tx_miner_fee(tx, b.major_version >= HF_VERSION_FEE_BURNING);
         if(b.major_version >= HF_VERSION_FEE_BURNING)
         {
-          burnt_oxen += get_burned_amount_from_tx_extra(tx.extra);
+          burnt_quenero += get_burned_amount_from_tx_extra(tx.extra);
         }
       }
 
@@ -1840,7 +1835,7 @@ namespace cryptonote
           m_coinbase_cache.height = height;
           m_coinbase_cache.emissions = emission_amount;
           m_coinbase_cache.fees = total_fee_amount;
-          m_coinbase_cache.burnt = burnt_oxen;
+          m_coinbase_cache.burnt = burnt_quenero;
         }
         if (m_coinbase_cache.building)
         {
@@ -1922,7 +1917,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::submit_uptime_proof()
   {
-    if (!m_service_node)
+    if (!m_masternode)
       return true;
 
     cryptonote_connection_context fake_context{};
@@ -1931,15 +1926,15 @@ namespace cryptonote
     auto hf_version = get_hard_fork_version(height);
     //TODO: remove after HF18
     if (hf_version < HF_VERSION_PROOF_BTENC) {
-      NOTIFY_UPTIME_PROOF::request req = m_service_node_list.generate_uptime_proof(m_sn_public_ip, storage_https_port(), storage_omq_port(), m_quorumnet_port);
+      NOTIFY_UPTIME_PROOF::request req = m_masternode_list.generate_uptime_proof(m_sn_public_ip, storage_https_port(), storage_omq_port(), m_quorumnet_port);
       relayed = get_protocol()->relay_uptime_proof(req, fake_context);
     } else {
-      auto proof = m_service_node_list.generate_uptime_proof(m_sn_public_ip, storage_https_port(), storage_omq_port(), ss_version, m_quorumnet_port, lokinet_version);
+      auto proof = m_masternode_list.generate_uptime_proof(m_sn_public_ip, storage_https_port(), storage_omq_port(), ss_version);
       NOTIFY_BTENCODED_UPTIME_PROOF::request req = proof.generate_request();
       relayed = get_protocol()->relay_btencoded_uptime_proof(req, fake_context);
     }
     if (relayed)
-      MGINFO("Submitted uptime-proof for Service Node (yours): " << m_service_keys.pub);
+      MGINFO("Submitted uptime-proof for Masternode (yours): " << m_service_keys.pub);
 
     return true;
   }
@@ -1947,8 +1942,8 @@ namespace cryptonote
   bool core::handle_uptime_proof(const NOTIFY_UPTIME_PROOF::request &proof, bool &my_uptime_proof_confirmation)
   {
     crypto::x25519_public_key pkey = {};
-    bool result = m_service_node_list.handle_uptime_proof(proof, my_uptime_proof_confirmation, pkey);
-    if (result && m_service_node_list.is_service_node(proof.pubkey, true /*require_active*/) && pkey)
+    bool result = m_masternode_list.handle_uptime_proof(proof, my_uptime_proof_confirmation, pkey);
+    if (result && m_masternode_list.is_masternode(proof.pubkey, true /*require_active*/) && pkey)
     {
       oxenmq::pubkey_set added;
       added.insert(tools::copy_guts(pkey));
@@ -1964,8 +1959,8 @@ namespace cryptonote
     proof->sig = tools::make_from_guts<crypto::signature>(req.sig);
     proof->sig_ed25519 = tools::make_from_guts<crypto::ed25519_signature>(req.ed_sig);
     auto pubkey = proof->pubkey;
-    bool result = m_service_node_list.handle_btencoded_uptime_proof(std::move(proof), my_uptime_proof_confirmation, pkey);
-    if (result && m_service_node_list.is_service_node(pubkey, true /*require_active*/) && pkey)
+    bool result = m_masternode_list.handle_btencoded_uptime_proof(std::move(proof), my_uptime_proof_confirmation, pkey);
+    if (result && m_masternode_list.is_masternode(pubkey, true /*require_active*/) && pkey)
     {
       oxenmq::pubkey_set added;
       added.insert(tools::copy_guts(pkey));
@@ -1989,27 +1984,27 @@ namespace cryptonote
     return tx_hash;
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::relay_service_node_votes()
+  bool core::relay_masternode_votes()
   {
     auto height = get_current_blockchain_height();
     auto hf_version = get_hard_fork_version(height);
 
     auto quorum_votes = m_quorum_cop.get_relayable_votes(height, hf_version, true);
     auto p2p_votes    = m_quorum_cop.get_relayable_votes(height, hf_version, false);
-    if (!quorum_votes.empty() && m_quorumnet_state && m_service_node)
+    if (!quorum_votes.empty() && m_quorumnet_state && m_masternode)
       quorumnet_relay_obligation_votes(m_quorumnet_state, quorum_votes);
 
     if (!p2p_votes.empty())
     {
-      NOTIFY_NEW_SERVICE_NODE_VOTE::request req{};
+      NOTIFY_NEW_MASTERNODE_VOTE::request req{};
       req.votes = std::move(p2p_votes);
       cryptonote_connection_context fake_context{};
-      get_protocol()->relay_service_node_votes(req, fake_context);
+      get_protocol()->relay_masternode_votes(req, fake_context);
     }
 
     return true;
   }
-  void core::set_service_node_votes_relayed(const std::vector<service_nodes::quorum_vote_t> &votes)
+  void core::set_masternode_votes_relayed(const std::vector<masternodes::quorum_vote_t> &votes)
   {
     m_quorum_cop.set_votes_relayed(votes);
   }
@@ -2088,7 +2083,7 @@ namespace cryptonote
     std::vector<block_complete_entry> blocks;
     m_miner.pause();
     {
-      OXEN_DEFER { m_miner.resume(); };
+      QUENERO_DEFER { m_miner.resume(); };
       try
       {
         blocks.push_back(get_block_complete_entry(b, m_mempool));
@@ -2151,7 +2146,7 @@ namespace cryptonote
   {
     bool result = m_blockchain_storage.add_new_block(b, bvc, checkpoint);
     if (result)
-      relay_service_node_votes(); // NOTE: nop if synchronising due to not accepting votes whilst syncing
+      relay_masternode_votes(); // NOTE: nop if synchronising due to not accepting votes whilst syncing
     return result;
   }
   //-----------------------------------------------------------------------------------------------
@@ -2234,9 +2229,9 @@ namespace cryptonote
 
   void core::update_omq_sns()
   {
-    // TODO: let callers (e.g. lokinet, ss) subscribe to callbacks when this fires
+    // TODO: let callers (e.g. ss) subscribe to callbacks when this fires
     oxenmq::pubkey_set active_sns;
-    m_service_node_list.copy_active_x25519_pubkeys(std::inserter(active_sns, active_sns.end()));
+    m_masternode_list.copy_active_x25519_pubkeys(std::inserter(active_sns, active_sns.end()));
     m_omq->set_active_sns(std::move(active_sns));
   }
   //-----------------------------------------------------------------------------------------------
@@ -2289,7 +2284,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   void core::do_uptime_proof_call()
   {
-    std::vector<service_nodes::service_node_pubkey_info> const states = get_service_node_list_state({ m_service_keys.pub });
+    std::vector<masternodes::masternode_pubkey_info> const states = get_masternode_list_state({ m_service_keys.pub });
 
     // wait one block before starting uptime proofs.
     if (!states.empty() && (states[0].info->registration_height + 1) < get_current_blockchain_height())
@@ -2299,7 +2294,7 @@ namespace cryptonote
         // proof if we are within half a tick of the target time.  (Essentially our target proof
         // window becomes the first time this triggers in the 59.75-60.25 minute window).
         uint64_t next_proof_time = 0;
-        m_service_node_list.access_proof(m_service_keys.pub, [&](auto &proof) { next_proof_time = proof.timestamp; });
+        m_masternode_list.access_proof(m_service_keys.pub, [&](auto &proof) { next_proof_time = proof.timestamp; });
         auto& netconf = get_net_config();
         next_proof_time += std::chrono::seconds{
             netconf.UPTIME_PROOF_FREQUENCY - netconf.UPTIME_PROOF_CHECK_INTERVAL/2}.count();
@@ -2307,52 +2302,33 @@ namespace cryptonote
         if ((uint64_t) std::time(nullptr) < next_proof_time)
           return;
 
-        auto pubkey = m_service_node_list.get_pubkey_from_x25519(m_service_keys.pub_x25519);
-        if (pubkey != crypto::null_pkey && pubkey != m_service_keys.pub && m_service_node_list.is_service_node(pubkey, false /*don't require active*/))
+        auto pubkey = m_masternode_list.get_pubkey_from_x25519(m_service_keys.pub_x25519);
+        if (pubkey != crypto::null_pkey && pubkey != m_service_keys.pub && m_masternode_list.is_masternode(pubkey, false /*don't require active*/))
         {
           MGINFO_RED(
-              "Failed to submit uptime proof: another service node on the network is using the same ed/x25519 keys as "
-              "this service node. This typically means both have the same 'key_ed25519' private key file.");
+              "Failed to submit uptime proof: another masternode on the network is using the same ed/x25519 keys as "
+              "this masternode. This typically means both have the same 'key_ed25519' private key file.");
           return;
         }
 
         {
           std::vector<crypto::public_key> sn_pks;
-          auto sns = m_service_node_list.get_service_node_list_state();
+          auto sns = m_masternode_list.get_masternode_list_state();
           sn_pks.reserve(sns.size());
           for (const auto& sni : sns)
             sn_pks.push_back(sni.pubkey);
 
-          m_service_node_list.for_each_service_node_info_and_proof(sn_pks.begin(), sn_pks.end(), [&](auto& pk, auto& sni, auto& proof) {
+          m_masternode_list.for_each_masternode_info_and_proof(sn_pks.begin(), sn_pks.end(), [&](auto& pk, auto& sni, auto& proof) {
             if (pk != m_service_keys.pub && proof.proof->public_ip == m_sn_public_ip &&
                 (proof.proof->qnet_port == m_quorumnet_port || proof.proof->storage_https_port == storage_https_port() || proof.proof->storage_omq_port == storage_omq_port()))
             MGINFO_RED(
-                "Another service node (" << pk << ") is broadcasting the same public IP and ports as this service node (" <<
+                "Another masternode (" << pk << ") is broadcasting the same public IP and ports as this masternode (" <<
                 epee::string_tools::get_ip_string_from_int32(m_sn_public_ip) << ":" << proof.proof->qnet_port << "[qnet], :" <<
                 proof.proof->storage_https_port << "[SS-HTTP], :" << proof.proof->storage_omq_port << "[SS-LMQ]). "
-                "This will lead to deregistration of one or both service nodes if not corrected. "
-                "(Do both service nodes have the correct IP for the service-node-public-ip setting?)");
+                "This will lead to deregistration of one or both masternodes if not corrected. "
+                "(Do both masternodes have the correct IP for the service-node-public-ip setting?)");
           });
         }
-
-        if (m_nettype != DEVNET)
-        {
-          if (!check_external_ping(m_last_storage_server_ping, get_net_config().UPTIME_PROOF_FREQUENCY, "the storage server"))
-          {
-            MGINFO_RED(
-                "Failed to submit uptime proof: have not heard from the storage server recently. Make sure that it "
-                "is running! It is required to run alongside the Loki daemon");
-            return;
-          }
-          if (!check_external_ping(m_last_lokinet_ping, get_net_config().UPTIME_PROOF_FREQUENCY, "Lokinet"))
-          {
-            MGINFO_RED(
-                "Failed to submit uptime proof: have not heard from lokinet recently. Make sure that it "
-                "is running! It is required to run alongside the Loki daemon");
-            return;
-          }
-        }
-
         submit_uptime_proof();
       });
     }
@@ -2386,13 +2362,13 @@ namespace cryptonote
 
     m_fork_moaner.do_call([this] { return check_fork_time(); });
     m_txpool_auto_relayer.do_call([this] { return relay_txpool_transactions(); });
-    m_service_node_vote_relayer.do_call([this] { return relay_service_node_votes(); });
+    m_masternode_vote_relayer.do_call([this] { return relay_masternode_votes(); });
     m_check_disk_space_interval.do_call([this] { return check_disk_space(); });
     m_block_rate_interval.do_call([this] { return check_block_rate(); });
-    m_sn_proof_cleanup_interval.do_call([&snl=m_service_node_list] { snl.cleanup_proofs(); return true; });
+    m_sn_proof_cleanup_interval.do_call([&snl=m_masternode_list] { snl.cleanup_proofs(); return true; });
 
     std::chrono::seconds lifetime{time(nullptr) - get_start_time()};
-    if (m_service_node && lifetime > get_net_config().UPTIME_PROOF_STARTUP_DELAY) // Give us some time to connect to peers before sending uptimes
+    if (m_masternode && lifetime > get_net_config().UPTIME_PROOF_STARTUP_DELAY) // Give us some time to connect to peers before sending uptimes
     {
       do_uptime_proof_call();
     }
@@ -2401,7 +2377,7 @@ namespace cryptonote
     m_miner.on_idle();
     m_mempool.on_idle();
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     integration_test::state.core_is_idle = true;
 #endif
 
@@ -2505,7 +2481,7 @@ namespace cryptonote
       return true;
     }
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     MDEBUG("Not checking block rate, integration test mode");
     return true;
 #endif
@@ -2544,7 +2520,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::set_storage_server_peer_reachable(crypto::public_key const &pubkey, bool value)
   {
-    return m_service_node_list.set_storage_server_peer_reachable(pubkey, value);
+    return m_masternode_list.set_storage_server_peer_reachable(pubkey, value);
   }
   //-----------------------------------------------------------------------------------------------
   void core::flush_bad_txs_cache()
@@ -2589,27 +2565,27 @@ namespace cryptonote
     return fs::space(m_config_folder).available;
   }
   //-----------------------------------------------------------------------------------------------
-  std::shared_ptr<const service_nodes::quorum> core::get_quorum(service_nodes::quorum_type type, uint64_t height, bool include_old, std::vector<std::shared_ptr<const service_nodes::quorum>> *alt_states) const
+  std::shared_ptr<const masternodes::quorum> core::get_quorum(masternodes::quorum_type type, uint64_t height, bool include_old, std::vector<std::shared_ptr<const masternodes::quorum>> *alt_states) const
   {
-    return m_service_node_list.get_quorum(type, height, include_old, alt_states);
+    return m_masternode_list.get_quorum(type, height, include_old, alt_states);
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::is_service_node(const crypto::public_key& pubkey, bool require_active) const
+  bool core::is_masternode(const crypto::public_key& pubkey, bool require_active) const
   {
-    return m_service_node_list.is_service_node(pubkey, require_active);
+    return m_masternode_list.is_masternode(pubkey, require_active);
   }
   //-----------------------------------------------------------------------------------------------
-  const std::vector<service_nodes::key_image_blacklist_entry> &core::get_service_node_blacklisted_key_images() const
+  const std::vector<masternodes::key_image_blacklist_entry> &core::get_masternode_blacklisted_key_images() const
   {
-    return m_service_node_list.get_blacklisted_key_images();
+    return m_masternode_list.get_blacklisted_key_images();
   }
   //-----------------------------------------------------------------------------------------------
-  std::vector<service_nodes::service_node_pubkey_info> core::get_service_node_list_state(const std::vector<crypto::public_key> &service_node_pubkeys) const
+  std::vector<masternodes::masternode_pubkey_info> core::get_masternode_list_state(const std::vector<crypto::public_key> &masternode_pubkeys) const
   {
-    return m_service_node_list.get_service_node_list_state(service_node_pubkeys);
+    return m_masternode_list.get_masternode_list_state(masternode_pubkeys);
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::add_service_node_vote(const service_nodes::quorum_vote_t& vote, vote_verification_context &vvc)
+  bool core::add_masternode_vote(const masternodes::quorum_vote_t& vote, vote_verification_context &vvc)
   {
     return m_quorum_cop.handle_vote(vote, vvc);
   }

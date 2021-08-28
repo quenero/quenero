@@ -46,7 +46,7 @@
 #include "device/device.hpp"
 #include "txtypes.h"
 
-namespace service_nodes
+namespace masternodes
 {
   struct quorum_signature
   {
@@ -184,7 +184,7 @@ namespace cryptonote
     txversion version;
     txtype type;
 
-    bool is_transfer() const { return type == txtype::standard || type == txtype::stake || type == txtype::oxen_name_system; }
+    bool is_transfer() const { return type == txtype::standard || type == txtype::stake || type == txtype::quenero_name_system; }
 
     // not used after version 2, but remains for compatibility
     uint64_t unlock_time;  //number of block (or time), used as a limitation like: spend this tx not early then block/time
@@ -405,7 +405,7 @@ namespace cryptonote
       VARINT_FIELD(timestamp)
       FIELD(prev_id)
       FIELD(nonce)
-      if (major_version >= cryptonote::network_version_16_pulse)
+      if (major_version >= cryptonote::network_version_8)
         FIELD(pulse)
     END_SERIALIZE()
   };
@@ -432,7 +432,7 @@ namespace cryptonote
 
     // hash cache
     mutable crypto::hash hash;
-    std::vector<service_nodes::quorum_signature> signatures;
+    std::vector<masternodes::quorum_signature> signatures;
 
     BEGIN_SERIALIZE_OBJECT()
       if (Archive::is_deserializer)
@@ -443,7 +443,7 @@ namespace cryptonote
       FIELD(tx_hashes)
       if (tx_hashes.size() > CRYPTONOTE_MAX_TX_PER_BLOCK)
         throw std::invalid_argument{"too many txs in block"};
-      if (major_version >= cryptonote::network_version_16_pulse)
+      if (major_version >= cryptonote::network_version_8)
         FIELD(signatures)
     END_SERIALIZE()
   };
@@ -519,7 +519,7 @@ namespace cryptonote
       if (hf_version >= cryptonote::network_version_7 && hf_version <= cryptonote::network_version_8)
         return txversion::v2_ringct;
 
-      if (hf_version >= cryptonote::network_version_9_service_nodes && hf_version <= cryptonote::network_version_10_bulletproofs)
+      if (hf_version >= cryptonote::network_version_9_masternodes && hf_version <= cryptonote::network_version_10_bulletproofs)
         return txversion::v3_per_output_unlock_times;
     }
 
@@ -529,10 +529,10 @@ namespace cryptonote
   constexpr txtype transaction_prefix::get_max_type_for_hf(uint8_t hf_version)
   {
     txtype result = txtype::standard;
-    if      (hf_version >= network_version_15_ons)              result = txtype::oxen_name_system;
+    if      (hf_version >= network_version_15_ons)              result = txtype::quenero_name_system;
     else if (hf_version >= network_version_14_blink)            result = txtype::stake;
     else if (hf_version >= network_version_11_infinite_staking) result = txtype::key_image_unlock;
-    else if (hf_version >= network_version_9_service_nodes)     result = txtype::state_change;
+    else if (hf_version >= network_version_9_masternodes)     result = txtype::state_change;
 
     return result;
   }
@@ -557,7 +557,7 @@ namespace cryptonote
       case txtype::state_change:            return "state_change";
       case txtype::key_image_unlock:        return "key_image_unlock";
       case txtype::stake:                   return "stake";
-      case txtype::oxen_name_system:        return "oxen_name_system";
+      case txtype::quenero_name_system:        return "quenero_name_system";
       default: assert(false);               return "xx_unhandled_type";
     }
   }

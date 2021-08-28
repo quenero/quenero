@@ -1213,7 +1213,7 @@ namespace Language
         "ovoviviparo",
         "ovulo",
         "oxala",
-        "oxente",
+        "quenerote",
         "oxiuro",
         "oxossi",
         "ozonizar",

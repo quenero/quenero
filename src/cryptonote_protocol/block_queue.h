@@ -39,8 +39,8 @@
 #include <boost/uuid/uuid.hpp>
 #include "crypto/hash.h"
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "cn.block_queue"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "cn.block_queue"
 
 namespace cryptonote
 {

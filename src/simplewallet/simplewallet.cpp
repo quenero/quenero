@@ -36,10 +36,10 @@
  */
 
 #include "common/string_util.h"
-#include "oxen_economy.h"
+#include "quenero_economy.h"
 #include <chrono>
 #ifdef _WIN32
- #define __STDC_FORMAT_MACROS // NOTE(oxen): Explicitly define the PRIu64 macro on Mingw
+ #define __STDC_FORMAT_MACROS // NOTE(quenero): Explicitly define the PRIu64 macro on Mingw
 #endif
 
 #include <locale.h>
@@ -62,11 +62,11 @@
 #include "common/dns_utils.h"
 #include "common/base58.h"
 #include "common/scoped_message_writer.h"
-#include "common/oxen_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 #include "cryptonote_protocol/cryptonote_protocol_handler.h"
-#include "cryptonote_core/service_node_voting.h"
-#include "cryptonote_core/service_node_list.h"
-#include "cryptonote_core/oxen_name_system.h"
+#include "cryptonote_core/masternode_voting.h"
+#include "cryptonote_core/masternode_list.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "simplewallet.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "rpc/core_rpc_server_commands_defs.h"
@@ -95,8 +95,8 @@ namespace po = boost::program_options;
 namespace string_tools = epee::string_tools;
 using sw = cryptonote::simple_wallet;
 
-#undef OXEN_DEFAULT_LOG_CATEGORY
-#define OXEN_DEFAULT_LOG_CATEGORY "wallet.simplewallet"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.simplewallet"
 
 #define EXTENDED_LOGS_FILE "wallet_details.log"
 
@@ -109,7 +109,7 @@ using sw = cryptonote::simple_wallet;
   m_wallet->stop(); \
   std::unique_lock lock{m_idle_mutex}; \
   m_idle_cond.notify_all(); \
-  OXEN_DEFER { \
+  QUENERO_DEFER { \
       m_auto_refresh_enabled.store(auto_refresh_enabled, std::memory_order_relaxed); \
       m_idle_cond.notify_one(); \
   }
@@ -142,7 +142,7 @@ namespace
   const command_line::arg_descriptor<bool> arg_allow_mismatched_daemon_version = {"allow-mismatched-daemon-version", sw::tr("Allow communicating with a daemon that uses a different RPC version"), false};
   const command_line::arg_descriptor<uint64_t> arg_restore_height = {"restore-height", sw::tr("Restore from specific blockchain height"), 0};
   const command_line::arg_descriptor<std::string> arg_restore_date = {"restore-date", sw::tr("Restore from estimated blockchain height on specified date"), ""};
-  const command_line::arg_descriptor<bool> arg_do_not_relay = {"do-not-relay", sw::tr("The newly created transaction will not be relayed to the oxen network"), false};
+  const command_line::arg_descriptor<bool> arg_do_not_relay = {"do-not-relay", sw::tr("The newly created transaction will not be relayed to the quenero network"), false};
   const command_line::arg_descriptor<bool> arg_create_address_file = {"create-address-file", sw::tr("Create an address file for new wallets"), false};
   const command_line::arg_descriptor<std::string> arg_create_hwdev_txt = {"create-hwdev-txt", sw::tr("Create a .hwdev.txt file for new hardware-backed wallets containing the given comment")};
   const command_line::arg_descriptor<std::string> arg_subaddress_lookahead = {"subaddress-lookahead", tools::wallet2::tr("Set subaddress lookahead sizes to <major>:<minor>"), ""};
@@ -215,7 +215,7 @@ namespace
   const char* USAGE_MMS("mms [<subcommand> [<subcommand_parameters>]]");
   const char* USAGE_MMS_INIT("mms init <required_signers>/<authorized_signers> <own_label> <own_transport_address>");
   const char* USAGE_MMS_INFO("mms info");
-  const char* USAGE_MMS_SIGNER("mms signer [<number> <label> [<transport_address> [<oxen_address>]]]");
+  const char* USAGE_MMS_SIGNER("mms signer [<number> <label> [<transport_address> [<quenero_address>]]]");
   const char* USAGE_MMS_LIST("mms list");
   const char* USAGE_MMS_NEXT("mms next [sync]");
   const char* USAGE_MMS_SYNC("mms sync");
@@ -248,23 +248,23 @@ namespace
   const char* USAGE_HELP("help [<command>]");
 
   //
-  // Oxen
+  // Quenero
   //
-  const char* USAGE_REGISTER_SERVICE_NODE("register_service_node [index=<N1>[,<N2>,...]] [<priority>] <operator cut> <address1> <fraction1> [<address2> <fraction2> [...]] <expiration timestamp> <pubkey> <signature>");
-  const char* USAGE_STAKE("stake [index=<N1>[,<N2>,...]] [<priority>] <service node pubkey> <amount|percent%>");
-  const char* USAGE_REQUEST_STAKE_UNLOCK("request_stake_unlock <service_node_pubkey>");
+  const char* USAGE_REGISTER_MASTERNODE("register_masternode [index=<N1>[,<N2>,...]] [<priority>] <operator cut> <address1> <fraction1> [<address2> <fraction2> [...]] <expiration timestamp> <pubkey> <signature>");
+  const char* USAGE_STAKE("stake [index=<N1>[,<N2>,...]] [<priority>] <masternode pubkey> <amount|percent%>");
+  const char* USAGE_REQUEST_STAKE_UNLOCK("request_stake_unlock <masternode_pubkey>");
   const char* USAGE_PRINT_LOCKED_STAKES("print_locked_stakes");
 
-  const char* USAGE_ONS_BUY_MAPPING("ons_buy_mapping [index=<N1>[,<N2>,...]] [<priority>] [type=session|lokinet|lokinet_2y|lokinet_5y|lokinet_10y] [owner=<value>] [backup_owner=<value>] <name> <value>");
-  const char* USAGE_ONS_RENEW_MAPPING("ons_renew_mapping [index=<N1>[,<N2>,...]] [<priority>] [type=lokinet|lokinet_2y|lokinet_5y|lokinet_10y] <name>");
-  const char* USAGE_ONS_UPDATE_MAPPING("ons_update_mapping [index=<N1>[,<N2>,...]] [<priority>] [type=session|lokinet] [owner=<value>] [backup_owner=<value>] [value=<ons_value>] [signature=<hex_signature>] <name>");
+  const char* USAGE_ONS_BUY_MAPPING("ons_buy_mapping [index=<N1>[,<N2>,...]] [<priority>] [type=session| [owner=<value>] [backup_owner=<value>] <name> <value>");
+  const char* USAGE_ONS_RENEW_MAPPING("ons_renew_mapping [index=<N1>[,<N2>,...]] [<priority>]  <name>");
+  const char* USAGE_ONS_UPDATE_MAPPING("ons_update_mapping [index=<N1>[,<N2>,...]] [<priority>] [type=session] [owner=<value>] [backup_owner=<value>] [value=<ons_value>] [signature=<hex_signature>] <name>");
 
-  const char* USAGE_ONS_ENCRYPT("ons_encrypt [type=session|lokinet] <name> <value>");
-  const char* USAGE_ONS_MAKE_UPDATE_MAPPING_SIGNATURE("ons_make_update_mapping_signature [type=session|lokinet] [owner=<value>] [backup_owner=<value>] [value=<encrypted_ons_value>] <name>");
+  const char* USAGE_ONS_ENCRYPT("ons_encrypt [type=session] <name> <value>");
+  const char* USAGE_ONS_MAKE_UPDATE_MAPPING_SIGNATURE("ons_make_update_mapping_signature [type=session] [owner=<value>] [backup_owner=<value>] [value=<encrypted_ons_value>] <name>");
   const char* USAGE_ONS_BY_OWNER("ons_by_owner [<owner> ...]");
-  const char* USAGE_ONS_LOOKUP("ons_lookup [type=session|wallet|lokinet] <name> [<name> ...]");
+  const char* USAGE_ONS_LOOKUP("ons_lookup [type=session|wallet] <name> [<name> ...]");
 
-#if defined (OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined (QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   std::string input_line(const std::string &prompt, bool yesno = false)
   {
     if (yesno) std::cout << prompt << " (Y/Yes/N/No): ";
@@ -274,7 +274,7 @@ namespace
     epee::string_tools::trim(buf);
     return buf;
   }
-#else // OXEN_ENABLE_INTEGRATION_TEST_HOOKS
+#else // QUENERO_ENABLE_INTEGRATION_TEST_HOOKS
   std::string input_line(const std::string& prompt, bool yesno = false)
   {
     std::string buf;
@@ -294,11 +294,11 @@ namespace
     epee::string_tools::trim(buf);
     return buf;
   }
-#endif // OXEN_ENABLE_INTEGRATION_TEST_HOOKS
+#endif // QUENERO_ENABLE_INTEGRATION_TEST_HOOKS
 
   epee::wipeable_string input_secure_line(const char *prompt)
   {
-#if defined (OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined (QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     std::cout << prompt;
     integration_test::write_buffered_stdout();
     epee::wipeable_string buf = integration_test::read_from_pipe();
@@ -321,8 +321,8 @@ namespace
 
   std::optional<tools::password_container> password_prompter(const char *prompt, bool verify)
   {
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
-    std::cout << prompt << ": NOTE(oxen): Passwords not supported, defaulting to empty password";
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
+    std::cout << prompt << ": NOTE(quenero): Passwords not supported, defaulting to empty password";
     integration_test::write_buffered_stdout();
     tools::password_container pwd_container(std::string(""));
 #else
@@ -468,7 +468,7 @@ namespace
     std::stringstream prompt;
     prompt << sw::tr("For URL: ") << url
            << ", " << dnssec_str << std::endl
-           << sw::tr(" Oxen Address = ") << addresses[0]
+           << sw::tr(" Quenero Address = ") << addresses[0]
            << std::endl
            << sw::tr("Is this OK?")
     ;
@@ -713,9 +713,9 @@ bool simple_wallet::spendkey(const std::vector<std::string> &args/* = std::vecto
   } else {
     SCOPED_WALLET_UNLOCK();
 
-    warn_msg_writer() << tr("NEVER give your Oxen wallet private spend key (or seed phrase) to ANYONE else. "
-            "NEVER input your Oxen private spend key (or seed phrase) into any software or website other than the OFFICIAL "
-            "Oxen CLI or GUI wallets, downloaded directly from the Oxen GitHub (https://github.com/oxen-io/) or compiled from source.");
+    warn_msg_writer() << tr("NEVER give your Quenero wallet private spend key (or seed phrase) to ANYONE else. "
+            "NEVER input your Quenero private spend key (or seed phrase) into any software or website other than the OFFICIAL "
+            "Quenero CLI or GUI wallets, downloaded directly from the Quenero GitHub (https://github.com/quenero-io/) or compiled from source.");
     std::string confirm = input_line(tr("Are you sure you want to access your private spend key?"), true);
     if (std::cin.eof() || !command_line::is_yes(confirm))
       return false;
@@ -1300,7 +1300,7 @@ bool simple_wallet::import_multisig_main(const std::vector<std::string> &args, b
   try
   {
     m_in_manual_refresh.store(true, std::memory_order_relaxed);
-    OXEN_DEFER { m_in_manual_refresh.store(false, std::memory_order_relaxed); };
+    QUENERO_DEFER { m_in_manual_refresh.store(false, std::memory_order_relaxed); };
     size_t n_outputs = m_wallet->import_multisig(info);
     // Clear line "Height xxx of xxx"
     std::cout << "\r                                                                \r";
@@ -1593,7 +1593,7 @@ bool simple_wallet::export_raw_multisig(const std::vector<std::string> &args)
     for (auto &ptx: txs.m_ptx)
     {
       const crypto::hash txid = cryptonote::get_transaction_hash(ptx.tx);
-      const fs::path fn = fs::u8path("raw_multisig_oxen_tx_" + tools::type_to_hex(txid));
+      const fs::path fn = fs::u8path("raw_multisig_quenero_tx_" + tools::type_to_hex(txid));
       if (!filenames.empty())
         filenames += ", ";
       filenames += fn.u8string();
@@ -2129,25 +2129,25 @@ bool simple_wallet::net_stats(const std::vector<std::string> &args)
 
 bool simple_wallet::welcome(const std::vector<std::string> &args)
 {
-  message_writer() << tr("Welcome to Oxen, the private cryptocurrency based on Monero");
+  message_writer() << tr("Welcome to Quenero, the private cryptocurrency based on Monero");
   message_writer() << "";
-  message_writer() << tr("Oxen, like Bitcoin, is a cryptocurrency. That is, it is digital money.");
-  message_writer() << tr("Unlike Bitcoin, your Oxen transactions and balance stay private and are not visible to the world by default.");
+  message_writer() << tr("Quenero, like Bitcoin, is a cryptocurrency. That is, it is digital money.");
+  message_writer() << tr("Unlike Bitcoin, your Quenero transactions and balance stay private and are not visible to the world by default.");
   message_writer() << tr("However, you have the option of making those available to select parties if you choose to.");
   message_writer() << "";
-  message_writer() << tr("Oxen protects your privacy on the blockchain, and while Oxen strives to improve all the time,");
-  message_writer() << tr("no privacy technology can be 100% perfect, Monero and consequently Oxen included.");
-  message_writer() << tr("Oxen cannot protect you from malware, and it may not be as effective as we hope against powerful adversaries.");
-  message_writer() << tr("Flaws in Oxen may be discovered in the future, and attacks may be developed to peek under some");
-  message_writer() << tr("of the layers of privacy Oxen provides. Be safe and practice defense in depth.");
+  message_writer() << tr("Quenero protects your privacy on the blockchain, and while Quenero strives to improve all the time,");
+  message_writer() << tr("no privacy technology can be 100% perfect, Monero and consequently Quenero included.");
+  message_writer() << tr("Quenero cannot protect you from malware, and it may not be as effective as we hope against powerful adversaries.");
+  message_writer() << tr("Flaws in Quenero may be discovered in the future, and attacks may be developed to peek under some");
+  message_writer() << tr("of the layers of privacy Quenero provides. Be safe and practice defense in depth.");
   message_writer() << "";
-  message_writer() << tr("Welcome to Oxen and financial privacy. For more information, see https://oxen.io");
+  message_writer() << tr("Welcome to Quenero and financial privacy. For more information, see https://quenero.io");
   return true;
 }
 
 bool simple_wallet::version(const std::vector<std::string> &args)
 {
-  message_writer() << "Oxen '" << OXEN_RELEASE_NAME << "' (v" << OXEN_VERSION_FULL << ")";
+  message_writer() << "Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL << ")";
   return true;
 }
 
@@ -2783,12 +2783,12 @@ simple_wallet::simple_wallet()
  refresh-from-block-height [n]
    Set the height before which to ignore blocks.
  segregate-pre-fork-outputs <1|0>
-   Set this if you intend to spend outputs on both Oxen AND a key reusing fork.
+   Set this if you intend to spend outputs on both Quenero AND a key reusing fork.
  key-reuse-mitigation2 <1|0>
-   Set this if you are not sure whether you will spend on a key reusing Oxen fork later.
+   Set this if you are not sure whether you will spend on a key reusing Quenero fork later.
  subaddress-lookahead <major>:<minor>
    Set the lookahead sizes for the subaddress hash table.
-   Set this if you are not sure whether you will spend on a key reusing Oxen fork later.
+   Set this if you are not sure whether you will spend on a key reusing Quenero fork later.
  segregation-height <n>
    Set to the height of a key reusing fork you want to use, 0 to use default.
  ignore-outputs-above <amount>
@@ -3000,7 +3000,7 @@ Pending or Failed: "failed"|"pending",  "out", Lock, Checkpointed, Time, Amount*
   m_cmd_binder.set_handler("mms signer",
                            [this](const auto& x) { return mms(x); },
                            tr(USAGE_MMS_SIGNER),
-                           tr("Set or modify authorized signer info (single-word label, transport address, Oxen address), or list all signers"));
+                           tr("Set or modify authorized signer info (single-word label, transport address, Quenero address), or list all signers"));
   m_cmd_binder.set_handler("mms list",
                            [this](const auto& x) { return mms(x); },
                            tr(USAGE_MMS_LIST),
@@ -3130,24 +3130,24 @@ Pending or Failed: "failed"|"pending",  "out", Lock, Checkpointed, Time, Amount*
   m_cmd_binder.set_cancel_handler([this] { return on_cancelled_command(); });
 
   //
-  // Oxen
+  // Quenero
   //
-  m_cmd_binder.set_handler("register_service_node",
-                           [this](const auto& x) { return register_service_node(x); },
-                           tr(USAGE_REGISTER_SERVICE_NODE),
-                           tr("Send <amount> to this wallet's main account and lock it as an operator stake for a new Service Node. This command is typically generated on the Service Node via the `prepare_registration' oxend command. The optional index= and <priority> parameters work as in the `transfer' command."));
+  m_cmd_binder.set_handler("register_masternode",
+                           [this](const auto& x) { return register_masternode(x); },
+                           tr(USAGE_REGISTER_MASTERNODE),
+                           tr("Send <amount> to this wallet's main account and lock it as an operator stake for a new Masternode. This command is typically generated on the Masternode via the `prepare_registration' quenerod command. The optional index= and <priority> parameters work as in the `transfer' command."));
   m_cmd_binder.set_handler("stake",
                            [this](const auto& x) { return stake(x); },
                            tr(USAGE_STAKE),
-                           tr("Send a transfer to this wallet's main account and lock it as a contribution stake to the given Service Node (which must be registered and awaiting contributions). The stake amount may be specified either as a fixed amount or as a percentage of the Service Node's total stake. The optional index= and <priority> parameters work as in the `transfer' command."));
+                           tr("Send a transfer to this wallet's main account and lock it as a contribution stake to the given Masternode (which must be registered and awaiting contributions). The stake amount may be specified either as a fixed amount or as a percentage of the Masternode's total stake. The optional index= and <priority> parameters work as in the `transfer' command."));
   m_cmd_binder.set_handler("request_stake_unlock",
                            [this](const auto& x) { return request_stake_unlock(x); },
                            tr(USAGE_REQUEST_STAKE_UNLOCK),
-                           tr("Request a stake currently locked in the given Service Node to be unlocked on the network"));
+                           tr("Request a stake currently locked in the given Masternode to be unlocked on the network"));
   m_cmd_binder.set_handler("print_locked_stakes",
                            [this](const auto& x) { return print_locked_stakes(x); },
                            tr(USAGE_PRINT_LOCKED_STAKES),
-                           tr("Print stakes currently locked on the Service Node network"));
+                           tr("Print stakes currently locked on the Masternode network"));
 
   m_cmd_binder.set_handler("ons_buy_mapping",
                            [this](const auto& x) { return ons_buy_mapping(x); },
@@ -3172,12 +3172,12 @@ Pending or Failed: "failed"|"pending",  "out", Lock, Checkpointed, Time, Amount*
   m_cmd_binder.set_handler("ons_by_owner",
                            [this](const auto& x) { return ons_by_owner(x); },
                            tr(USAGE_ONS_BY_OWNER),
-                           tr("Query the Oxen Name Service names that the keys have purchased. If no keys are specified, it defaults to the current wallet."));
+                           tr("Query the Quenero Name Service names that the keys have purchased. If no keys are specified, it defaults to the current wallet."));
 
   m_cmd_binder.set_handler("ons_lookup",
                            [this](const auto& x) { return ons_lookup(x); },
                            tr(USAGE_ONS_LOOKUP),
-                           tr("Query the ed25519 public keys that own the Oxen Name System names."));
+                           tr("Query the ed25519 public keys that own the Quenero Name System names."));
 
   m_cmd_binder.set_handler("ons_make_update_mapping_signature",
                            [this](const auto& x) { return ons_make_update_mapping_signature(x); },
@@ -3425,9 +3425,9 @@ void simple_wallet::print_seed(const epee::wipeable_string &seed)
     "Write them down and store them somewhere safe and secure. Please do not store them in "
     "your email or on file storage services outside of your immediate control.\n")) % (m_wallet->multisig() ? tr("string") : tr("25 words"));
 
-  warn_msg_writer() << tr("NEVER give your Oxen wallet seed to ANYONE else. NEVER input your Oxen "
-          "wallet seed into any software or website other than the OFFICIAL Oxen CLI or GUI wallets, "
-          "downloaded directly from the Oxen GitHub (https://github.com/oxen-io/) or compiled from source.");
+  warn_msg_writer() << tr("NEVER give your Quenero wallet seed to ANYONE else. NEVER input your Quenero "
+          "wallet seed into any software or website other than the OFFICIAL Quenero CLI or GUI wallets, "
+          "downloaded directly from the Quenero GitHub (https://github.com/quenero-io/) or compiled from source.");
   std::string confirm = input_line(tr("Are you sure you want to access your wallet seed?"), true);
   if (std::cin.eof() || !command_line::is_yes(confirm))
     return;
@@ -3484,7 +3484,7 @@ static bool datestr_to_int(const std::string &heightstr, uint16_t &year, uint8_t
 //----------------------------------------------------------------------------------------------------
 bool simple_wallet::init(const boost::program_options::variables_map& vm)
 {
-  OXEN_DEFER { m_electrum_seed.wipe(); };
+  QUENERO_DEFER { m_electrum_seed.wipe(); };
 
   if (auto deprecations = tools::wallet2::has_deprecated_options(vm); !deprecations.empty())
   {
@@ -4072,7 +4072,7 @@ bool simple_wallet::init(const boost::program_options::variables_map& vm)
     bool ssl = false;
     if (m_wallet->check_connection(nullptr, &ssl) && !ssl)
       message_writer(epee::console_color_yellow, true) << tr("Using your own without SSL exposes your RPC traffic to monitoring");
-    message_writer(epee::console_color_yellow, true) << tr("You are strongly encouraged to connect to the Oxen network using your own daemon");
+    message_writer(epee::console_color_yellow, true) << tr("You are strongly encouraged to connect to the Quenero network using your own daemon");
     message_writer(epee::console_color_yellow, true) << tr("If you or someone you trust are operating this daemon, you can use --trusted-daemon");
     message_writer();
 
@@ -4090,7 +4090,7 @@ bool simple_wallet::init(const boost::program_options::variables_map& vm)
   m_wallet->callback(this);
 
   if (welcome)
-    message_writer(epee::console_color_yellow, true) << tr("If you are new to Oxen, type \"welcome\" for a brief overview.");
+    message_writer(epee::console_color_yellow, true) << tr("If you are new to Quenero, type \"welcome\" for a brief overview.");
 
   m_last_activity_time = time(NULL);
   return true;
@@ -4318,7 +4318,7 @@ std::optional<epee::wipeable_string> simple_wallet::new_wallet(const boost::prog
     "To start synchronizing with the daemon, use the \"refresh\" command.\n"
     "Use the \"help\" command to see the list of available commands.\n"
     "Use \"help <command>\" to see a command's documentation.\n"
-    "Always use the \"exit\" command when closing oxen-wallet-cli to save \n"
+    "Always use the \"exit\" command when closing quenero-wallet-cli to save \n"
     "your current session's state. Otherwise, you might need to synchronize \n"
     "your wallet again (your wallet keys are NOT at risk in any case).\n")
   ;
@@ -5023,7 +5023,7 @@ bool simple_wallet::refresh_main(uint64_t start_height, enum ResetType reset, bo
   try
   {
     m_in_manual_refresh.store(true, std::memory_order_relaxed);
-    OXEN_DEFER { m_in_manual_refresh.store(false, std::memory_order_relaxed); };
+    QUENERO_DEFER { m_in_manual_refresh.store(false, std::memory_order_relaxed); };
     m_wallet->refresh(m_wallet->is_trusted_daemon(), start_height, fetched_blocks, received_money, true /*check_pool*/);
 
     if (reset == ResetSoftKeepKI)
@@ -5649,7 +5649,7 @@ void simple_wallet::check_for_inactivity_lock(bool user)
         tools::msg_writer() << R"(
       ...........
     ...............
-  ....OOOOOOOOOOO....   Your Oxen Wallet was locked to
+  ....OOOOOOOOOOO....   Your Quenero Wallet was locked to
  .......OOOOOOO.......  protect you while you were away.
  ..........O..........
  .......OOOOOOO.......  (Use `set inactivity-lock-timeout 0`
@@ -5803,7 +5803,7 @@ bool simple_wallet::confirm_and_send_tx(std::vector<cryptonote::address_parse_in
   }
   else if (m_wallet->multisig())
   {
-    bool r = m_wallet->save_multisig_tx(ptx_vector, "multisig_oxen_tx");
+    bool r = m_wallet->save_multisig_tx(ptx_vector, "multisig_quenero_tx");
     if (!r)
     {
       fail_msg_writer() << tr("Failed to write transaction(s) to file");
@@ -5811,7 +5811,7 @@ bool simple_wallet::confirm_and_send_tx(std::vector<cryptonote::address_parse_in
     }
     else
     {
-      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "multisig_oxen_tx";
+      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "multisig_quenero_tx";
     }
   }
   else if (m_wallet->get_account().get_device().has_tx_cold_sign())
@@ -5840,7 +5840,7 @@ bool simple_wallet::confirm_and_send_tx(std::vector<cryptonote::address_parse_in
   }
   else if (m_wallet->watch_only())
   {
-    bool r = m_wallet->save_tx(ptx_vector, "unsigned_oxen_tx");
+    bool r = m_wallet->save_tx(ptx_vector, "unsigned_quenero_tx");
     if (!r)
     {
       fail_msg_writer() << tr("Failed to write transaction(s) to file");
@@ -5848,7 +5848,7 @@ bool simple_wallet::confirm_and_send_tx(std::vector<cryptonote::address_parse_in
     }
     else
     {
-      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_oxen_tx";
+      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_quenero_tx";
     }
   }
   else
@@ -5962,7 +5962,7 @@ bool simple_wallet::transfer_main(Transfer transfer_type, const std::vector<std:
     }
     else
     {
-      if (boost::starts_with(local_args[i], "oxen:"))
+      if (boost::starts_with(local_args[i], "quenero:"))
         fail_msg_writer() << tr("Invalid last argument: ") << local_args.back() << ": " << error;
       else
         fail_msg_writer() << tr("Invalid last argument: ") << local_args.back();
@@ -6037,7 +6037,7 @@ bool simple_wallet::transfer_main(Transfer transfer_type, const std::vector<std:
     }
 
 
-    oxen_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, txtype::standard, priority, burn_amount);
+    quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, txtype::standard, priority, burn_amount);
     ptx_vector = m_wallet->create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, unlock_block, priority, extra, m_current_subaddress_account, subaddr_indices, tx_params);
 
     if (ptx_vector.empty())
@@ -6080,23 +6080,23 @@ bool simple_wallet::locked_sweep_all(const std::vector<std::string> &args_)
   return sweep_main(m_current_subaddress_account, 0, Transfer::Locked, args_);
 }
 //----------------------------------------------------------------------------------------------------
-bool simple_wallet::register_service_node(const std::vector<std::string> &args_)
+bool simple_wallet::register_masternode(const std::vector<std::string> &args_)
 {
   if (!try_connect_to_daemon())
     return true;
 
   SCOPED_WALLET_UNLOCK()
-  tools::wallet2::register_service_node_result result = m_wallet->create_register_service_node_tx(args_, m_current_subaddress_account);
-  if (result.status != tools::wallet2::register_service_node_result_status::success)
+  tools::wallet2::register_masternode_result result = m_wallet->create_register_masternode_tx(args_, m_current_subaddress_account);
+  if (result.status != tools::wallet2::register_masternode_result_status::success)
   {
     fail_msg_writer() << result.msg;
-    if (result.status == tools::wallet2::register_service_node_result_status::insufficient_num_args ||
-        result.status == tools::wallet2::register_service_node_result_status::service_node_key_parse_fail ||
-        result.status == tools::wallet2::register_service_node_result_status::service_node_signature_parse_fail ||
-        result.status == tools::wallet2::register_service_node_result_status::subaddr_indices_parse_fail ||
-        result.status == tools::wallet2::register_service_node_result_status::convert_registration_args_failed)
+    if (result.status == tools::wallet2::register_masternode_result_status::insufficient_num_args ||
+        result.status == tools::wallet2::register_masternode_result_status::masternode_key_parse_fail ||
+        result.status == tools::wallet2::register_masternode_result_status::masternode_signature_parse_fail ||
+        result.status == tools::wallet2::register_masternode_result_status::subaddr_indices_parse_fail ||
+        result.status == tools::wallet2::register_masternode_result_status::convert_registration_args_failed)
     {
-      fail_msg_writer() << USAGE_REGISTER_SERVICE_NODE;
+      fail_msg_writer() << USAGE_REGISTER_MASTERNODE;
     }
     return true;
   }
@@ -6133,7 +6133,7 @@ bool simple_wallet::stake(const std::vector<std::string> &args_)
   //
   // Parse Arguments from Args
   //
-  crypto::public_key service_node_key = {};
+  crypto::public_key masternode_key = {};
   uint32_t priority = 0;
   std::set<uint32_t> subaddr_indices = {};
   uint64_t amount = 0;
@@ -6151,9 +6151,9 @@ bool simple_wallet::stake(const std::vector<std::string> &args_)
       return true;
     }
 
-    if (!tools::hex_to_type(local_args[0], service_node_key))
+    if (!tools::hex_to_type(local_args[0], masternode_key))
     {
-      fail_msg_writer() << tr("failed to parse service node pubkey");
+      fail_msg_writer() << tr("failed to parse masternode pubkey");
       return true;
     }
 
@@ -6198,7 +6198,7 @@ bool simple_wallet::stake(const std::vector<std::string> &args_)
 
       time_t begin_construct_time = time(nullptr);
 
-      tools::wallet2::stake_result stake_result = m_wallet->create_stake_tx(service_node_key, amount, amount_fraction, priority, subaddr_indices);
+      tools::wallet2::stake_result stake_result = m_wallet->create_stake_tx(masternode_key, amount, amount_fraction, priority, subaddr_indices);
       if (stake_result.status != tools::wallet2::stake_result_status::success)
       {
         fail_msg_writer() << stake_result.msg;
@@ -6253,7 +6253,7 @@ bool simple_wallet::request_stake_unlock(const std::vector<std::string> &args_)
   crypto::public_key snode_key;
   if (!tools::hex_to_type(args_[0], snode_key))
   {
-    fail_msg_writer() << tr("failed to parse service node pubkey: ") << args_[0];
+    fail_msg_writer() << tr("failed to parse masternode pubkey: ") << args_[0];
     return true;
   }
 
@@ -6282,8 +6282,8 @@ bool simple_wallet::request_stake_unlock(const std::vector<std::string> &args_)
   std::vector<tools::wallet2::pending_tx> ptx_vector = {unlock_result.ptx};
   if (m_wallet->watch_only())
   {
-    if (m_wallet->save_tx(ptx_vector, "unsigned_oxen_tx"))
-      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_oxen_tx";
+    if (m_wallet->save_tx(ptx_vector, "unsigned_quenero_tx"))
+      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_quenero_tx";
     else
       fail_msg_writer() << tr("Failed to write transaction(s) to file");
 
@@ -6318,7 +6318,7 @@ bool simple_wallet::query_locked_stakes(bool print_result)
     using namespace cryptonote;
     auto response = m_wallet->list_current_stakes();
 
-    for (rpc::GET_SERVICE_NODES::response::entry const &node_info : response)
+    for (rpc::GET_MASTERNODES::response::entry const &node_info : response)
     {
       bool only_once = true;
       for (const auto& contributor : node_info.contributors)
@@ -6335,12 +6335,12 @@ bool simple_wallet::query_locked_stakes(bool print_result)
           if (only_once)
           {
             only_once = false;
-            msg_buf.append("Service Node: ");
-            msg_buf.append(node_info.service_node_pubkey);
+            msg_buf.append("Masternode: ");
+            msg_buf.append(node_info.masternode_pubkey);
             msg_buf.append("\n");
 
             msg_buf.append("Unlock Height: ");
-            if (node_info.requested_unlock_height == service_nodes::KEY_IMAGE_AWAITING_UNLOCK_HEIGHT)
+            if (node_info.requested_unlock_height == masternodes::KEY_IMAGE_AWAITING_UNLOCK_HEIGHT)
                 msg_buf.append("Unlock not requested yet");
             else
                 msg_buf.append(std::to_string(node_info.requested_unlock_height));
@@ -6372,7 +6372,7 @@ bool simple_wallet::query_locked_stakes(bool print_result)
   }
 
   {
-    auto [success, response] = m_wallet->get_service_node_blacklisted_key_images();
+    auto [success, response] = m_wallet->get_masternode_blacklisted_key_images();
     if (!success)
     {
       fail_msg_writer() << "Connection to daemon failed when retrieving blacklisted key images";
@@ -6384,7 +6384,7 @@ bool simple_wallet::query_locked_stakes(bool print_result)
     binary_buf.reserve(sizeof(crypto::key_image));
     for (size_t i = 0; i < response.size(); ++i)
     {
-      rpc::GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry const &entry = response[i];
+      rpc::GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry const &entry = response[i];
       binary_buf.clear();
       if(!epee::string_tools::parse_hexstr_to_binbuff(entry.key_image, binary_buf) || binary_buf.size() != sizeof(crypto::key_image))
       {
@@ -6412,7 +6412,7 @@ bool simple_wallet::query_locked_stakes(bool print_result)
       msg_buf.append(entry.key_image);
       msg_buf.append("\n");
       if (entry.amount > 0) {
-        // version >= service_nodes::key_image_blacklist_entry::version_1_serialize_amount
+        // version >= masternodes::key_image_blacklist_entry::version_1_serialize_amount
         msg_buf.append("  Total Locked: ");
         msg_buf.append(cryptonote::print_money(entry.amount));
         msg_buf.append("\n");
@@ -6450,8 +6450,6 @@ static std::optional<ons::mapping_type> guess_ons_type(tools::wallet2& wallet, s
 {
   if (typestr.empty())
   {
-    if (tools::ends_with(name, ".loki") && (tools::ends_with(value, ".loki") || value.empty()))
-      return ons::mapping_type::lokinet;
     if (!tools::ends_with(name, ".loki") && tools::starts_with(value, "05") && value.length() == 2*ons::SESSION_PUBLIC_KEY_BINARY_LENGTH)
       return ons::mapping_type::session;
     if (cryptonote::is_valid_address(std::string{value}, wallet.nettype()))
@@ -6533,22 +6531,11 @@ bool simple_wallet::ons_buy_mapping(std::vector<std::string> args)
     info.is_subaddress                  = m_current_subaddress_account != 0;
     dsts.push_back(info);
 
-    std::cout << std::endl << tr("Buying Oxen Name System Record") << std::endl << std::endl;
+    std::cout << std::endl << tr("Buying Quenero Name System Record") << std::endl << std::endl;
     if (*type == ons::mapping_type::session)
       std::cout << boost::format(tr("Session Name: %s")) % name << std::endl;
     else if (*type == ons::mapping_type::wallet)
       std::cout << boost::format(tr("Wallet Name:  %s")) % name << std::endl;
-    else if (ons::is_lokinet_type(*type))
-    {
-      std::cout << boost::format(tr("Lokinet Name: %s")) % name << std::endl;
-      int years =
-          *type == ons::mapping_type::lokinet_10years ? 10 :
-          *type == ons::mapping_type::lokinet_5years ? 5 :
-          *type == ons::mapping_type::lokinet_2years ? 2 :
-          1;
-      int blocks = BLOCKS_EXPECTED_IN_DAYS(years * ons::REGISTRATION_YEAR_DAYS);
-      std::cout << boost::format(tr("Registration: %d years (%d blocks)")) % years % blocks << "\n";
-    }
     else
       std::cout << boost::format(tr("Name:         %s")) % name << std::endl;
     std::cout << boost::format(tr("Value:        %s")) % value << std::endl;
@@ -6631,16 +6618,11 @@ bool simple_wallet::ons_renew_mapping(std::vector<std::string> args)
     info.is_subaddress                  = m_current_subaddress_account != 0;
     dsts.push_back(info);
 
-    std::cout << "\n" << tr("Renew Oxen Name System Record") << "\n\n";
-    if (ons::is_lokinet_type(type))
-      std::cout << boost::format(tr("Lokinet Name:  %s")) % name << "\n";
-    else
+    std::cout << "\n" << tr("Renew Quenero Name System Record") << "\n\n";
       std::cout << boost::format(tr("Name:          %s")) % name << "\n";
 
     int years = 1;
-    if (type == ons::mapping_type::lokinet_2years) years = 2;
-    else if (type == ons::mapping_type::lokinet_5years) years = 5;
-    else if (type == ons::mapping_type::lokinet_10years) years = 10;
+
     int blocks = BLOCKS_EXPECTED_IN_DAYS(years * ons::REGISTRATION_YEAR_DAYS);
     std::cout << boost::format(tr("Renewal years: %d (%d blocks)")) % years % blocks << "\n";
     std::cout << boost::format(tr("New expiry:    Block %d")) % (*response[0].expiration_height + blocks) << "\n";
@@ -6713,8 +6695,8 @@ bool simple_wallet::ons_update_mapping(std::vector<std::string> args)
     auto& enc_hex = response[0].encrypted_value;
     if (!oxenmq::is_hex(enc_hex) || enc_hex.size() % 2 != 0 || enc_hex.size() > 2*ons::mapping_value::BUFFER_SIZE)
     {
-      LOG_ERROR("invalid ONS data returned from oxend");
-      fail_msg_writer() << tr("invalid ONS data returned from oxend");
+      LOG_ERROR("invalid ONS data returned from quenerod");
+      fail_msg_writer() << tr("invalid ONS data returned from quenerod");
       return true;
     }
 
@@ -6735,11 +6717,9 @@ bool simple_wallet::ons_update_mapping(std::vector<std::string> args)
     info.is_subaddress                  = m_current_subaddress_account != 0;
     dsts.push_back(info);
 
-    std::cout << std::endl << tr("Updating Oxen Name System Record") << std::endl << std::endl;
+    std::cout << std::endl << tr("Updating Quenero Name System Record") << std::endl << std::endl;
     if (type == ons::mapping_type::session)
       std::cout << boost::format(tr("Session Name:     %s")) % name << std::endl;
-    else if (ons::is_lokinet_type(type))
-      std::cout << boost::format(tr("Lokinet Name:     %s")) % name << std::endl;
     else if (type == ons::mapping_type::wallet)
       std::cout << boost::format(tr("Wallet Name:     %s")) % name << std::endl;
     else
@@ -6955,7 +6935,7 @@ bool simple_wallet::ons_lookup(std::vector<std::string> args)
     auto& enc_hex = mapping.encrypted_value;
     if (mapping.entry_index >= args.size() || !oxenmq::is_hex(enc_hex) || enc_hex.size() % 2 != 0 || enc_hex.size() > 2*ons::mapping_value::BUFFER_SIZE)
     {
-      fail_msg_writer() << "Received invalid ONS mapping data from oxend";
+      fail_msg_writer() << "Received invalid ONS mapping data from quenerod";
       return false;
     }
 
@@ -7166,26 +7146,26 @@ bool simple_wallet::sweep_unmixable(const std::vector<std::string> &args_)
     // actually commit the transactions
     if (m_wallet->multisig())
     {
-      bool r = m_wallet->save_multisig_tx(ptx_vector, "multisig_oxen_tx");
+      bool r = m_wallet->save_multisig_tx(ptx_vector, "multisig_quenero_tx");
       if (!r)
       {
         fail_msg_writer() << tr("Failed to write transaction(s) to file");
       }
       else
       {
-        success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "multisig_oxen_tx";
+        success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "multisig_quenero_tx";
       }
     }
     else if (m_wallet->watch_only())
     {
-      bool r = m_wallet->save_tx(ptx_vector, "unsigned_oxen_tx");
+      bool r = m_wallet->save_tx(ptx_vector, "unsigned_quenero_tx");
       if (!r)
       {
         fail_msg_writer() << tr("Failed to write transaction(s) to file");
       }
       else
       {
-        success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_oxen_tx";
+        success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_quenero_tx";
       }
     }
     else
@@ -7291,14 +7271,14 @@ bool simple_wallet::sweep_main_internal(sweep_type_t sweep_type, std::vector<too
   bool submitted_to_network = false;
   if (m_wallet->multisig())
   {
-    bool r = m_wallet->save_multisig_tx(ptx_vector, "multisig_oxen_tx");
+    bool r = m_wallet->save_multisig_tx(ptx_vector, "multisig_quenero_tx");
     if (!r)
     {
       fail_msg_writer() << tr("Failed to write transaction(s) to file");
     }
     else
     {
-      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "multisig_oxen_tx";
+      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "multisig_quenero_tx";
     }
   }
   else if (m_wallet->get_account().get_device().has_tx_cold_sign())
@@ -7328,14 +7308,14 @@ bool simple_wallet::sweep_main_internal(sweep_type_t sweep_type, std::vector<too
   }
   else if (m_wallet->watch_only())
   {
-    bool r = m_wallet->save_tx(ptx_vector, "unsigned_oxen_tx");
+    bool r = m_wallet->save_tx(ptx_vector, "unsigned_quenero_tx");
     if (!r)
     {
       fail_msg_writer() << tr("Failed to write transaction(s) to file");
     }
     else
     {
-      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_oxen_tx";
+      success_msg_writer(true) << tr("Unsigned transaction(s) successfully written to file: ") << "unsigned_quenero_tx";
     }
   }
   else
@@ -7840,7 +7820,7 @@ bool simple_wallet::sign_transfer(const std::vector<std::string> &args_)
   std::vector<tools::wallet2::pending_tx> ptx;
   try
   {
-    bool r = m_wallet->sign_tx("unsigned_oxen_tx", "signed_oxen_tx", ptx, [&](const tools::wallet2::unsigned_tx_set &tx){ return accept_loaded_tx(tx); }, export_raw);
+    bool r = m_wallet->sign_tx("unsigned_quenero_tx", "signed_quenero_tx", ptx, [&](const tools::wallet2::unsigned_tx_set &tx){ return accept_loaded_tx(tx); }, export_raw);
     if (!r)
     {
       fail_msg_writer() << tr("Failed to sign transaction");
@@ -7860,7 +7840,7 @@ bool simple_wallet::sign_transfer(const std::vector<std::string> &args_)
       txids_as_text += (", ");
     txids_as_text += tools::type_to_hex(get_transaction_hash(t.tx));
   }
-  success_msg_writer(true) << tr("Transaction successfully signed to file ") << "signed_oxen_tx" << ", txid " << txids_as_text;
+  success_msg_writer(true) << tr("Transaction successfully signed to file ") << "signed_quenero_tx" << ", txid " << txids_as_text;
   if (export_raw)
   {
     std::string rawfiles_as_text;
@@ -7868,7 +7848,7 @@ bool simple_wallet::sign_transfer(const std::vector<std::string> &args_)
     {
       if (i > 0)
         rawfiles_as_text += ", ";
-      rawfiles_as_text += "signed_oxen_tx_raw" + (ptx.size() == 1 ? "" : ("_" + std::to_string(i)));
+      rawfiles_as_text += "signed_quenero_tx_raw" + (ptx.size() == 1 ? "" : ("_" + std::to_string(i)));
     }
     success_msg_writer(true) << tr("Transaction raw hex data exported to ") << rawfiles_as_text;
   }
@@ -7888,14 +7868,14 @@ bool simple_wallet::submit_transfer(const std::vector<std::string> &args_)
   try
   {
     std::vector<tools::wallet2::pending_tx> ptx_vector;
-    bool r = m_wallet->load_tx("signed_oxen_tx", ptx_vector, [&](const tools::wallet2::signed_tx_set &tx){ return accept_loaded_tx(tx); });
+    bool r = m_wallet->load_tx("signed_quenero_tx", ptx_vector, [&](const tools::wallet2::signed_tx_set &tx){ return accept_loaded_tx(tx); });
     if (!r)
     {
       fail_msg_writer() << tr("Failed to load transaction from file");
       return true;
     }
 
-    // FIXME: store the blink status in the signed_oxen_tx somehow?
+    // FIXME: store the blink status in the signed_quenero_tx somehow?
     constexpr bool FIXME_blink = false;
 
     commit_or_save(ptx_vector, false, FIXME_blink);
@@ -8041,7 +8021,7 @@ bool simple_wallet::get_tx_proof(const std::vector<std::string> &args)
   try
   {
     std::string sig_str = m_wallet->get_tx_proof(txid, info.address, info.is_subaddress, args.size() == 3 ? args[2] : "");
-    const fs::path filename{"oxen_tx_proof"};
+    const fs::path filename{"quenero_tx_proof"};
     if (m_wallet->save_to_file(filename, sig_str, true))
       success_msg_writer() << tr("signature file saved to: ") << filename.u8string();
     else
@@ -8253,7 +8233,7 @@ bool simple_wallet::get_spend_proof(const std::vector<std::string> &args)
   try
   {
     const std::string sig_str = m_wallet->get_spend_proof(txid, args.size() == 2 ? args[1] : "");
-    const fs::path filename{"oxen_spend_proof"};
+    const fs::path filename{"quenero_spend_proof"};
     if (m_wallet->save_to_file(filename, sig_str, true))
       success_msg_writer() << tr("signature file saved to: ") << filename.u8string();
     else
@@ -8342,7 +8322,7 @@ bool simple_wallet::get_reserve_proof(const std::vector<std::string> &args)
   try
   {
     const std::string sig_str = m_wallet->get_reserve_proof(account_minreserve, args.size() == 2 ? args[1] : "");
-    const fs::path filename{"oxen_reserve_proof"};
+    const fs::path filename{"quenero_reserve_proof"};
     if (m_wallet->save_to_file(filename, sig_str, true))
       success_msg_writer() << tr("signature file saved to: ") << filename.u8string();
     else
@@ -8549,7 +8529,7 @@ bool simple_wallet::show_transfers(const std::vector<std::string> &args_)
         case wallet::pay_type::governance:   color = epee::console_color_cyan; break;
         case wallet::pay_type::stake:        color = epee::console_color_blue; break;
         case wallet::pay_type::ons:          color = epee::console_color_blue; break;
-        case wallet::pay_type::service_node: color = epee::console_color_cyan; break;
+        case wallet::pay_type::masternode: color = epee::console_color_cyan; break;
         default:                            color = epee::console_color_magenta; break;
       }
     }
@@ -8568,7 +8548,7 @@ bool simple_wallet::show_transfers(const std::vector<std::string> &args_)
 
         if (transfer.pay_type == wallet::pay_type::in ||
             transfer.pay_type == wallet::pay_type::governance ||
-            transfer.pay_type == wallet::pay_type::service_node ||
+            transfer.pay_type == wallet::pay_type::masternode ||
             transfer.pay_type == wallet::pay_type::ons ||
             transfer.pay_type == wallet::pay_type::miner)
           destinations += output.address.substr(0, 6);
@@ -8844,7 +8824,7 @@ bool simple_wallet::rescan_blockchain(const std::vector<std::string> &args_)
   }
 
   m_in_manual_refresh.store(true, std::memory_order_relaxed);
-  OXEN_DEFER { m_in_manual_refresh.store(false, std::memory_order_relaxed); };
+  QUENERO_DEFER { m_in_manual_refresh.store(false, std::memory_order_relaxed); };
   return refresh_main(start_height, reset_type, true);
 }
 //----------------------------------------------------------------------------------------------------
@@ -8977,13 +8957,13 @@ std::string simple_wallet::get_prompt() const
 }
 //----------------------------------------------------------------------------------------------------
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
 #include <thread>
 #endif
 
 bool simple_wallet::run()
 {
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   integration_test::use_redirected_cout();
 #endif
   // check and display warning, but go on anyway
@@ -9013,7 +8993,7 @@ bool simple_wallet::run()
 
   message_writer(epee::console_color_green, false) << "Background refresh thread started";
 
-#if defined(OXEN_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   for (;;)
   {
     integration_test::write_buffered_stdout();
@@ -10200,7 +10180,7 @@ void simple_wallet::interrupt()
 void simple_wallet::commit_or_save(std::vector<tools::wallet2::pending_tx>& ptx_vector, bool do_not_relay, bool blink)
 {
   size_t i = 0;
-  std::string msg_buf; // NOTE(oxen): Buffer output so integration tests read the entire output
+  std::string msg_buf; // NOTE(quenero): Buffer output so integration tests read the entire output
   msg_buf.reserve(128);
 
   while (!ptx_vector.empty())
@@ -10213,7 +10193,7 @@ void simple_wallet::commit_or_save(std::vector<tools::wallet2::pending_tx>& ptx_
       cryptonote::blobdata blob;
       tx_to_blob(ptx.tx, blob);
       const std::string blob_hex = oxenmq::to_hex(blob);
-      fs::path filename = fs::u8path("raw_oxen_tx");
+      fs::path filename = fs::u8path("raw_quenero_tx");
       if (ptx_vector.size() > 1) filename += "_" + std::to_string(i++);
       bool success = m_wallet->save_to_file(filename, blob_hex, true);
 
@@ -10283,13 +10263,13 @@ int main(int argc, char* argv[])
 
   auto [vm, should_terminate] = wallet_args::main(
    argc, argv,
-   "oxen-wallet-cli [--wallet-file=<filename>|--generate-new-wallet=<filename>] [<COMMAND>]",
-    sw::tr("This is the command line Oxen wallet. It needs to connect to a Oxen\ndaemon to work correctly.\n\nWARNING: Do not reuse your Oxen keys on a contentious fork, doing so will harm your privacy.\n Only consider reusing your key on a contentious fork if the fork has key reuse mitigations built in."),
+   "quenero-wallet-cli [--wallet-file=<filename>|--generate-new-wallet=<filename>] [<COMMAND>]",
+    sw::tr("This is the command line Quenero wallet. It needs to connect to a Quenero\ndaemon to work correctly.\n\nWARNING: Do not reuse your Quenero keys on a contentious fork, doing so will harm your privacy.\n Only consider reusing your key on a contentious fork if the fork has key reuse mitigations built in."),
     desc_params,
     hidden_params,
     positional_options,
     [](const std::string &s, bool emphasis){ tools::scoped_message_writer(emphasis ? epee::console_color_white : epee::console_color_default, true) << s; },
-    "oxen-wallet-cli.log"
+    "quenero-wallet-cli.log"
   );
 
   if (!vm)
@@ -10466,7 +10446,7 @@ void simple_wallet::list_mms_messages(const std::vector<mms::message> &messages)
 void simple_wallet::list_signers(const std::vector<mms::authorized_signer> &signers)
 {
   message_writer() << boost::format("%2s %-20s %-s") % tr("#") % tr("Label") % tr("Transport Address");
-  message_writer() << boost::format("%2s %-20s %-s") % "" % tr("Auto-Config Token") % tr("Oxen Address");
+  message_writer() << boost::format("%2s %-20s %-s") % "" % tr("Auto-Config Token") % tr("Quenero Address");
   for (size_t i = 0; i < signers.size(); ++i)
   {
     const mms::authorized_signer &signer = signers[i];
@@ -10672,7 +10652,7 @@ void simple_wallet::mms_signer(const std::vector<std::string> &args)
   }
   if ((args.size() < 2) || (args.size() > 4))
   {
-    fail_msg_writer() << tr("mms signer [<number> <label> [<transport_address> [<oxen_address>]]]");
+    fail_msg_writer() << tr("mms signer [<number> <label> [<transport_address> [<quenero_address>]]]");
     return;
   }
 
@@ -10691,14 +10671,14 @@ void simple_wallet::mms_signer(const std::vector<std::string> &args)
     bool ok = cryptonote::get_account_address_from_str_or_url(info, m_wallet->nettype(), args[3], oa_prompter);
     if (!ok)
     {
-      fail_msg_writer() << tr("Invalid Oxen address");
+      fail_msg_writer() << tr("Invalid Quenero address");
       return;
     }
     monero_address = info.address;
     const std::vector<mms::message> &messages = ms.get_all_messages();
     if ((messages.size() > 0) || state.multisig)
     {
-      fail_msg_writer() << tr("Wallet state does not allow changing Oxen addresses anymore");
+      fail_msg_writer() << tr("Wallet state does not allow changing Quenero addresses anymore");
       return;
     }
   }

@@ -34,8 +34,8 @@
 
 namespace hw {
 
-  #undef OXEN_DEFAULT_LOG_CATEGORY
-  #define OXEN_DEFAULT_LOG_CATEGORY "device"
+  #undef QUENERO_DEFAULT_LOG_CATEGORY
+  #define QUENERO_DEFAULT_LOG_CATEGORY "device"
 
   void log_hexbuffer(std::string_view msg, const void* buff, size_t len) {
     MDEBUG(msg << ": " << oxenmq::to_hex(std::string_view{reinterpret_cast<const char*>(buff), len}));
@@ -49,8 +49,8 @@ namespace hw {
   #ifdef WITH_DEVICE_LEDGER    
     namespace ledger {
     
-    #undef OXEN_DEFAULT_LOG_CATEGORY
-    #define OXEN_DEFAULT_LOG_CATEGORY "device.ledger"
+    #undef QUENERO_DEFAULT_LOG_CATEGORY
+    #define QUENERO_DEFAULT_LOG_CATEGORY "device.ledger"
 
     
     #ifdef DEBUG_HWDEVICE
