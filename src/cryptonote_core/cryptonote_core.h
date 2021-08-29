@@ -77,7 +77,7 @@ namespace cryptonote
   // cryptonote_protocol/quorumnet.cpp's quorumnet::init_core_callbacks().  This indirection is here
   // so that core doesn't need to link against cryptonote_protocol (plus everything it depends on).
 
-  // Initializes quorumnet state (for masternodes only).  This is called after the QueneroMQ object
+  // Initializes quorumnet state (for masternodes only).  This is called after the OxenMQ object
   // has been set up but before it starts listening.  Return an opaque pointer (void *) that gets
   // passed into all the other callbacks below so that the callbacks can recast it into whatever it
   // should be.
@@ -86,7 +86,7 @@ namespace cryptonote
   // just masternodes.  The second argument should be the `quorumnet_new` return value if a
   // masternode, nullptr if not.
   using quorumnet_init_proc = void (core &core, void *self);
-  // Destroys the quorumnet state; called on shutdown *after* the QueneroMQ object has been destroyed.
+  // Destroys the quorumnet state; called on shutdown *after* the OxenMQ object has been destroyed.
   // Should destroy the state object and set the pointer reference to nullptr.
   using quorumnet_delete_proc = void (void *&self);
   // Relays votes via quorumnet.
@@ -697,9 +697,9 @@ namespace cryptonote
      /// @brief return a reference to the masternode list
      tx_memory_pool &get_pool() { return m_mempool; }
 
-     /// Returns a reference to the QueneroMQ object.  Must not be called before init(), and should not
+     /// Returns a reference to the OxenMQ object.  Must not be called before init(), and should not
      /// be used for any omq communication until after start_oxenmq() has been called.
-     oxenmq::QueneroMQ& get_omq() { return *m_omq; }
+     oxenmq::OxenMQ& get_omq() { return *m_omq; }
 
      /**
       * @copydoc miner::on_synchronized
@@ -1148,7 +1148,7 @@ namespace cryptonote
      oxenmq::AuthLevel omq_check_access(const crypto::x25519_public_key& pubkey) const;
 
      /**
-      * @brief Initializes QueneroMQ object, called during init().
+      * @brief Initializes OxenMQ object, called during init().
       *
       * Does not start it: this gets called to initialize it, then it gets configured with endpoints
       * and listening addresses, then finally a call to `start_oxenmq()` should happen to actually
@@ -1158,9 +1158,9 @@ namespace cryptonote
 
  public:
      /**
-      * @brief Starts QueneroMQ listening.
+      * @brief Starts OxenMQ listening.
       *
-      * Called after all QueneroMQ initialization is done.
+      * Called after all OxenMQ initialization is done.
       */
      void start_oxenmq();
 
@@ -1172,7 +1172,7 @@ namespace cryptonote
      /**
       * @brief Internal use only!
       *
-      * This returns a mutable reference to the internal auth level map that QueneroMQ uses, for
+      * This returns a mutable reference to the internal auth level map that OxenMQ uses, for
       * internal use only.
       */
      std::unordered_map<crypto::x25519_public_key, oxenmq::AuthLevel>& _omq_auth_level_map() { return m_omq_auth; }
@@ -1248,8 +1248,8 @@ namespace cryptonote
      uint32_t m_sn_public_ip;
      uint16_t m_quorumnet_port;
 
-     /// QueneroMQ main object.  Gets created during init().
-     std::unique_ptr<oxenmq::QueneroMQ> m_omq;
+     /// OxenMQ main object.  Gets created during init().
+     std::unique_ptr<oxenmq::OxenMQ> m_omq;
 
      // Internal opaque data object managed by cryptonote_protocol/quorumnet.cpp.  void pointer to
      // avoid linking issues (protocol does not link against core).

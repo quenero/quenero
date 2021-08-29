@@ -142,7 +142,7 @@ bool operator==(const uptime_proof::Proof& lhs, const uptime_proof::Proof& rhs)
         (lhs.storage_omq_port != rhs.storage_omq_port) ||
         (lhs.qnet_port != rhs.qnet_port) ||
         (lhs.version != rhs.version) ||
-        (lhs.storage_server_version != rhs.storage_server_version)
+        (lhs.storage_server_version != rhs.storage_server_version))
        result = false;
 
    return result;

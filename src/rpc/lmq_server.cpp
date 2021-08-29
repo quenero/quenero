@@ -16,18 +16,18 @@ namespace {
 
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_public{
   "lmq-public",
-  "Adds a public, unencrypted QueneroMQ RPC listener (with restricted capabilities) at the given "
+  "Adds a public, unencrypted OxenMQ RPC listener (with restricted capabilities) at the given "
     "address; can be specified multiple times. Examples: tcp://0.0.0.0:5555 (listen on port 5555), "
     "tcp://198.51.100.42:5555 (port 5555 on specific IPv4 address), tcp://[::]:5555, "
     "tcp://[2001:db8::abc]:5555 (IPv6), or ipc:///path/to/socket to listen on a unix domain socket"};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_curve_public{
   "lmq-curve-public",
-  "Adds a curve-encrypted QueneroMQ RPC listener at the given address that accepts (restricted) rpc "
+  "Adds a curve-encrypted OxenMQ RPC listener at the given address that accepts (restricted) rpc "
     "commands from any client. Clients must already know this server's public x25519 key to "
     "establish an encrypted connection."};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_curve{
   "lmq-curve",
-  "Adds a curve-encrypted QueneroMQ RPC listener at the given address that only accepts client connections from whitelisted client x25519 pubkeys. "
+  "Adds a curve-encrypted OxenMQ RPC listener at the given address that only accepts client connections from whitelisted client x25519 pubkeys. "
     "Clients must already know this server's public x25519 key to establish an encrypted connection. When running in masternode mode "
     "the quorumnet port is already listening as if specified with --lmq-curve."};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_admin{
@@ -38,7 +38,7 @@ const command_line::arg_descriptor<std::vector<std::string>> arg_omq_user{
   "Specifies an x25519 pubkey of a client permitted to connect to the --lmq-curve or quorumnet address(es) with restricted capabilities"};
 const command_line::arg_descriptor<std::vector<std::string>> arg_omq_local_control{
   "lmq-local-control",
-  "Adds an unencrypted QueneroMQ RPC listener with full, unrestricted capabilities and no authentication at the given address. "
+  "Adds an unencrypted OxenMQ RPC listener with full, unrestricted capabilities and no authentication at the given address. "
 #ifndef _WIN32
     "Listens at ipc://<data-dir>/quenerod.sock if not specified. Specify 'none' to disable the default. "
 #endif

@@ -71,7 +71,7 @@ using pending_signature_set = std::unordered_set<pending_signature, pending_sign
 
 struct QnetState {
     cryptonote::core &core;
-    QueneroMQ &omq{core.get_omq()};
+    OxenMQ &omq{core.get_omq()};
 
     // Track submitted blink txes here; unlike the blinks stored in the mempool we store these ones
     // more liberally to track submitted blinks, even if unsigned/unacceptable, while the mempool
@@ -319,7 +319,7 @@ public:
     }
 
 private:
-    QueneroMQ &omq;
+    OxenMQ &omq;
 
     /// Looks up a pubkey in known remotes and adds it to `peers`.  If strong, it is added with an
     /// address, otherwise it is added with an empty address.  If the element already exists, it

@@ -66,7 +66,7 @@ namespace cryptonote::rpc {
     ~http_server() override;
 
     /// Starts the event loop in the thread handling http requests.  Core must have been initialized
-    /// and QueneroMQ started.  Will propagate an exception from the thread if startup fails.
+    /// and OxenMQ started.  Will propagate an exception from the thread if startup fails.
     void start();
 
     /// Closes the http server connection.  Can safely be called multiple times, or to abort a

@@ -1706,9 +1706,8 @@ static void append_printable_masternode_list_entry(cryptonote::network_type nett
     // NOTE: Component Versions
     //
     stream << indent2 << "Storage Server  versions: "
-        << ((entry.storage_server_version[0] == 0 && entry.storage_server_version[1] == 0 && entry.storage_server_version[2] == 0) ? "(Storage server ping not yet received) " : tools::join(".", entry.storage_server_version))  ? << "\n";
-
-
+        << ((entry.storage_server_version[0] == 0 && entry.storage_server_version[1] == 0 && entry.storage_server_version[2] == 0) ? "(Storage server ping not yet received) " : 
+tools::join(".", entry.storage_server_version)) <<   "\n";
 
 
     //

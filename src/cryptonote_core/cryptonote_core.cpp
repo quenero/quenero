@@ -1038,7 +1038,7 @@ namespace cryptonote
   void core::init_oxenmq(const boost::program_options::variables_map& vm) {
     using namespace oxenmq;
     MGINFO("Starting oxenmq");
-    m_omq = std::make_unique<QueneroMQ>(
+    m_omq = std::make_unique<OxenMQ>(
         tools::copy_guts(m_service_keys.pub_x25519),
         tools::copy_guts(m_service_keys.key_x25519),
         m_masternode,
@@ -1925,14 +1925,7 @@ namespace cryptonote
     auto height = get_current_blockchain_height();
     auto hf_version = get_hard_fork_version(height);
     //TODO: remove after HF18
-    if (hf_version < HF_VERSION_PROOF_BTENC) {
-      NOTIFY_UPTIME_PROOF::request req = m_masternode_list.generate_uptime_proof(m_sn_public_ip, storage_https_port(), storage_omq_port(), m_quorumnet_port);
-      relayed = get_protocol()->relay_uptime_proof(req, fake_context);
-    } else {
-      auto proof = m_masternode_list.generate_uptime_proof(m_sn_public_ip, storage_https_port(), storage_omq_port(), ss_version);
-      NOTIFY_BTENCODED_UPTIME_PROOF::request req = proof.generate_request();
-      relayed = get_protocol()->relay_btencoded_uptime_proof(req, fake_context);
-    }
+
     if (relayed)
       MGINFO("Submitted uptime-proof for Masternode (yours): " << m_service_keys.pub);
 

@@ -573,7 +573,7 @@ namespace cryptonote::rpc {
     });
   }
 
-  static std::unordered_set<oxenmq::QueneroMQ*> timer_started;
+  static std::unordered_set<oxenmq::OxenMQ*> timer_started;
 
   void http_server::start()
   {

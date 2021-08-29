@@ -113,12 +113,12 @@ namespace cryptonote {
   bool get_base_block_reward(size_t median_weight, size_t current_block_weight, uint64_t already_generated_coins, uint64_t &reward, uint64_t &reward_unpenalized, uint8_t version, uint64_t height) {
 
     //premine reward
-/*    if (already_generated_coins == 0)
+    if (already_generated_coins == 0)
     {
-      reward = 22'500'000 * COIN;
+      reward = 17592.186044415 * COIN;
       return true;
     }
-*/
+
     static_assert((TARGET_BLOCK_TIME % 1min) == 0s, "difficulty targets must be a multiple of a minute");
 
     uint64_t base_reward =

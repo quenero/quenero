@@ -26,7 +26,7 @@ set(UNBOUND_HASH SHA256=8504d97b8fc5bd897345c95d116e0ee0ddf8c8ff99590ab2b4bd1327
     CACHE STRING "unbound source hash")
 
 set(BOOST_VERSION 1.76.0 CACHE STRING "boost version")
-set(BOOST_MIRROR ${LOCAL_MIRROR} https://dl.bintray.com/boostorg/release/${BOOST_VERSION}/source
+set(BOOST_MIRROR ${LOCAL_MIRROR} https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source
     CACHE STRING "boost download mirror(s)")
 string(REPLACE "." "_" BOOST_VERSION_ ${BOOST_VERSION})
 set(BOOST_SOURCE boost_${BOOST_VERSION_}.tar.bz2)
@@ -519,6 +519,7 @@ else()
   endif()
   build_external(hidapi
     DEPENDS ${maybe_eudev} libusb_external
+    PATCH_COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/utils/build_scripts/hidapi-autoconf-duplicate-macro-dir.patch
     CONFIGURE_COMMAND autoreconf -ivf && ./configure ${cross_host} --prefix=${DEPS_DESTDIR} --disable-shared --enable-static --with-pic
       "CC=${deps_cc}" "CXX=${deps_cxx}" "CFLAGS=${deps_CFLAGS}" "CXXFLAGS=${deps_CXXFLAGS}"
       ${cross_extra}
