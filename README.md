@@ -4,17 +4,17 @@
     <a href="https://github.com/loki-project/loki/commits/dev"><img alt="pipeline status" src="https://gitlab.com/lokiproject/loki/badges/dev/pipeline.svg" /></a>
 </p>
 
-Copyright (c) 2018 The Loki Project.   
-Portions Copyright (c) 2014-2019 The Monero Project.   
+Copyright (c)      2021 The Quenero Project. 
+Copyright (c) 2018-2021 The Loki Project.     
+Portions Copyright (c) 2014-2021 The Monero Project.   
 Portions Copyright (c) 2012-2013 The Cryptonote developers.
 
 ## Development resources
 
-- Web: [quenero.io](https://quenero.io)
+- Web: [quenero.tech](https://quenero.tech)
 - Telegram: [t.me/QueneroCommunity](https://t.me/Quenero_Community)
-- Mail: [team@quenero.io](mailto:team@quenero.io)
-- GitHub: [https://github.com/quenero-io/quenero-core](https://github.com/quenero-io/quenero-core)
-- Discord: [https://discord.gg/67GXfD6](https://discord.gg/67GXfD6)
+- GitHub: [https://github.com/quenero/quenero](https://github.com/quenero/quenero)
+
 
 ## Vulnerability disclosure
 
@@ -103,17 +103,17 @@ You can install these using:
 
 if you want to build a dev build you can do the following after installing the dependancies above:
 
-	$ git clone --recursive https://github.com/quenero-io/quenero-core.git
-	$ cd quenero-core
+	$ git clone --recursive https://github.com/quenero/quenero.git
+	$ cd quenero
 	$ git submodule update --init --recursive
 	$ mkdir build
 	$ cd build
 	$ cmake ..
 	$ make -j$(nproc)
 
-* The resulting executables can be found in `~/quenero-core/build/bin`
+* The resulting executables can be found in `~/quenero/build/bin`
 
-* Add `PATH="$PATH:$HOME/quenero-core/build/bin"` to `.profile`
+* Add `PATH="$PATH:$HOME/quenero/build/bin"` to `.profile`
 
 * Run Quenero with `quenerod --detach`
 
@@ -213,7 +213,7 @@ application.
 * To git clone, run:
 
     ```bash
-    git clone --recursive https://github.com/loki-project/loki.git
+    git clone --recursive https://github.com/quenero/quenero.git
     ```
 
 **Building**
@@ -221,13 +221,13 @@ application.
 * Change to the cloned directory, run:
 	
     ```bash
-    cd loki
+    cd quenero
     ```
 
-* If you would like a specific [version/tag](https://github.com/quenero-io/quenero-core/tags), do a git checkout for that version. eg. 'v5.1.2'. If you don't care about the version and just want binaries from master, skip this step:
+* If you would like a specific [version/tag](https://github.com/quenero/quenero/tags), do a git checkout for that version. eg. 'v5.1.2'. If you don't care about the version and just want binaries from master, skip this step:
 	
     ```bash
-    git checkout v5.1.2
+    git checkout develop
     ```
 
 * If you are on a 64-bit system, run:
@@ -348,7 +348,7 @@ The produced binaries still link libc dynamically. If the binary is compiled on 
 ## Installing Quenero from a package
 
 Pre-built packages are available for recent Debian and Ubuntu systems (and are often usable on
-Debian or Ubuntu-derived Linux distributions).  For more details see https://deb.imaginary.stream
+Debian or Ubuntu-derived Linux distributions).  
 
 
 
@@ -362,10 +362,10 @@ You can also build a docker package using:
     docker build --build-arg NPROC=1 -t quenero .
     
     # either run in foreground
-    docker run -it -v /quenero/chain:/root/.quenero -v /quenero/wallet:/wallet -p 22022:22022 quenero 
+    docker run -it -v /quenero/chain:/root/.quenero -v /quenero/wallet:/wallet -p 19990:19990 quenero 
     
     # or in background
-    docker run -it -d -v /quenero/chain:/root/.quenero -v /quenero/wallet:/wallet -p 22022:22022 quenero 
+    docker run -it -d -v /quenero/chain:/root/.quenero -v /quenero/wallet:/wallet -p 19990:19990 quenero 
     ```
 
 * The build needs 3 GB space.
@@ -450,7 +450,7 @@ to add a rule to allow this connection too, in addition to telling torsocks to
 allow inbound connections. Full example:
 
 ```bash
-sudo iptables -I OUTPUT 2 -p tcp -d 127.0.0.1 -m tcp --dport 22023 -j ACCEPT
+sudo iptables -I OUTPUT 2 -p tcp -d 127.0.0.1 -m tcp --dport 19991 -j ACCEPT
 DNS_PUBLIC=tcp torsocks ./quenerod --p2p-bind-ip 127.0.0.1 --no-igd --rpc-bind-ip 127.0.0.1 \
     --data-dir /home/amnesia/Persistent/your/directory/to/the/blockchain
 ```
