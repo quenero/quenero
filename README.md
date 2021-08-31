@@ -4,7 +4,8 @@
     <a href="https://github.com/loki-project/loki/commits/dev"><img alt="pipeline status" src="https://gitlab.com/lokiproject/loki/badges/dev/pipeline.svg" /></a>
 </p>
 
-Copyright (c)      2021 The Quenero Project. 
+Copyright (c)      2021 The Quenero Project.
+
 Copyright (c) 2018-2021 The Loki Project.     
 Portions Copyright (c) 2014-2021 The Monero Project.   
 Portions Copyright (c) 2012-2013 The Cryptonote developers.
