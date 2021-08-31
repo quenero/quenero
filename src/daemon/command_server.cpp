@@ -115,33 +115,33 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
     , "Print the quorum state for the range of block heights, omit the height to print the latest quorum"
     );
   m_command_lookup.set_handler(
-      "print_sn_key"
-    , [this](const auto &x) { return m_parser.print_sn_key(x); }
-    , "print_sn_key"
+      "print_masternode_key"
+    , [this](const auto &x) { return m_parser.print_masternode_key(x); }
+    , "print_masternode_key"
     , "Print this daemon's masternode key, if it is one and launched in masternode mode."
     );
   m_command_lookup.set_handler(
-      "print_sr"
-    , [this](const auto &x) { return m_parser.print_sr(x); }
-    , "print_sr <height>"
+      "print_masternode_requirement"
+    , [this](const auto &x) { return m_parser.print_masternode_requirement(x); }
+    , "print_masternode_requirement <height>"
     , "Print the staking requirement for the height."
     );
   m_command_lookup.set_handler(
-      "prepare_registration"
-    , [this](const auto &) { return m_parser.prepare_registration(); }
-    , "prepare_registration"
+      "masternode_registration"
+    , [this](const auto &) { return m_parser.masternode_registration(); }
+    , "masternode_registration"
     , "Interactive prompt to prepare a masternode registration command. The resulting registration command can be run in the command-line wallet to send the registration to the blockchain."
     );
   m_command_lookup.set_handler(
-      "print_sn"
-    , [this](const auto &x) { return m_parser.print_sn(x); }
-    , "print_sn [<pubkey> [...]] [+json|+detail]"
+      "print_masternode"
+    , [this](const auto &x) { return m_parser.print_masternode(x); }
+    , "print_masternode [<pubkey> [...]] [+json|+detail]"
     , "Print masternode registration info for the current height"
     );
   m_command_lookup.set_handler(
-      "print_sn_status"
-    , [this](const auto &x) { return m_parser.print_sn_status(x); }
-    , "print_sn_status [+json|+detail]"
+      "print_masternode_status"
+    , [this](const auto &x) { return m_parser.print_masternode_status(x); }
+    , "print_masternode_status [+json|+detail]"
     , "Print masternode registration info for this masternode"
     );
   m_command_lookup.set_handler(
@@ -370,9 +370,9 @@ void command_server::init_commands(cryptonote::rpc::core_rpc_server* rpc_server)
     , "Query the available checkpoints between the range, omit arguments to print the last 60 checkpoints"
     );
     m_command_lookup.set_handler(
-      "print_sn_state_changes"
-    , [this](const auto &x) { return m_parser.print_sn_state_changes(x); }
-    , "print_sn_state_changes <start_height> [end height]"
+      "print_masternode_state_changes"
+    , [this](const auto &x) { return m_parser.print_masternode_state_changes(x); }
+    , "print_masternode_state_changes <start_height> [end height]"
     , "Query the state changes between the range, omit the last argument to scan until the current block"
     );
     m_command_lookup.set_handler(

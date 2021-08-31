@@ -181,11 +181,11 @@ namespace cryptonote
   , DEFAULT_TXPOOL_MAX_WEIGHT
   };
   static const command_line::arg_descriptor<bool> arg_masternode  = {
-    "service-node"
-  , "Run as a masternode, option 'service-node-public-ip' must be set"
+    "masternode"
+  , "Run as a masternode, option 'masternode-public-ip' must be set"
   };
   static const command_line::arg_descriptor<std::string> arg_public_ip = {
-    "service-node-public-ip"
+    "masternode-public-ip"
   , "Public IP address on which this masternode's services (such as the Loki "
     "storage server) are accessible. This IP address will be advertised to the "
     "network via the masternode uptime proofs. Required if operating as a "
@@ -197,7 +197,7 @@ namespace cryptonote
     "quorumnet-port"
   , "The port on which this masternode listen for direct connections from other "
     "masternodes for quorum messages.  The port must be publicly reachable "
-    "on the `--service-node-public-ip' address and binds to the p2p IP address."
+    "on the `--masternode-public-ip' address and binds to the p2p IP address."
     " Only applies when running as a masternode."
   , config::QNET_DEFAULT_PORT
   , {{ &cryptonote::arg_testnet_on, &cryptonote::arg_devnet_on }}
@@ -1037,7 +1037,7 @@ namespace cryptonote
 
   void core::init_oxenmq(const boost::program_options::variables_map& vm) {
     using namespace oxenmq;
-    MGINFO("Starting oxenmq");
+    MGINFO("Starting queneromq");
     m_omq = std::make_unique<OxenMQ>(
         tools::copy_guts(m_service_keys.pub_x25519),
         tools::copy_guts(m_service_keys.key_x25519),
@@ -2319,7 +2319,7 @@ namespace cryptonote
                 epee::string_tools::get_ip_string_from_int32(m_sn_public_ip) << ":" << proof.proof->qnet_port << "[qnet], :" <<
                 proof.proof->storage_https_port << "[SS-HTTP], :" << proof.proof->storage_omq_port << "[SS-LMQ]). "
                 "This will lead to deregistration of one or both masternodes if not corrected. "
-                "(Do both masternodes have the correct IP for the service-node-public-ip setting?)");
+                "(Do both masternodes have the correct IP for the masternode-public-ip setting?)");
           });
         }
         submit_uptime_proof();

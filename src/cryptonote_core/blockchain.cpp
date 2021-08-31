@@ -5554,7 +5554,7 @@ void Blockchain::load_compiled_in_block_hashes(const GetCheckpointsCallback& get
         return;
       }
 
-      constexpr auto EXPECTED_SHA256_HASH = "d5772a74dadb64a439b60312f9dc3e5243157c5477037a318840b8c36da9644b"sv;
+      constexpr auto EXPECTED_SHA256_HASH = "1369e88de393e37a8447dc3ed008c5986632f922eed5d2837d4a1199691e8b2b"sv;
       MINFO("Precomputed blocks hash: " << hash << ", expected " << EXPECTED_SHA256_HASH);
 
       crypto::hash expected_hash;

@@ -8358,7 +8358,7 @@ wallet2::register_masternode_result wallet2::create_register_masternode_tx(const
     if (local_args.size() < 6)
     {
       result.status = register_masternode_result_status::insufficient_num_args;
-      result.msg += tr("\nPrepare this command in the daemon with the prepare_registration command");
+      result.msg += tr("\nPrepare this command in the daemon with the masternode_registration command");
       result.msg += tr("\nThis command must be run from the daemon that will be acting as a masternode");
       return result;
     }

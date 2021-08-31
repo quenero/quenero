@@ -640,7 +640,7 @@ namespace rpc {
       uint64_t block_weight_limit;          // Maximum allowed block weight.
       uint64_t block_size_median;           // Median block size of latest 100 blocks.
       uint64_t block_weight_median;         // Median block weight of latest 100 blocks.
-      std::optional<bool> masternode;                    // Will be true if the node is running in --service-node mode.
+      std::optional<bool> masternode;                    // Will be true if the node is running in --masternode mode.
       std::optional<uint64_t> start_time;                  // Start time of the daemon, as UNIX time.
       std::optional<uint64_t> last_storage_server_ping;    // Last ping time of the storage server (0 if never or not running as a masternode)
       std::optional<uint64_t> free_space;                  // Available disk space on the node.

@@ -307,7 +307,7 @@ bool daemon::run(bool interactive)
     if (!core->init(vm, nullptr, get_checkpoints))
       throw std::runtime_error("Failed to start core");
 
-    MGINFO("Starting OxenMQ");
+    MGINFO("Starting QueneroMQ");
     omq_rpc = std::make_unique<cryptonote::rpc::omq_rpc>(*core, *rpc, vm);
     core->start_oxenmq();
 

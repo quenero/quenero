@@ -2925,7 +2925,7 @@ namespace cryptonote { namespace rpc {
     PERF_TIMER(on_get_masternode_registration_cmd_raw);
 
     if (!m_core.masternode())
-      throw rpc_error{ERROR_WRONG_PARAM, "Daemon has not been started in masternode mode, please relaunch with --service-node flag."};
+      throw rpc_error{ERROR_WRONG_PARAM, "Daemon has not been started in masternode mode, please relaunch with --masternode flag."};
 
     uint8_t hf_version = m_core.get_hard_fork_version(m_core.get_current_blockchain_height());
     if (!masternodes::make_registration_cmd(m_core.get_nettype(), hf_version, req.staking_requirement, req.args, m_core.get_service_keys(), res.registration_cmd, req.make_friendly))

@@ -435,7 +435,7 @@ chown -v _loki:_loki /var/lib/loki/{lns.db*,key*,lmdb/*.mdb}
 
 echo "${GREEN}Updating lokid configuration in /etc/loki/loki.conf$RESET"
 echo "${GREEN}===================================================$RESET"
-echo -e "service-node=1\nservice-node-public-ip=${ip_public}\nstorage-server-port=${ss_http}" >>/etc/loki/loki.conf
+echo -e "masternode=1\nmasternode-public-ip=${ip_public}\nstorage-server-port=${ss_http}" >>/etc/loki/loki.conf
 if [ "$lokid_p2p" != 22022 ]; then
     echo "p2p-bind-port=$lokid_p2p" >>/etc/loki/loki.conf
 fi

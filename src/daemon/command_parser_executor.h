@@ -70,15 +70,15 @@ public:
 
   bool print_quorum_state(const std::vector<std::string>& args);
 
-  bool print_sn_key(const std::vector<std::string>& args);
+  bool print_masternode_key(const std::vector<std::string>& args);
 
-  bool print_sr(const std::vector<std::string>& args);
+  bool print_masternode_requirement(const std::vector<std::string>& args);
 
-  bool prepare_registration();
+  bool masternode_registration();
 
-  bool print_sn(const std::vector<std::string>& args);
+  bool print_masternode(const std::vector<std::string>& args);
 
-  bool print_sn_status(const std::vector<std::string>& args);
+  bool print_masternode_status(const std::vector<std::string>& args);
 
   bool set_log_level(const std::vector<std::string>& args);
 
@@ -152,7 +152,7 @@ public:
 
   bool print_net_stats(const std::vector<std::string>& args);
 
-  bool print_sn_state_changes(const std::vector<std::string> &args);
+  bool print_masternode_state_changes(const std::vector<std::string> &args);
 
   bool set_bootstrap_daemon(const std::vector<std::string>& args);
 

@@ -287,7 +287,7 @@ bool rpc_command_executor::print_checkpoints(uint64_t start_height, uint64_t end
   return true;
 }
 
-bool rpc_command_executor::print_sn_state_changes(uint64_t start_height, uint64_t end_height)
+bool rpc_command_executor::print_masternode_state_changes(uint64_t start_height, uint64_t end_height)
 {
   GET_SN_STATE_CHANGES::request  req{};
   GET_SN_STATE_CHANGES::response res{};
@@ -1768,7 +1768,7 @@ tools::join(".", entry.storage_server_version)) <<   "\n";
   buffer.append(stream.str());
 }
 
-bool rpc_command_executor::print_sn(const std::vector<std::string> &args)
+bool rpc_command_executor::print_masternode(const std::vector<std::string> &args)
 {
     GET_MASTERNODES::request req{};
     GET_MASTERNODES::response res{};
@@ -1889,7 +1889,7 @@ bool rpc_command_executor::flush_cache(bool bad_txs, bool bad_blocks)
   return true;
 }
 
-bool rpc_command_executor::print_sn_status(std::vector<std::string> args)
+bool rpc_command_executor::print_masternode_status(std::vector<std::string> args)
 {
   if (args.size() > 1)
   {
@@ -1903,10 +1903,10 @@ bool rpc_command_executor::print_sn_status(std::vector<std::string> args)
 
   args.push_back(std::move(res.masternode_pubkey));
 
-  return print_sn(args);
+  return print_masternode(args);
 }
 
-bool rpc_command_executor::print_sr(uint64_t height)
+bool rpc_command_executor::print_masternode_requirement(uint64_t height)
 {
   GET_STAKING_REQUIREMENT::response res{};
   if (!invoke<GET_STAKING_REQUIREMENT>({height}, res, "Failed to retrieve staking requirements"))
@@ -1926,7 +1926,7 @@ bool rpc_command_executor::pop_blocks(uint64_t num_blocks)
   return true;
 }
 
-bool rpc_command_executor::print_sn_key()
+bool rpc_command_executor::print_masternode_key()
 {
   GET_SERVICE_KEYS::response res{};
 
@@ -1960,7 +1960,7 @@ static uint64_t get_actual_amount(uint64_t amount, uint64_t portions)
   return resultlo;
 }
 
-bool rpc_command_executor::prepare_registration()
+bool rpc_command_executor::masternode_registration()
 {
   // RAII-style class to temporarily clear categories and restore upon destruction (i.e. upon returning).
   struct clear_log_categories {
@@ -1981,7 +1981,7 @@ bool rpc_command_executor::prepare_registration()
 
   if (!res.masternode)
   {
-    tools::fail_msg_writer() << "Unable to prepare registration: this daemon is not running in --service-node mode";
+    tools::fail_msg_writer() << "Unable to prepare registration: this daemon is not running in --masternode mode";
     return false;
   }
 
@@ -2055,7 +2055,7 @@ bool rpc_command_executor::prepare_registration()
     cancelled_by_user,
   };
 
-  struct prepare_registration_state
+  struct masternode_registration_state
   {
     register_step            prev_step                    = register_step::ask_is_solo_stake;
     bool                     is_solo_stake;
@@ -2067,8 +2067,8 @@ bool rpc_command_executor::prepare_registration()
     std::vector<uint64_t>    contributions;
   };
 
-  prepare_registration_state state = {};
-  std::stack<prepare_registration_state> state_stack;
+  masternode_registration_state state = {};
+  std::stack<masternode_registration_state> state_stack;
   state_stack.push(state);
 
   bool finished = false;
@@ -2479,7 +2479,7 @@ bool rpc_command_executor::prepare_registration()
     req.staking_requirement = staking_requirement;
 
     if (!invoke<GET_MASTERNODE_REGISTRATION_CMD_RAW>(std::move(req), res, "Failed to validate registration arguments; "
-          "check the addresses and registration parameters and that the Daemon is running with the '--service-node' flag"))
+          "check the addresses and registration parameters and that the Daemon is running with the '--masternode' flag"))
       return false;
 
     tools::success_msg_writer() << res.registration_cmd;

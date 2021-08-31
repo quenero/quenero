@@ -51,9 +51,9 @@ message(STATUS "CMake version ${CMAKE_VERSION}")
 set(CMAKE_OSX_DEPLOYMENT_TARGET 10.12 CACHE STRING "macOS deployment target (Apple clang only)")
 
 project(quenero
-    VERSION 9.1.0
+    VERSION 10.1.0
     LANGUAGES CXX C)
-  set(QUENERO_RELEASE_CODENAME "Salty Saga")
+  set(QUENERO_RELEASE_CODENAME "Beautiful Girls")
 
 # String value to append to the full version string; this is intended to easily identify whether a
 # binary was build from the release or development branches.  This should be permanently set to an

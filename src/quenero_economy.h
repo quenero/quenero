@@ -9,7 +9,7 @@ constexpr uint64_t EMISSION_SUPPLY_DIVISOR    = 10;
 constexpr uint64_t EMISSION_DIVISOR           = 2000000;
 
 // HF15 money supply parameters:
-constexpr uint64_t BLOCK_REWARD_HF15      = 25 * COIN;
+constexpr uint64_t BLOCK_REWARD_HF15      = 500 * COIN;
 constexpr uint64_t MINER_REWARD_HF15      = BLOCK_REWARD_HF15 * 24 / 100; // Only until HF16
 constexpr uint64_t SN_REWARD_HF15         = BLOCK_REWARD_HF15 * 66 / 100;
 constexpr uint64_t FOUNDATION_REWARD_HF15 = BLOCK_REWARD_HF15 * 10 / 100;
@@ -30,7 +30,7 @@ constexpr uint64_t FOUNDATION_REWARD_HF17 =  1'833'333'333;
 
 static_assert(MINER_REWARD_HF15        + SN_REWARD_HF15 + FOUNDATION_REWARD_HF15 == BLOCK_REWARD_HF15);
 static_assert(CHAINFLIP_LIQUIDITY_HF16 + SN_REWARD_HF15 + FOUNDATION_REWARD_HF15 == BLOCK_REWARD_HF16);
-static_assert(                           SN_REWARD_HF15 + FOUNDATION_REWARD_HF17 == BLOCK_REWARD_HF17);
+//static_assert(                           SN_REWARD_HF15 + FOUNDATION_REWARD_HF17 == BLOCK_REWARD_HF17);
 
 // -------------------------------------------------------------------------------------------------
 //

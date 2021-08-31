@@ -715,7 +715,7 @@ bool simple_wallet::spendkey(const std::vector<std::string> &args/* = std::vecto
 
     warn_msg_writer() << tr("NEVER give your Quenero wallet private spend key (or seed phrase) to ANYONE else. "
             "NEVER input your Quenero private spend key (or seed phrase) into any software or website other than the OFFICIAL "
-            "Quenero CLI or GUI wallets, downloaded directly from the Quenero GitHub (https://github.com/quenero-io/) or compiled from source.");
+            "Quenero CLI or GUI wallets, downloaded directly from the Quenero GitHub (https://github.com/quenero/) or compiled from source.");
     std::string confirm = input_line(tr("Are you sure you want to access your private spend key?"), true);
     if (std::cin.eof() || !command_line::is_yes(confirm))
       return false;
@@ -3135,7 +3135,7 @@ Pending or Failed: "failed"|"pending",  "out", Lock, Checkpointed, Time, Amount*
   m_cmd_binder.set_handler("register_masternode",
                            [this](const auto& x) { return register_masternode(x); },
                            tr(USAGE_REGISTER_MASTERNODE),
-                           tr("Send <amount> to this wallet's main account and lock it as an operator stake for a new Masternode. This command is typically generated on the Masternode via the `prepare_registration' quenerod command. The optional index= and <priority> parameters work as in the `transfer' command."));
+                           tr("Send <amount> to this wallet's main account and lock it as an operator stake for a new Masternode. This command is typically generated on the Masternode via the `masternode_registration' quenerod command. The optional index= and <priority> parameters work as in the `transfer' command."));
   m_cmd_binder.set_handler("stake",
                            [this](const auto& x) { return stake(x); },
                            tr(USAGE_STAKE),
@@ -3427,7 +3427,7 @@ void simple_wallet::print_seed(const epee::wipeable_string &seed)
 
   warn_msg_writer() << tr("NEVER give your Quenero wallet seed to ANYONE else. NEVER input your Quenero "
           "wallet seed into any software or website other than the OFFICIAL Quenero CLI or GUI wallets, "
-          "downloaded directly from the Quenero GitHub (https://github.com/quenero-io/) or compiled from source.");
+          "downloaded directly from the Quenero GitHub (https://github.com/quenero/) or compiled from source.");
   std::string confirm = input_line(tr("Are you sure you want to access your wallet seed?"), true);
   if (std::cin.eof() || !command_line::is_yes(confirm))
     return;
@@ -5649,13 +5649,13 @@ void simple_wallet::check_for_inactivity_lock(bool user)
         tools::msg_writer() << R"(
       ...........
     ...............
-  ....OOOOOOOOOOO....   Your Quenero Wallet was locked to
- .......OOOOOOO.......  protect you while you were away.
- ..........O..........
- .......OOOOOOO.......  (Use `set inactivity-lock-timeout 0`
-  ....OOOOOOOOOOO....   to disable this inactivity timeout)
-    ...............
-      ...........
+  ...             ...   Your Quenero Wallet was locked to
+ ....             ....  protect you while you were away.
+ ...              ....
+ ...           _.._...  (Use `set inactivity-lock-timeout 0`
+  ...          \...\.   to disable this inactivity timeout)
+    ............\...\
+      ...........\_..\
 )";
     }
 
@@ -7327,7 +7327,7 @@ bool simple_wallet::sweep_main_internal(sweep_type_t sweep_type, std::vector<too
   if (sweep_type == sweep_type_t::register_stake && submitted_to_network)
   {
     success_msg_writer() << tr("Wait for transaction to be included in a block before registration is complete.\n")
-                         << tr("Use the print_sn command in the daemon to check the status.");
+                         << tr("Use the print_masternode command in the daemon to check the status.");
   }
 
   return true;

@@ -64,34 +64,41 @@ static uint8_t get_block_version(const cryptonote::block &b)
 // version 7 from the start of the blockchain, inhereted from Monero mainnet
 static constexpr HardFork::Params mainnet_hard_forks[] =
 {
-  { network_version_7,                      1,   0, 1630219868 },
-  { network_version_8,                      64,  0, 1630220224 },
-  { network_version_9_masternodes,          100, 0, 1630220350 },
-  { network_version_10_bulletproofs,        150, 0, 1630220890 },
-  { network_version_11_infinite_staking,    169, 0, 1630221303 },
-  { network_version_12_checkpointing,       170, 0, 1630221310 },
-  { network_version_13_enforce_checkpoints, 180, 0, 1630221550 },
-  { network_version_14_blink,               190, 0, 1630221910 },
-  { network_version_15_ons,                 200, 0, 1630222210 },
+  { network_version_7,                        1,   0, 1630219868 },
+  { network_version_8,                        5,   0, 1630220224 },
+  { network_version_9_masternodes,          505,   0, 1630220350 },
+  { network_version_10_bulletproofs,        507,   0, 1630220890 },
+  { network_version_11_infinite_staking,    509,   0, 1630221303 },
+  { network_version_12_checkpointing,       511,   0, 1630221310 },
+  { network_version_13_enforce_checkpoints, 526,   0, 1630221550 },
+  { network_version_14_blink,               528,   0, 1630221910 },
+  { network_version_15_ons,                 530,   0, 1630222210 },
 };
 
 static constexpr HardFork::Params testnet_hard_forks[] =
 {
-  { network_version_7,                      1,   0, 1630219868 },
-  { network_version_8,                      64,  0, 1630220224 },
-  { network_version_9_masternodes,          100, 0, 1630220350 },
-  { network_version_10_bulletproofs,        150, 0, 1630220890 },
-  { network_version_11_infinite_staking,    169, 0, 1630221303 },
-  { network_version_12_checkpointing,       170, 0, 1630221310 },
-  { network_version_13_enforce_checkpoints, 180, 0, 1630221550 },
-  { network_version_14_blink,               190, 0, 1630221910 },
-  { network_version_15_ons,                 200, 0, 1630222210 },
+  { network_version_7,                        1,   0, 1630219868 },
+  { network_version_8,                        5,   0, 1630220224 },
+  { network_version_9_masternodes,          505,   0, 1630220350 },
+  { network_version_10_bulletproofs,        507,   0, 1630220890 },
+  { network_version_11_infinite_staking,    509,   0, 1630221303 },
+  { network_version_12_checkpointing,       511,   0, 1630221310 },
+  { network_version_13_enforce_checkpoints, 560,   0, 1630221550 },
+  { network_version_14_blink,               570,   0, 1630221910 },
+  { network_version_15_ons,                 580,   0, 1630222210 },
 };
 
 static constexpr HardFork::Params devnet_hard_forks[] =
 {
-  { network_version_7,                      1,      0, 1599848400 },
-  { network_version_16_pulse,               2,      0, 1599848400 }, // 2020-09-11 18:20 UTC
+  { network_version_7,                        1,   0, 1630219868 },
+  { network_version_8,                        5,   0, 1630220224 },
+  { network_version_9_masternodes,          505,   0, 1630220350 },
+  { network_version_10_bulletproofs,        507,   0, 1630220890 },
+  { network_version_11_infinite_staking,    509,   0, 1630221303 },
+  { network_version_12_checkpointing,       511,   0, 1630221310 },
+  { network_version_13_enforce_checkpoints, 560,   0, 1630221550 },
+  { network_version_14_blink,               570,   0, 1630221910 },
+  { network_version_15_ons,                 580,   0, 1630222210 },
 };
 
 uint64_t HardFork::get_hardcoded_hard_fork_height(network_type nettype, cryptonote::network_version version)

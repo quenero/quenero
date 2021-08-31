@@ -160,8 +160,8 @@ class Daemon(RPCDaemon):
 
         if masternode:
             self.args += (
-                    '--service-node',
-                    '--service-node-public-ip={}'.format(self.listen_ip),
+                    '--masternode',
+                    '--masternode-public-ip={}'.format(self.listen_ip),
                     '--storage-server-port={}'.format(self.ss_port),
                     )
 
