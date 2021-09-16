@@ -1,0 +1,3 @@
+/usr/lib/*/quenero/lib[a-ce-vx-z]*.so.@LIBQUENERO_VER@
+/usr/lib/*/quenero/libdevice.so.@LIBQUENERO_VER@
+/usr/lib/*/quenero/libd[a-df-z]*.so.@LIBQUENERO_VER@

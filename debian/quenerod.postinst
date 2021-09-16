@@ -1,0 +1,73 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = configure ]; then
+    # Create _loki user if it doesn't exist
+    if ! getent passwd _loki >/dev/null; then
+        adduser --force-badname --system --quiet --home /var/lib/quenero --group --gecos "Quenero node" _loki
+    fi
+    # Make sure the group gets created (in case _loki was preexisting)
+    if ! getent group _loki >/dev/null; then
+        addgroup --force-badname --system --quiet _loki
+    fi
+    # Make sure the _loki user is part of the _loki group
+    if ! id -Gn _loki | grep -qw _loki; then
+        adduser --force-badname --quiet _loki _loki
+    fi
+
+    # Create and chown /var/{lib,log}/quenero
+    for d in lib log; do
+        if ! [ -d /var/$d/quenero ]; then
+            if [ -d /var/$d/loki ]; then
+                # Symlink for migration from /var/{lib,log}/loki -> /var/{lib,log}/quenero
+                ln -s loki /var/$d/quenero
+            else
+                mkdir -p /var/$d/quenero
+            fi
+        fi
+
+        su -s /bin/sh _loki -c "test -O /var/$d/quenero &&
+            test -G /var/$d/quenero" || \
+            chown _loki:_loki /var/$d/quenero
+    done
+
+    # Make /var/lib/loki -> quenero compatibility symlink (lokinet, at least, still depends on
+    # this)
+    if ! [ -d /var/lib/loki ] && ! [ -h /var/lib/loki ] && [ -d /var/lib/quenero ]; then
+        ln -s quenero /var/lib/loki
+    fi
+
+    # If this is a new install then see if we also have a lokid package installed: if so then we
+    # have to deal with the service rename by copying the loki-node enabled status into the
+    # quenero-node enabled status so that the new quenero-node.service file ends up in the right state
+    # (i.e. not enabled if loki-node.service wasn't enabled).
+    if [ -z "$2" ] && [ -f /var/lib/dpkg/info/lokid.list ]; then
+        # Enabled by default, so disable if the old one was not enabled:
+        if ! deb-systemd-helper --quiet was-enabled loki-node.service; then
+            # The enable-disable is a bit weird, but the first "d-s-h enable" call does
+            # initialization so we have to flip it on and off again to make d-s-h realize that it
+            # was explicitly disabled when it tries to call d-s-h enable again in the automatic
+            # debhelper scripts, below:
+            deb-systemd-helper enable quenero-node.service
+            deb-systemd-helper disable quenero-node.service
+        fi
+
+        # Disabled by default, so enable only if the old one was enabled:
+        if deb-systemd-helper --quiet was-enabled loki-testnet-node.service; then
+            deb-systemd-helper enable quenero-testnet-node.service
+        fi
+    fi
+fi
+
+#DEBHELPER#
+
+# Also restart the quenero-nodes.target (from quenero-multi-sn) on upgrade if it is active
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+    if [ -n "$2" ] && [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload >/dev/null || true
+        if systemctl --quiet is-active quenero-nodes.target; then
+            deb-systemd-invoke restart quenero-nodes.target >/dev/null || true
+        fi
+    fi
+fi

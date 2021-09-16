@@ -1,0 +1,73 @@
+#!/bin/sh
+
+set -e
+
+restart_quenerod=
+
+if [ "$1" = configure ]; then
+    . /usr/share/debconf/confmodule
+    db_get quenero-service-node/ip-address
+    IP="$RET"
+
+    for conf in quenero.conf testnet.conf; do
+        dpkg-divert --package quenero-service-node --add --rename --divert /etc/quenero/$conf.no-service-node /etc/quenero/$conf
+    done
+
+    tmpdir=$(mktemp --tmpdir -d quenero-service-node.XXXXXXXXXX)
+    for c in quenero.conf testnet.conf; do
+        if [ -f "/etc/quenero/$c" ]; then
+            cp /etc/quenero/$c ${tmpdir}/$c
+        elif [ -f "/etc/quenero/$c.no-service-node" ]; then
+            cp /etc/quenero/$c.no-service-node ${tmpdir}/$c
+        elif [ -f "/usr/share/quenerod/$c" ]; then
+            cp /usr/share/quenerod/$c ${tmpdir}/$c
+        else
+            echo "Internal error: cannot find an existing $c to update!"
+            false
+        fi
+    done
+
+    sed -i '/^#\?service-node=/{h;s/.*=.*/service-node=1/};${x;/^$/{s//service-node=1/;H};x}' \
+        ${tmpdir}/quenero.conf ${tmpdir}/testnet.conf
+    sed -i '/^storage-server-port=/{h;s/=.*/=22021/};${x;/^$/{s//storage-server-port=22021/;H};x}' \
+        ${tmpdir}/quenero.conf
+    sed -i '/^storage-server-port=/{h;s/=.*/=38155/};${x;/^$/{s//storage-server-port=38155/;H};x}' \
+        ${tmpdir}/testnet.conf
+    sed -i '/^service-node-public-ip=/{h;s/=.*/='"$IP"'/};${x;/^$/{s//service-node-public-ip='"$IP"'/;H};x}' \
+        ${tmpdir}/quenero.conf ${tmpdir}/testnet.conf
+
+    orig_md5=$(md5sum /etc/quenero/{quenero,testnet}.conf 2>/dev/null || true)
+
+    for x in quenero.conf testnet.conf; do
+        if ! [ -f /etc/quenero/$x ]; then
+            mv ${tmpdir}/$x /etc/quenero/$x
+            ucfr quenero-service-node /etc/quenero/$x
+        else
+            ucf --debconf-ok ${tmpdir}/$x /etc/quenero/$x
+        fi
+    done
+
+    rm -rf ${tmpdir}
+
+    for conf in quenero.conf testnet.conf; do
+        # NB: also purge in postrm
+        ucfr quenero-service-node /etc/quenero/$conf
+    done
+
+    # If we updated config files then we need to make sure quenerod restarts below.
+    if [ "$(md5sum /etc/quenero/{quenero,testnet}.conf 2>/dev/null || true)" != "$orig_main_md5" ]; then
+        restart_quenerod=1
+    fi
+fi
+
+#DEBHELPER#
+
+# Debhelper doesn't do this here because the quenero-service-node package doesn't contain the service files:
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+    if [ -d /run/systemd/system ] && [ -n "$restart_quenerod" ]; then
+        systemctl --system daemon-reload >/dev/null || true
+        for s in quenero-node quenero-testnet-node; do
+            deb-systemd-invoke restart $s.service || true
+        done
+    fi
+fi

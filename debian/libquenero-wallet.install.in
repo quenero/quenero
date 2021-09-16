@@ -1,0 +1,2 @@
+/usr/lib/*/quenero/libdevice_trezor.so.@LIBQUENERO_VER@
+/usr/lib/*/quenero/libwallet.so.@LIBQUENERO_VER@

@@ -1,0 +1,124 @@
+From: Jason Rhinelander <jason@imaginary.ca>
+Date: Sun, 5 May 2019 01:27:17 -0300
+Subject: Make quenero build and install shared libs
+
+Patch the quenero cmake files to properly build and install shared libs.
+---
+ CMakeLists.txt              | 17 +++++++++++++++--
+ contrib/epee/CMakeLists.txt |  6 ++++++
+ external/CMakeLists.txt     | 10 ++++++++--
+ src/CMakeLists.txt          |  6 +++++-
+ 4 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f8f36f5..4530cf2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -44,7 +44,7 @@ if(CCACHE_PROGRAM)
+   endforeach()
+ endif()
+ 
+-cmake_minimum_required(VERSION 3.10)
++cmake_minimum_required(VERSION 3.13)
+ message(STATUS "CMake version ${CMAKE_VERSION}")
+ 
+ # Has to be set before `project()`, and ignored on non-macos:
+@@ -347,7 +347,9 @@ endif()
+ 
+ include(cmake/check_for_std_filesystem.cmake)
+ 
+-include_directories(external/rapidjson/include src external)
++include(Version)
++
++include_directories(external/rapidjson/include src contrib/epee/include external)
+ 
+ if(APPLE)
+   include_directories(SYSTEM /usr/include/malloc)
+@@ -917,6 +919,17 @@ if(BUILD_DOCUMENTATION)
+   endif()
+ endif()
+ 
++set(quenerolibs epee blockchain_db checkpoints common cncrypto cryptonote_basic
++        cryptonote_core cryptonote_protocol device device_trezor lmdb_lib mnemonics
++        multisig net p2p ringct_basic ringct
++        rpc_server_base rpc rpc_http_client rpc_commands daemon_rpc_server
++        wallet easylogging lmdb randomx blocks version)
++install(TARGETS ${quenerolibs}
++    ARCHIVE DESTINATION lib${QUENERO_INSTALL_LIBDIR_SUFFIX}
++    LIBRARY DESTINATION lib${QUENERO_INSTALL_LIBDIR_SUFFIX})
++set_target_properties(${quenerolibs} PROPERTIES
++    VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
++
+ find_package(PythonInterp)
+ find_program(iwyu_tool_path NAMES iwyu_tool.py iwyu_tool)
+ if (iwyu_tool_path AND PYTHONINTERP_FOUND)
+diff --git a/contrib/epee/CMakeLists.txt b/contrib/epee/CMakeLists.txt
+index 2af962a..d52baa5 100644
+--- a/contrib/epee/CMakeLists.txt
++++ b/contrib/epee/CMakeLists.txt
+@@ -28,3 +28,9 @@
+ 
+ add_subdirectory(src)
+ target_include_directories(epee PUBLIC include)
++
++install(
++    DIRECTORY include/
++    DESTINATION include${QUENERO_INSTALL_INCLUDEDIR_SUFFIX}
++    COMPONENT development
++    FILES_MATCHING PATTERN "*.h" PATTERN "*.inl")
+diff --git a/external/CMakeLists.txt b/external/CMakeLists.txt
+index ea98271..e75dfb3 100644
+--- a/external/CMakeLists.txt
++++ b/external/CMakeLists.txt
+@@ -55,7 +55,7 @@ elseif(MINIUPNPC_FOUND)
+   message(STATUS "Found miniupnpc")
+   target_link_libraries(miniupnpc INTERFACE PkgConfig::MINIUPNPC)
+ else()
+-  message(STATUS "Using in-tree miniupnpc")
++  message(FATAL_ERROR "Using in-tree miniupnpc")
+   add_subdirectory(miniupnp/miniupnpc)
+   if(MSVC)
+     target_compile_options(libminiupnpc-static PRIVATE -wd4244 -wd4267)
+@@ -71,7 +71,7 @@ endif()
+ 
+ 
+ if(NOT QUENEROMQ_FOUND)
+-  message(STATUS "Using in-tree oxenmq")
++  message(FATAL_ERROR "Refusing to use in-tree oxenmq in a deb build")
+   add_subdirectory(loki-mq)
+ else()
+   add_library(oxenmq INTERFACE)
+@@ -84,6 +84,12 @@ add_subdirectory(db_drivers)
+ add_subdirectory(easylogging++ easyloggingpp)
+ add_subdirectory(randomx EXCLUDE_FROM_ALL)
+ 
++install(
++  DIRECTORY boost
++  DESTINATION include${QUENERO_INSTALL_INCLUDEDIR_SUFFIX}
++  COMPONENT   development
++  FILES_MATCHING PATTERN "*.hpp")
++
+ # uSockets doesn't really have a proper build system (just a very simple Makefile) so build it
+ # ourselves.
+ if (NOT CMAKE_VERSION VERSION_LESS 3.12)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index e6a4d97..82d047d 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -47,7 +47,6 @@ function (quenero_add_executable target binary)
+   set_property(GLOBAL PROPERTY quenero_executable_targets "${exec_tgt}")
+ endfunction ()
+ 
+-include(Version)
+ add_library(version ${CMAKE_BINARY_DIR}/version.cpp)
+ add_dependencies(version genversion)
+ 
+@@ -93,3 +92,8 @@ endif()
+ 
+ add_subdirectory(device)
+ add_subdirectory(device_trezor)
++
++install(
++    DIRECTORY   "${CMAKE_CURRENT_SOURCE_DIR}/"
++    DESTINATION "include${QUENERO_INSTALL_INCLUDEDIR_SUFFIX}"
++    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")

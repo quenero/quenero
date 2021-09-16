@@ -1,0 +1,8 @@
+/usr/bin/quenerod
+/usr/bin/quenero-sn-keys
+debian/quenero.conf /etc/quenero
+debian/quenero.conf /usr/share/quenerod
+debian/testnet.conf /etc/quenero
+debian/testnet.conf /usr/share/quenerod
+debian/ufw/quenerod /etc/ufw/applications.d
+debian/quenerod-download-lmdb /usr/bin

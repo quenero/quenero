@@ -1,0 +1,5 @@
+quenero (10.2.0-2~deb10) buster; urgency=medium
+
+  * Add patches for hard_fork_info fix (to fix blink txes).
+
+ -- quenero
