@@ -2652,7 +2652,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
   QUENERO_RPC_DOC_INTROSPECT
   // Get the service node public keys of the queried daemon, encoded in hex.
-  // The daemon must be started in --service-node mode otherwise this RPC command will fail.
+  // The daemon must be started in --masternode mode otherwise this RPC command will fail.
   struct COMMAND_RPC_GET_MASTERNODE_KEY
   {
     struct request_t
@@ -2682,7 +2682,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   QUENERO_RPC_DOC_INTROSPECT
   // Get the service node private keys of the queried daemon, encoded in hex.  Do not ever share
   // these keys: they would allow someone to impersonate your service node.
-  // The daemon must be started in --service-node mode otherwise this RPC command will fail.
+  // The daemon must be started in --masternode mode otherwise this RPC command will fail.
   struct COMMAND_RPC_GET_MASTERNODE_PRIVKEY
   {
     struct request_t

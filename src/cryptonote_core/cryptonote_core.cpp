@@ -184,11 +184,11 @@ namespace cryptonote
   , DEFAULT_TXPOOL_MAX_WEIGHT
   };
   static const command_line::arg_descriptor<bool> arg_masternode  = {
-    "service-node"
-  , "Run as a service node, options 'service-node-public-ip' and 'storage-server-port' must be set"
+    "masternode"
+  , "Run as a service node, options 'masternode-public-ip' and 'storage-server-port' must be set"
   };
   static const command_line::arg_descriptor<std::string> arg_public_ip = {
-    "service-node-public-ip"
+    "masternode-public-ip"
   , "Public IP address on which this service node's services (such as the Quenero "
     "storage server) are accessible. This IP address will be advertised to the "
     "network via the service node uptime proofs. Required if operating as a "
@@ -204,7 +204,7 @@ namespace cryptonote
     "quorumnet-port"
   , "The port on which this service node listen for direct connections from other "
     "service nodes for quorum messages.  The port must be publicly reachable "
-    "on the `--service-node-public-ip' address and binds to the p2p IP address."
+    "on the `--masternode-public-ip' address and binds to the p2p IP address."
     " Only applies when running as a service node."
   , config::QNET_DEFAULT_PORT
   , {{ &cryptonote::arg_testnet_on, &cryptonote::arg_stagenet_on }}

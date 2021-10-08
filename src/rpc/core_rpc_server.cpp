@@ -2725,7 +2725,7 @@ namespace cryptonote
     if (!keys)
     {
       error_resp.code    = CORE_RPC_ERROR_CODE_WRONG_PARAM;
-      error_resp.message = "Daemon has not been started in service node mode, please relaunch with --service-node flag.";
+      error_resp.message = "Daemon has not been started in service node mode, please relaunch with --masternode flag.";
       return false;
     }
 
@@ -2820,7 +2820,7 @@ namespace cryptonote
     }
 
     error_resp.code    = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
-    error_resp.message = "Daemon queried is not a service node or did not launch with --service-node";
+    error_resp.message = "Daemon queried is not a service node or did not launch with --masternode";
     return false;
   }
   //------------------------------------------------------------------------------------------------------------------------------
@@ -2838,7 +2838,7 @@ namespace cryptonote
     }
 
     error_resp.code    = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
-    error_resp.message = "Daemon queried is not a service node or did not launch with --service-node";
+    error_resp.message = "Daemon queried is not a service node or did not launch with --masternode";
     return false;
   }
   //------------------------------------------------------------------------------------------------------------------------------

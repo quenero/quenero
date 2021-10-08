@@ -2896,7 +2896,7 @@ bool t_rpc_command_executor::masternode_registration()
   {
     cryptonote::COMMAND_RPC_GET_MASTERNODE_KEY::request keyreq = {};
     cryptonote::COMMAND_RPC_GET_MASTERNODE_KEY::response keyres = {};
-    std::string const fail_msg = "Cannot get service node key. Make sure you are running daemon with --service-node flag";
+    std::string const fail_msg = "Cannot get service node key. Make sure you are running daemon with --masternode flag";
 
     if (m_is_rpc)
     {
@@ -3457,7 +3457,7 @@ bool t_rpc_command_executor::masternode_registration()
     {
       if (!m_rpc_client->json_rpc_request(req, res, "get_masternode_registration_cmd_raw", fail_message))
       {
-        tools::fail_msg_writer() << "Failed to validate registration arguments; check the addresses and registration parameters and that the Daemon is running with the '--service-node' flag";
+        tools::fail_msg_writer() << "Failed to validate registration arguments; check the addresses and registration parameters and that the Daemon is running with the '--masternode' flag";
         return true;
       }
     }

@@ -289,7 +289,7 @@ namespace masternodes
     {
       if (checkpoint.signatures.size() != 0)
       {
-        LOG_PRINT_L1("Non service-node checkpoints should have no signatures, checkpoint failed at height: " << checkpoint.height);
+        LOG_PRINT_L1("Non masternode checkpoints should have no signatures, checkpoint failed at height: " << checkpoint.height);
         return false;
       }
     }

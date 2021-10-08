@@ -104,7 +104,7 @@ namespace cryptonote {
     //premine reward
     if (already_generated_coins == 0)
     {
-      reward = 22'500'000 * COIN;
+      reward = 17592.186044415 * COIN;
       return true;
     }
 
