@@ -1,11 +1,11 @@
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
 
 #if defined _WIN32
 #error "Not implemented"
 #endif
 
-#ifndef LOKI_INTEGRATION_TEST_HOOKS_H
-#define LOKI_INTEGRATION_TEST_HOOKS_H
+#ifndef QUENERO_INTEGRATION_TEST_HOOKS_H
+#define QUENERO_INTEGRATION_TEST_HOOKS_H
 
 //
 // Header
@@ -39,14 +39,14 @@ extern struct state_t
 
 }; // integration_test
 
-#endif // LOKI_INTEGRATION_TEST_HOOKS_H
+#endif // QUENERO_INTEGRATION_TEST_HOOKS_H
 
 // -------------------------------------------------------------------------------------------------
 //
 // CPP Implementation
 //
 // -------------------------------------------------------------------------------------------------
-#ifdef LOKI_INTEGRATION_TEST_HOOKS_IMPLEMENTATION
+#ifdef QUENERO_INTEGRATION_TEST_HOOKS_IMPLEMENTATION
 #include <string.h>
 #include <assert.h>
 #include <sys/stat.h>
@@ -65,7 +65,7 @@ const command_line::arg_descriptor<std::string, false> arg_hardforks_override = 
 const command_line::arg_descriptor<std::string, false> arg_pipe_name = {
   "integration-test-pipe-name"
 , "Specify the pipe name for stdin and stdout"
-, "loki-default-pipe-name"
+, "quenero-default-pipe-name"
 , false
 };
 
@@ -224,6 +224,6 @@ void integration_test::write_buffered_stdout()
   use_redirected_cout();
 }
 
-#endif // LOKI_INTEGRATION_TEST_HOOKS_IMPLEMENTATION
-#endif // LOKI_ENABLE_INTEGRATION_TEST_HOOKS
+#endif // QUENERO_INTEGRATION_TEST_HOOKS_IMPLEMENTATION
+#endif // QUENERO_ENABLE_INTEGRATION_TEST_HOOKS
 

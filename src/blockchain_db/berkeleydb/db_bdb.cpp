@@ -2293,16 +2293,16 @@ void BlockchainBDB::fixup(fixup_context const context)
   BlockchainDB::fixup(context);
 }
 
-void BlockchainBDB::set_service_node_data(const std::string& data, bool long_term)
+void BlockchainBDB::set_masternode_data(const std::string& data, bool long_term)
 {
 }
 
-bool BlockchainBDB::get_service_node_data(std::string& data, bool long_term)
+bool BlockchainBDB::get_masternode_data(std::string& data, bool long_term)
 {
   return false;
 }
 
-void BlockchainBDB::clear_service_node_data()
+void BlockchainBDB::clear_masternode_data()
 {
 }
 

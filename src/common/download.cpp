@@ -35,8 +35,8 @@
 #include "net/http_client.h"
 #include "download.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "net.dl"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "net.dl"
 
 namespace tools
 {

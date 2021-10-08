@@ -35,7 +35,7 @@ add_library(common
   download.cpp
   error.cpp
   expect.cpp
-  loki.cpp
+  quenero.cpp
   util.cpp
   i18n.cpp
   rules.cpp
@@ -68,7 +68,7 @@ add_dependencies(common generate_translations_header)
 target_link_libraries(common
   PUBLIC
     cncrypto
-    lokimq::lokimq
+    queneromq::queneromq
   PRIVATE
     libunbound
     Boost::regex

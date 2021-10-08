@@ -27,7 +27,7 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-loki_add_executable(cn_deserialize "loki-utils-deserialize"
+quenero_add_executable(cn_deserialize "quenero-utils-deserialize"
   cn_deserialize.cpp
   )
 
@@ -37,7 +37,7 @@ target_link_libraries(cn_deserialize
     p2p
     extra)
 
-loki_add_executable(object_sizes "loki-utils-object-sizes"
+quenero_add_executable(object_sizes "quenero-utils-object-sizes"
   object_sizes.cpp
   )
 

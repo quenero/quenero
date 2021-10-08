@@ -1,24 +1,23 @@
-# Loki
+# Quenero
 
-<p align="center">
-    <a href="https://github.com/loki-project/loki/commits/dev"><img alt="pipeline status" src="https://gitlab.com/lokiproject/loki/badges/dev/pipeline.svg" /></a>
-</p>
 
-Copyright (c) 2018 The Loki Project.   
+
+Copyright (c) 2021 The Quenero Project.   
+Copyright (c) 2018 The Loki Project
 Portions Copyright (c) 2014-2019 The Monero Project.   
 Portions Copyright (c) 2012-2013 The Cryptonote developers.
 
 ## Development resources
 
-- Web: [loki.network](https://loki.network)
-- Telegram: [t.me/LokiCommunity](https://t.me/LokiCommunity)
-- Mail: [team@loki.network](mailto:team@loki.network)
-- GitHub: [https://github.com/loki-project/loki](https://github.com/loki-project/loki)
-- Discord: [https://discord.gg/67GXfD6](https://discord.gg/67GXfD6)
+- Web: [quenero.tech](https://quenero.tech)
+- Telegram: [t.me/Quenero](https://t.me/Quenero)
+- Mail: [team@quenero.tech](mailto:team@quenero.tech)
+- GitHub: [https://github.com/quenero/quenero](https://github.com/quenero/quenero)
+- Discord: [https://discord.gg/434TYkhUj3](https://discord.gg/434TYkhUj3)
 
 ## Vulnerability disclosure
 
-- Check out our [Vulnerability Response Process](https://loki-project.github.io/loki-docs/Contributing/VULNERABILITY_RESPONSE_LOKI), encourages prompt disclosure of any Vulnerabilities
+- Check out our [Vulnerability Response Process](https://quenero.github.io/docs/Contributing/VULNERABILITY_RESPONSE_LOKI), encourages prompt disclosure of any Vulnerabilities
 
 ## Information
 

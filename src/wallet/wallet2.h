@@ -51,7 +51,7 @@
 #include "rpc/core_rpc_server_commands_defs.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_core/cryptonote_tx_utils.h"
-#include "cryptonote_core/loki_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 #include "common/unordered_containers_boost_serialization.h"
 #include "common/util.h"
 #include "crypto/chacha.h"
@@ -67,10 +67,10 @@
 #include "message_store.h"
 #include "wallet_light_rpc.h"
 
-#include "common/loki_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "wallet.wallet2"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.wallet2"
 
 #define SUBADDRESS_LOOKAHEAD_MAJOR 50
 #define SUBADDRESS_LOOKAHEAD_MINOR 200
@@ -78,12 +78,12 @@
 class Serialization_portability_wallet_Test;
 class wallet_accessor_test;
 
-LOKI_RPC_DOC_INTROSPECT
+QUENERO_RPC_DOC_INTROSPECT
 namespace tools
 {
   static const char *ERR_MSG_NETWORK_VERSION_QUERY_FAILED = tr("Could not query the current network version, try later");
   static const char *ERR_MSG_NETWORK_HEIGHT_QUERY_FAILED = tr("Could not query the current network block height, try later: ");
-  static const char *ERR_MSG_SERVICE_NODE_LIST_QUERY_FAILED = tr("Failed to query daemon for service node list");
+  static const char *ERR_MSG_MASTERNODE_LIST_QUERY_FAILED = tr("Failed to query daemon for service node list");
   static const char *ERR_MSG_TOO_MANY_TXS_CONSTRUCTED = tr("Constructed too many transations, please sweep_all first");
   static const char *ERR_MSG_EXCEPTION_THROWN = tr("Exception thrown, staking process could not be completed: ");
 
@@ -173,7 +173,7 @@ private:
     out,
     stake,
     miner,
-    service_node,
+    masternode,
     governance
   };
 
@@ -186,7 +186,7 @@ private:
       case pay_type::out:          return "out";
       case pay_type::stake:        return "stake";
       case pay_type::miner:        return "miner";
-      case pay_type::service_node: return "snode";
+      case pay_type::masternode: return "snode";
       case pay_type::governance:   return "gov";
       default: assert(false);      return "xxxxx";
     }
@@ -234,7 +234,7 @@ private:
 
   enum class stake_check_result { allowed, not_allowed, try_later };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct transfer_destination
   {
     std::string address; // Destination public address.
@@ -246,7 +246,7 @@ private:
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct transfer_view
   {
     std::string txid;                                          // Transaction ID for this transfer.
@@ -265,15 +265,15 @@ private:
     bool double_spend_seen;                                    // True if the key image(s) for the transfer have been seen before.
     uint64_t confirmations;                                    // Number of block mined since the block containing this transaction (or block height at which the transaction should be added to a block if not yet confirmed).
     uint64_t suggested_confirmations_threshold;                // Estimation of the confirmations needed for the transaction to be included in a block.
-    uint64_t checkpointed;                                     // If transfer is backed by atleast 2 Service Node Checkpoints, 0 if it is not, see immutable_height in the daemon rpc call get_info
+    uint64_t checkpointed;                                     // If transfer is backed by atleast 2 Masternode Checkpoints, 0 if it is not, see immutable_height in the daemon rpc call get_info
     bool blink_mempool;                                        // True if this is an approved blink tx in the mempool
     bool was_blink;                                            // True if we saw this as an approved blink (either in the mempool or a recent, uncheckpointed block).  Note that if we didn't see it while an active blink this won't be set.
 
     // Not serialized, for internal wallet2 use
-    tools::pay_type pay_type;                                  // @NoLokiRPCDocGen Internal use only, not serialized
-    bool            confirmed;                                 // @NoLokiRPCDocGen Internal use only, not serialized
-    crypto::hash    hash;                                      // @NoLokiRPCDocGen Internal use only, not serialized
-    std::string     lock_msg;                                  // @NoLokiRPCDocGen Internal use only, not serialized
+    tools::pay_type pay_type;                                  // @NoQueneroRPCDocGen Internal use only, not serialized
+    bool            confirmed;                                 // @NoQueneroRPCDocGen Internal use only, not serialized
+    crypto::hash    hash;                                      // @NoQueneroRPCDocGen Internal use only, not serialized
+    std::string     lock_msg;                                  // @NoQueneroRPCDocGen Internal use only, not serialized
 
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE(txid);
@@ -285,7 +285,7 @@ private:
       KV_SERIALIZE(note);
       KV_SERIALIZE(destinations);
 
-      // TODO(loki): This discrepancy between having to use pay_type if type is
+      // TODO(quenero): This discrepancy between having to use pay_type if type is
       // empty and type if pay type is neither is super unintuitive.
       if (this_ref.type.empty())
       {
@@ -482,7 +482,7 @@ private:
       bool m_unmined_blink;
       bool m_was_blink;
 
-      bool is_coinbase() const { return ((m_type == pay_type::miner) || (m_type == pay_type::service_node) || (m_type == pay_type::governance)); }
+      bool is_coinbase() const { return ((m_type == pay_type::miner) || (m_type == pay_type::masternode) || (m_type == pay_type::governance)); }
     };
 
     struct address_tx : payment_details
@@ -522,7 +522,7 @@ private:
       std::vector<cryptonote::tx_destination_entry> m_dests;
       crypto::hash m_payment_id;
       uint64_t m_timestamp;
-      uint64_t m_unlock_time; // NOTE(loki): Not used after TX v2.
+      uint64_t m_unlock_time; // NOTE(quenero): Not used after TX v2.
       std::vector<uint64_t> m_unlock_times;
       uint32_t m_subaddr_account;   // subaddress account of your wallet to be used in this transfer
       std::set<uint32_t> m_subaddr_indices;  // set of address indices used as inputs in this transfer
@@ -947,7 +947,7 @@ private:
     uint64_t unlocked_balance_all(uint64_t *blocks_to_unlock = NULL) const;
     void transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
       std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs,
-      uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, const cryptonote::loki_construct_tx_params &loki_tx_params);
+      uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config, const cryptonote::quenero_construct_tx_params &quenero_tx_params);
 
     void commit_tx(pending_tx& ptx_vector, bool blink = false);
     void commit_tx(std::vector<pending_tx>& ptx_vector, bool blink = false);
@@ -969,7 +969,7 @@ private:
     bool parse_unsigned_tx_from_str(const std::string &unsigned_tx_st, unsigned_tx_set &exported_txs) const;
     bool load_tx(const std::string &signed_filename, std::vector<tools::wallet2::pending_tx> &ptx, std::function<bool(const signed_tx_set&)> accept_func = NULL);
     bool parse_tx_from_str(const std::string &signed_tx_st, std::vector<tools::wallet2::pending_tx> &ptx, std::function<bool(const signed_tx_set &)> accept_func);
-    std::vector<wallet2::pending_tx> create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra_base, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, cryptonote::loki_construct_tx_params &tx_params);
+    std::vector<wallet2::pending_tx> create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra_base, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, cryptonote::quenero_construct_tx_params &tx_params);
 
     std::vector<wallet2::pending_tx> create_transactions_all(uint64_t below, const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, cryptonote::txtype tx_type = cryptonote::txtype::standard);
     std::vector<wallet2::pending_tx> create_transactions_single(const crypto::key_image &ki, const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, cryptonote::txtype tx_type = cryptonote::txtype::standard);
@@ -1019,10 +1019,10 @@ private:
     void get_unconfirmed_payments_out(std::list<std::pair<crypto::hash,wallet2::unconfirmed_transfer_details>>& unconfirmed_payments, const boost::optional<uint32_t>& subaddr_account = boost::none, const std::set<uint32_t>& subaddr_indices = {}) const;
     void get_unconfirmed_payments(std::list<std::pair<crypto::hash,wallet2::pool_payment_details>>& unconfirmed_payments, const boost::optional<uint32_t>& subaddr_account = boost::none, const std::set<uint32_t>& subaddr_indices = {}) const;
 
-    // NOTE(loki): get_all_service_node caches the result, get_service_nodes doesn't
-    std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry> get_all_service_nodes(boost::optional<std::string> &failed)                                             const { return m_node_rpc_proxy.get_all_service_nodes(failed); }
-    std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry> get_service_nodes    (std::vector<std::string> const &pubkeys, boost::optional<std::string> &failed)    const { return m_node_rpc_proxy.get_service_nodes(pubkeys, failed); }
-    std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry> get_service_node_blacklisted_key_images(boost::optional<std::string> &failed)               const { return m_node_rpc_proxy.get_service_node_blacklisted_key_images(failed); }
+    // NOTE(quenero): get_all_masternode caches the result, get_masternodes doesn't
+    std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry> get_all_masternodes(boost::optional<std::string> &failed)                                             const { return m_node_rpc_proxy.get_all_masternodes(failed); }
+    std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry> get_masternodes    (std::vector<std::string> const &pubkeys, boost::optional<std::string> &failed)    const { return m_node_rpc_proxy.get_masternodes(pubkeys, failed); }
+    std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry> get_masternode_blacklisted_key_images(boost::optional<std::string> &failed)               const { return m_node_rpc_proxy.get_masternode_blacklisted_key_images(failed); }
     std::vector<cryptonote::COMMAND_RPC_LNS_OWNERS_TO_NAMES::response_entry> lns_owners_to_names(cryptonote::COMMAND_RPC_LNS_OWNERS_TO_NAMES::request const &request, boost::optional<std::string> &failed) const { return m_node_rpc_proxy.lns_owners_to_names(request, failed); }
     std::vector<cryptonote::COMMAND_RPC_LNS_NAMES_TO_OWNERS::response_entry> lns_names_to_owners(cryptonote::COMMAND_RPC_LNS_NAMES_TO_OWNERS::request const &request, boost::optional<std::string> &failed) const { return m_node_rpc_proxy.lns_names_to_owners(request, failed); }
 
@@ -1386,7 +1386,7 @@ private:
 
     // params constructor, accumulates the burn amounts if the priority is
     // a blink and, or a lns tx. If it is a blink TX, lns_burn_type is ignored.
-    static cryptonote::loki_construct_tx_params construct_params(uint8_t hf_version, cryptonote::txtype tx_type, uint32_t priority, lns::mapping_type lns_burn_type = static_cast<lns::mapping_type>(0));
+    static cryptonote::quenero_construct_tx_params construct_params(uint8_t hf_version, cryptonote::txtype tx_type, uint32_t priority, lns::mapping_type lns_burn_type = static_cast<lns::mapping_type>(0));
 
     bool is_unattended() const { return m_unattended; }
 
@@ -1476,13 +1476,13 @@ private:
       payment_id_disallowed,
       subaddress_disallowed,
       address_must_be_primary,
-      service_node_list_query_failed,
-      service_node_not_registered,
+      masternode_list_query_failed,
+      masternode_not_registered,
       network_version_query_failed,
       network_height_query_failed,
-      service_node_contribution_maxed,
-      service_node_contributors_maxed,
-      service_node_insufficient_contribution,
+      masternode_contribution_maxed,
+      masternode_contributors_maxed,
+      masternode_insufficient_contribution,
       too_many_transactions_constructed,
       no_blink,
     };
@@ -1497,9 +1497,9 @@ private:
     /// Modifies the `amount` to maximum possible if too large, but rejects if insufficient.
     /// `fraction` is only used to determine the amount if specified zero.
     stake_result check_stake_allowed(const crypto::public_key& sn_key, const cryptonote::address_parse_info& addr_info, uint64_t& amount, double fraction = 0);
-    stake_result create_stake_tx    (const crypto::public_key& service_node_key, const cryptonote::address_parse_info& addr_info, uint64_t amount,
+    stake_result create_stake_tx    (const crypto::public_key& masternode_key, const cryptonote::address_parse_info& addr_info, uint64_t amount,
                                      double amount_fraction = 0, uint32_t priority = 0, uint32_t subaddr_account = 0, std::set<uint32_t> subaddr_indices = {});
-    enum struct register_service_node_result_status
+    enum struct register_masternode_result_status
     {
       invalid,
       success,
@@ -1510,12 +1510,12 @@ private:
       convert_registration_args_failed,
       registration_timestamp_expired,
       registration_timestamp_parse_fail,
-      service_node_key_parse_fail,
-      service_node_signature_parse_fail,
-      service_node_register_serialize_to_tx_extra_fail,
+      masternode_key_parse_fail,
+      masternode_signature_parse_fail,
+      masternode_register_serialize_to_tx_extra_fail,
       first_address_must_be_primary_address,
-      service_node_list_query_failed,
-      service_node_cannot_reregister,
+      masternode_list_query_failed,
+      masternode_cannot_reregister,
       insufficient_portions,
       wallet_not_synced,
       too_many_transactions_constructed,
@@ -1523,13 +1523,13 @@ private:
       no_blink,
     };
 
-    struct register_service_node_result
+    struct register_masternode_result
     {
-      register_service_node_result_status status;
+      register_masternode_result_status status;
       std::string                         msg;
       pending_tx                          ptx;
     };
-    register_service_node_result create_register_service_node_tx(const std::vector<std::string> &args_, uint32_t subaddr_account = 0);
+    register_masternode_result create_register_masternode_tx(const std::vector<std::string> &args_, uint32_t subaddr_account = 0);
 
     struct request_stake_unlock_result
     {
@@ -1808,13 +1808,13 @@ private:
     std::unique_ptr<wallet_device_callback> m_device_callback;
   };
 
-  // TODO(loki): Hmm. We need this here because we make register_service_node do
+  // TODO(quenero): Hmm. We need this here because we make register_masternode do
   // parsing on the wallet2 side instead of simplewallet. This is so that
-  // register_service_node RPC command doesn't make it the wallet_rpc's
+  // register_masternode RPC command doesn't make it the wallet_rpc's
   // responsibility to parse out the string returned from the daemon. We're
   // purposely abstracting that complexity out to just wallet2's responsibility.
 
-  // TODO(loki): The better question is if anyone is ever going to try use
+  // TODO(quenero): The better question is if anyone is ever going to try use
   // register service node funded by multiple subaddresses. This is unlikely.
   constexpr std::array<const char* const, 6> allowed_priority_strings = {{"default", "unimportant", "normal", "elevated", "priority", "blink"}};
   bool parse_subaddress_indices(const std::string& arg, std::set<uint32_t>& subaddr_indices, std::string *err_msg = nullptr);

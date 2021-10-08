@@ -40,12 +40,12 @@
 #include "p2p/net_node.h"
 #include "cryptonote_protocol/cryptonote_protocol_handler.h"
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
-#include "common/loki_integration_test_hooks.h"
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
+#include "common/quenero_integration_test_hooks.h"
 #endif
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "daemon.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon.rpc"
 
 // yes, epee doesn't properly use its full namespace when calling its
 // functions from macros.  *sigh*
@@ -175,24 +175,23 @@ namespace cryptonote
         MAP_JON_RPC_WE_IF("prune_blockchain",    on_prune_blockchain,           COMMAND_RPC_PRUNE_BLOCKCHAIN, !m_restricted)
 
         //
-        // Loki
+        // Quenero
         //
         MAP_JON_RPC_WE("get_quorum_state",                          on_get_quorum_state, COMMAND_RPC_GET_QUORUM_STATE)
-        MAP_JON_RPC_WE_IF("get_service_node_registration_cmd_raw",  on_get_service_node_registration_cmd_raw, COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW, !m_restricted)
-        MAP_JON_RPC_WE("get_service_node_blacklisted_key_images",   on_get_service_node_blacklisted_key_images, COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES)
-        MAP_JON_RPC_WE_IF("get_service_node_registration_cmd",      on_get_service_node_registration_cmd, COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD, !m_restricted)
-        MAP_JON_RPC_WE_IF("get_service_node_key",                   on_get_service_node_key, COMMAND_RPC_GET_SERVICE_NODE_KEY, !m_restricted)
-        MAP_JON_RPC_WE_IF("get_service_node_privkey",               on_get_service_node_privkey, COMMAND_RPC_GET_SERVICE_NODE_PRIVKEY, !m_restricted)
-        MAP_JON_RPC_WE("get_service_node_status",                         on_get_service_node_status, COMMAND_RPC_GET_SERVICE_NODE_STATUS)
-        MAP_JON_RPC_WE("get_service_nodes",                         on_get_service_nodes, COMMAND_RPC_GET_SERVICE_NODES)
-        MAP_JON_RPC_WE("get_all_service_nodes",                     on_get_all_service_nodes, COMMAND_RPC_GET_SERVICE_NODES)
-        MAP_JON_RPC_WE("get_n_service_nodes",                       on_get_n_service_nodes, COMMAND_RPC_GET_N_SERVICE_NODES)
+        MAP_JON_RPC_WE_IF("get_masternode_registration_cmd_raw",  on_get_masternode_registration_cmd_raw, COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW, !m_restricted)
+        MAP_JON_RPC_WE("get_masternode_blacklisted_key_images",   on_get_masternode_blacklisted_key_images, COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES)
+        MAP_JON_RPC_WE_IF("get_masternode_registration_cmd",      on_get_masternode_registration_cmd, COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD, !m_restricted)
+        MAP_JON_RPC_WE_IF("get_masternode_key",                   on_get_masternode_key, COMMAND_RPC_GET_MASTERNODE_KEY, !m_restricted)
+        MAP_JON_RPC_WE_IF("get_masternode_privkey",               on_get_masternode_privkey, COMMAND_RPC_GET_MASTERNODE_PRIVKEY, !m_restricted)
+        MAP_JON_RPC_WE("get_masternode_status",                         on_get_masternode_status, COMMAND_RPC_GET_MASTERNODE_STATUS)
+        MAP_JON_RPC_WE("get_masternodes",                         on_get_masternodes, COMMAND_RPC_GET_MASTERNODES)
+        MAP_JON_RPC_WE("get_all_masternodes",                     on_get_all_masternodes, COMMAND_RPC_GET_MASTERNODES)
+        MAP_JON_RPC_WE("get_n_masternodes",                       on_get_n_masternodes, COMMAND_RPC_GET_N_MASTERNODES)
         MAP_JON_RPC_WE("get_staking_requirement",                   on_get_staking_requirement, COMMAND_RPC_GET_STAKING_REQUIREMENT)
         MAP_JON_RPC_WE("get_checkpoints",                           on_get_checkpoints, COMMAND_RPC_GET_CHECKPOINTS)
         MAP_JON_RPC_WE_IF("perform_blockchain_test",                on_perform_blockchain_test, COMMAND_RPC_PERFORM_BLOCKCHAIN_TEST, !m_restricted)
         MAP_JON_RPC_WE_IF("storage_server_ping",                    on_storage_server_ping, COMMAND_RPC_STORAGE_SERVER_PING, !m_restricted)
-        MAP_JON_RPC_WE_IF("lokinet_ping",                           on_lokinet_ping, COMMAND_RPC_LOKINET_PING, !m_restricted)
-        MAP_JON_RPC_WE("get_service_nodes_state_changes",           on_get_service_nodes_state_changes, COMMAND_RPC_GET_SN_STATE_CHANGES)
+        MAP_JON_RPC_WE("get_masternodes_state_changes",           on_get_masternodes_state_changes, COMMAND_RPC_GET_SN_STATE_CHANGES)
         MAP_JON_RPC_WE_IF("report_peer_storage_server_status",      on_report_peer_storage_server_status, COMMAND_RPC_REPORT_PEER_SS_STATUS, !m_restricted)
         MAP_JON_RPC_WE_IF("test_trigger_p2p_resync",                on_test_trigger_p2p_resync, COMMAND_RPC_TEST_TRIGGER_P2P_RESYNC, !m_restricted)
         MAP_JON_RPC_WE("lns_names_to_owners",                       on_lns_names_to_owners, COMMAND_RPC_LNS_NAMES_TO_OWNERS)
@@ -235,7 +234,7 @@ namespace cryptonote
     bool on_pop_blocks(const COMMAND_RPC_POP_BLOCKS::request& req, COMMAND_RPC_POP_BLOCKS::response& res, const connection_context *ctx = NULL);
 
     //
-    // Loki
+    // Quenero
     //
     bool on_get_output_blacklist_bin(const COMMAND_RPC_GET_OUTPUT_BLACKLIST::request& req, COMMAND_RPC_GET_OUTPUT_BLACKLIST::response& res, const connection_context *ctx = NULL);
 
@@ -269,36 +268,35 @@ namespace cryptonote
     bool on_prune_blockchain(const COMMAND_RPC_PRUNE_BLOCKCHAIN::request& req, COMMAND_RPC_PRUNE_BLOCKCHAIN::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
 
     //
-    // Loki
+    // Quenero
     //
     bool on_get_quorum_state(const COMMAND_RPC_GET_QUORUM_STATE::request& req, COMMAND_RPC_GET_QUORUM_STATE::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_node_registration_cmd_raw(const COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request& req, COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_node_registration_cmd(const COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD::request& req, COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_node_blacklisted_key_images(const COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::request& req, COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_node_key(const COMMAND_RPC_GET_SERVICE_NODE_KEY::request& req, COMMAND_RPC_GET_SERVICE_NODE_KEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_node_privkey(const COMMAND_RPC_GET_SERVICE_NODE_PRIVKEY::request& req, COMMAND_RPC_GET_SERVICE_NODE_PRIVKEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_node_status(const COMMAND_RPC_GET_SERVICE_NODE_STATUS::request& req, COMMAND_RPC_GET_SERVICE_NODE_STATUS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_nodes(const COMMAND_RPC_GET_SERVICE_NODES::request& req, COMMAND_RPC_GET_SERVICE_NODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_n_service_nodes(const COMMAND_RPC_GET_N_SERVICE_NODES::request& req, COMMAND_RPC_GET_N_SERVICE_NODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_all_service_nodes(const COMMAND_RPC_GET_SERVICE_NODES::request& req, COMMAND_RPC_GET_SERVICE_NODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternode_registration_cmd_raw(const COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW::request& req, COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternode_registration_cmd(const COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD::request& req, COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternode_blacklisted_key_images(const COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::request& req, COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternode_key(const COMMAND_RPC_GET_MASTERNODE_KEY::request& req, COMMAND_RPC_GET_MASTERNODE_KEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternode_privkey(const COMMAND_RPC_GET_MASTERNODE_PRIVKEY::request& req, COMMAND_RPC_GET_MASTERNODE_PRIVKEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternode_status(const COMMAND_RPC_GET_MASTERNODE_STATUS::request& req, COMMAND_RPC_GET_MASTERNODE_STATUS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternodes(const COMMAND_RPC_GET_MASTERNODES::request& req, COMMAND_RPC_GET_MASTERNODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_n_masternodes(const COMMAND_RPC_GET_N_MASTERNODES::request& req, COMMAND_RPC_GET_N_MASTERNODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_all_masternodes(const COMMAND_RPC_GET_MASTERNODES::request& req, COMMAND_RPC_GET_MASTERNODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_get_staking_requirement(const COMMAND_RPC_GET_STAKING_REQUIREMENT::request& req, COMMAND_RPC_GET_STAKING_REQUIREMENT::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     /// Provide a proof that this node holds the blockchain
     bool on_perform_blockchain_test(const COMMAND_RPC_PERFORM_BLOCKCHAIN_TEST::request& req, COMMAND_RPC_PERFORM_BLOCKCHAIN_TEST::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_storage_server_ping(const COMMAND_RPC_STORAGE_SERVER_PING::request& req, COMMAND_RPC_STORAGE_SERVER_PING::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_lokinet_ping(const COMMAND_RPC_LOKINET_PING::request& req, COMMAND_RPC_LOKINET_PING::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_get_checkpoints(const COMMAND_RPC_GET_CHECKPOINTS::request& req, COMMAND_RPC_GET_CHECKPOINTS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
-    bool on_get_service_nodes_state_changes(const COMMAND_RPC_GET_SN_STATE_CHANGES::request& req, COMMAND_RPC_GET_SN_STATE_CHANGES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
+    bool on_get_masternodes_state_changes(const COMMAND_RPC_GET_SN_STATE_CHANGES::request& req, COMMAND_RPC_GET_SN_STATE_CHANGES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_report_peer_storage_server_status(const COMMAND_RPC_REPORT_PEER_SS_STATUS::request& req, COMMAND_RPC_REPORT_PEER_SS_STATUS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_test_trigger_p2p_resync(const COMMAND_RPC_TEST_TRIGGER_P2P_RESYNC::request& req, COMMAND_RPC_TEST_TRIGGER_P2P_RESYNC::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx = NULL);
     bool on_lns_names_to_owners(const COMMAND_RPC_LNS_NAMES_TO_OWNERS::request &req, COMMAND_RPC_LNS_NAMES_TO_OWNERS::response &res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
     bool on_lns_owners_to_names(const COMMAND_RPC_LNS_OWNERS_TO_NAMES::request &req, COMMAND_RPC_LNS_OWNERS_TO_NAMES::response &res, epee::json_rpc::error &error_resp, const connection_context *ctx = NULL);
     //-----------------------
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     void on_relay_uptime_and_votes()
     {
       m_core.submit_uptime_proof();
-      m_core.relay_service_node_votes();
+      m_core.relay_masternode_votes();
       std::cout << "Votes and uptime relayed";
       integration_test::write_buffered_stdout();
     }
@@ -340,7 +338,7 @@ private:
     bool check_core_ready();
 
     template<typename response>
-    void fill_sn_response_entry(response &entry, const service_nodes::service_node_pubkey_info &sn_info, uint64_t current_height);
+    void fill_sn_response_entry(response &entry, const masternodes::masternode_pubkey_info &sn_info, uint64_t current_height);
     
     //utils
     uint64_t get_block_reward(const block& blk);

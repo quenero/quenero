@@ -71,8 +71,8 @@
   #include <unistd.h>
 #endif
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "miner"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "miner"
 
 #define AUTODETECT_WINDOW 10 // seconds
 #define AUTODETECT_GAIN_THRESHOLD 1.02f  // 2%
@@ -533,7 +533,7 @@ namespace cryptonote
     rx_slow_hash_allocate_state();
     ++m_threads_active;
     bool call_stop = false;
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     call_stop = true;
 #endif
 
@@ -603,7 +603,7 @@ namespace cryptonote
             epee::serialization::store_t_to_json_file(m_config, m_config_folder_path + "/" + MINER_CONFIG_FILE_NAME);
         }
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
         if (m_debug_mine_singular_block)
         {
           m_debug_mine_singular_block = false;

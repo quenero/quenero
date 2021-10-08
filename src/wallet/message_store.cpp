@@ -42,8 +42,8 @@
 #include "string_tools.h"
 
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "wallet.mms"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.mms"
 
 namespace mms
 {

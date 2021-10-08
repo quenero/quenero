@@ -70,10 +70,10 @@ extern "C" {
 #include "net/local_ip.h"
 #include "cryptonote_protocol/quorumnet.h"
 
-#include "common/loki_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "cn"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "cn"
 
 DISABLE_VS_WARNINGS(4355)
 
@@ -170,7 +170,7 @@ namespace cryptonote
   };
   static const command_line::arg_descriptor<std::string> arg_check_updates = {
     "check-updates"
-  , "Check for new versions of loki: [disabled|notify|download|update]"
+  , "Check for new versions of quenero: [disabled|notify|download|update]"
   , "notify"
   };
   static const command_line::arg_descriptor<bool> arg_pad_transactions  = {
@@ -183,13 +183,13 @@ namespace cryptonote
   , "Set maximum txpool weight in bytes."
   , DEFAULT_TXPOOL_MAX_WEIGHT
   };
-  static const command_line::arg_descriptor<bool> arg_service_node  = {
+  static const command_line::arg_descriptor<bool> arg_masternode  = {
     "service-node"
   , "Run as a service node, options 'service-node-public-ip' and 'storage-server-port' must be set"
   };
   static const command_line::arg_descriptor<std::string> arg_public_ip = {
     "service-node-public-ip"
-  , "Public IP address on which this service node's services (such as the Loki "
+  , "Public IP address on which this service node's services (such as the Quenero "
     "storage server) are accessible. This IP address will be advertised to the "
     "network via the service node uptime proofs. Required if operating as a "
     "service node."
@@ -198,7 +198,7 @@ namespace cryptonote
     "storage-server-port"
   , "The port on which this service node's storage server is accessible. A listening "
     "storage server is required for service nodes. (This option is specified "
-    "automatically when using Loki Launcher.)"
+    "automatically when using Quenero Launcher.)"
   , 0};
   static const command_line::arg_descriptor<uint16_t, false, true, 2> arg_quorumnet_port = {
     "quorumnet-port"
@@ -267,12 +267,12 @@ namespace cryptonote
   }
   void *(*quorumnet_new)(core &, const std::string &bind);
   void (*quorumnet_delete)(void *&self);
-  void (*quorumnet_relay_obligation_votes)(void *self, const std::vector<service_nodes::quorum_vote_t> &);
+  void (*quorumnet_relay_obligation_votes)(void *self, const std::vector<masternodes::quorum_vote_t> &);
   std::future<std::pair<blink_result, std::string>> (*quorumnet_send_blink)(void *self, const std::string &tx_blob);
   static bool init_core_callback_stubs() {
     quorumnet_new = [](core &, const std::string &) -> void * { need_core_init(); };
     quorumnet_delete = [](void *&) { need_core_init(); };
-    quorumnet_relay_obligation_votes = [](void *, const std::vector<service_nodes::quorum_vote_t> &) { need_core_init(); };
+    quorumnet_relay_obligation_votes = [](void *, const std::vector<masternodes::quorum_vote_t> &) { need_core_init(); };
     quorumnet_send_blink = [](void *, const std::string &) -> std::future<std::pair<blink_result, std::string>> { need_core_init(); };
     return false;
   }
@@ -281,8 +281,8 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   core::core(i_cryptonote_protocol* pprotocol):
               m_mempool(m_blockchain_storage),
-              m_service_node_list(m_blockchain_storage),
-              m_blockchain_storage(m_mempool, m_service_node_list),
+              m_masternode_list(m_blockchain_storage),
+              m_blockchain_storage(m_mempool, m_masternode_list),
               m_quorum_cop(*this),
               m_miner(this, &m_blockchain_storage),
               m_miner_address{},
@@ -294,7 +294,6 @@ namespace cryptonote
               m_nettype(UNDEFINED),
               m_update_available(false),
               m_last_storage_server_ping(0),
-              m_last_lokinet_ping(0),
               m_pad_transactions(false)
   {
     m_checkpoints_updating.clear();
@@ -365,13 +364,13 @@ namespace cryptonote
     command_line::add_arg(desc, arg_offline);
     command_line::add_arg(desc, arg_block_download_max_size);
     command_line::add_arg(desc, arg_max_txpool_weight);
-    command_line::add_arg(desc, arg_service_node);
+    command_line::add_arg(desc, arg_masternode);
     command_line::add_arg(desc, arg_public_ip);
     command_line::add_arg(desc, arg_storage_server_port);
     command_line::add_arg(desc, arg_quorumnet_port);
     command_line::add_arg(desc, arg_pad_transactions);
     command_line::add_arg(desc, arg_block_notify);
-#if 0 // TODO(loki): Pruning not supported because of Service Node List
+#if 0 // TODO(quenero): Pruning not supported because of Masternode List
     command_line::add_arg(desc, arg_prune_blockchain);
 #endif
     command_line::add_arg(desc, arg_reorg_notify);
@@ -380,7 +379,7 @@ namespace cryptonote
 
     command_line::add_arg(desc, arg_recalculate_difficulty);
     command_line::add_arg(desc, arg_store_quorum_history);
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     command_line::add_arg(desc, integration_test::arg_hardforks_override);
     command_line::add_arg(desc, integration_test::arg_pipe_name);
 #endif
@@ -408,12 +407,12 @@ namespace cryptonote
 
 
     if (command_line::get_arg(vm, arg_dev_allow_local))
-      m_service_node_list.debug_allow_local_ips = true;
+      m_masternode_list.debug_allow_local_ips = true;
 
-    bool service_node = command_line::get_arg(vm, arg_service_node);
+    bool masternode = command_line::get_arg(vm, arg_masternode);
 
-    if (service_node) {
-      m_service_node_keys = std::make_unique<service_node_keys>(); // Will be updated or generated later, in init()
+    if (masternode) {
+      m_masternode_keys = std::make_unique<masternode_keys>(); // Will be updated or generated later, in init()
 
       /// TODO: parse these options early, before we start p2p server etc?
       m_storage_port = command_line::get_arg(vm, arg_storage_server_port);
@@ -440,8 +439,8 @@ namespace cryptonote
         }
 
         if (!epee::net_utils::is_ip_public(m_sn_public_ip)) {
-          if (m_service_node_list.debug_allow_local_ips) {
-            MWARNING("Address given for public-ip is not public; allowing it because dev-allow-local-ips was specified. This service node WILL NOT WORK ON THE PUBLIC LOKI NETWORK!");
+          if (m_masternode_list.debug_allow_local_ips) {
+            MWARNING("Address given for public-ip is not public; allowing it because dev-allow-local-ips was specified. This service node WILL NOT WORK ON THE PUBLIC QUENERO NETWORK!");
           } else {
             MERROR("Address given for public-ip is not public: " << epee::string_tools::get_ip_string_from_int32(m_sn_public_ip));
             storage_ok = false;
@@ -455,7 +454,7 @@ namespace cryptonote
       }
 
       if (!storage_ok) {
-        MERROR("IMPORTANT: All service node operators are now required to run the loki storage "
+        MERROR("IMPORTANT: All service node operators are now required to run the quenero storage "
                << "server and provide the public ip and ports on which it can be accessed on the internet.");
         return false;
       }
@@ -538,7 +537,7 @@ namespace cryptonote
   }
 
   // Returns a string for systemd status notifications such as:
-  // Height: 1234567, SN: active, proof: 55m12s, storage: 4m48s, lokinet: 47s
+  // Height: 1234567, SN: active, proof: 55m12s, storage: 4m48s
   static std::string get_systemd_status_string(const core &c)
   {
     std::string s;
@@ -546,13 +545,13 @@ namespace cryptonote
     s += "Height: ";
     s += std::to_string(c.get_blockchain_storage().get_current_blockchain_height());
     s += ", SN: ";
-    auto keys = c.get_service_node_keys();
+    auto keys = c.get_masternode_keys();
     if (!keys)
       s += "no";
     else
     {
-      auto &snl = c.get_service_node_list();
-      auto states = snl.get_service_node_list_state({ keys->pub });
+      auto &snl = c.get_masternode_list();
+      auto states = snl.get_masternode_list_state({ keys->pub });
       if (states.empty())
         s += "not registered";
       else
@@ -572,8 +571,6 @@ namespace cryptonote
         s += time_ago_str(now, last_proof);
         s += ", storage: ";
         s += time_ago_str(now, c.m_last_storage_server_ping);
-        s += ", lokinet: ";
-        s += time_ago_str(now, c.m_last_lokinet_ping);
       }
     }
     return s;
@@ -585,7 +582,7 @@ namespace cryptonote
   {
     start_time = std::time(nullptr);
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     const std::string arg_hardforks_override = command_line::get_arg(vm, integration_test::arg_hardforks_override);
 
     std::vector<std::pair<uint8_t, uint64_t>> integration_test_hardforks;
@@ -640,11 +637,11 @@ namespace cryptonote
     bool const prune_blockchain = false; /* command_line::get_arg(vm, arg_prune_blockchain); */
     bool keep_alt_blocks = command_line::get_arg(vm, arg_keep_alt_blocks);
 
-    if (m_service_node_keys)
+    if (m_masternode_keys)
     {
-      r = init_service_node_keys();
+      r = init_masternode_keys();
       CHECK_AND_ASSERT_MES(r, false, "Failed to create or load service node key");
-      m_service_node_list.set_my_service_node_keys(m_service_node_keys.get());
+      m_masternode_list.set_my_masternode_keys(m_masternode_keys.get());
     }
 
     boost::filesystem::path folder(m_config_folder);
@@ -662,8 +659,8 @@ namespace cryptonote
       if (boost::filesystem::exists(old_files / "blockchain.bin"))
       {
         MWARNING("Found old-style blockchain.bin in " << old_files.string());
-        MWARNING("Loki now uses a new format. You can either remove blockchain.bin to start syncing");
-        MWARNING("the blockchain anew, or use loki-blockchain-export and loki-blockchain-import to");
+        MWARNING("Quenero now uses a new format. You can either remove blockchain.bin to start syncing");
+        MWARNING("the blockchain anew, or use quenero-blockchain-export and quenero-blockchain-import to");
         MWARNING("convert your existing blockchain.bin to the new format. See README.md for instructions.");
         return false;
       }
@@ -688,7 +685,7 @@ namespace cryptonote
     uint64_t sync_threshold = 1;
 
     std::string const lns_db_file_path = m_config_folder + "/lns.db";
-#if !defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS) // In integration mode, don't delete the DB. This should be explicitly done in the tests. Otherwise the more likely behaviour is persisting the DB across multiple daemons in the same test.
+#if !defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS) // In integration mode, don't delete the DB. This should be explicitly done in the tests. Otherwise the more likely behaviour is persisting the DB across multiple daemons in the same test.
     if (m_nettype == FAKECHAIN)
     {
       // reset the db by removing the database file before opening it
@@ -829,15 +826,15 @@ namespace cryptonote
       0
     };
 
-    // Service Nodes
+    // Masternodes
     {
-      m_service_node_list.set_quorum_history_storage(command_line::get_arg(vm, arg_store_quorum_history));
+      m_masternode_list.set_quorum_history_storage(command_line::get_arg(vm, arg_store_quorum_history));
 
       // NOTE: Implicit dependency. Service node list needs to be hooked before checkpoints.
-      m_blockchain_storage.hook_blockchain_detached(m_service_node_list);
-      m_blockchain_storage.hook_init(m_service_node_list);
-      m_blockchain_storage.hook_validate_miner_tx(m_service_node_list);
-      m_blockchain_storage.hook_alt_block_added(m_service_node_list);
+      m_blockchain_storage.hook_blockchain_detached(m_masternode_list);
+      m_blockchain_storage.hook_init(m_masternode_list);
+      m_blockchain_storage.hook_validate_miner_tx(m_masternode_list);
+      m_blockchain_storage.hook_alt_block_added(m_masternode_list);
 
       // NOTE: There is an implicit dependency on service node lists being hooked first!
       m_blockchain_storage.hook_init(m_quorum_cop);
@@ -853,7 +850,7 @@ namespace cryptonote
       m_checkpoints_path = checkpoint_json_hashfile_fullpath.string();
     }
 
-    sqlite3 *lns_db = lns::init_loki_name_system(lns_db_file_path.c_str());
+    sqlite3 *lns_db = lns::init_quenero_name_system(lns_db_file_path.c_str());
     if (!lns_db) return false;
 
     const difficulty_type fixed_difficulty = command_line::get_arg(vm, arg_fixed_difficulty);
@@ -920,7 +917,7 @@ namespace cryptonote
       }
     }
 
-    if (m_service_node_keys)
+    if (m_masternode_keys)
     {
       std::lock_guard<std::mutex> lock{m_quorumnet_init_mutex};
       // quorumnet_new takes a zmq bind string, e.g. "tcp://1.2.3.4:5678"
@@ -977,9 +974,9 @@ namespace cryptonote
   }
 
   //-----------------------------------------------------------------------------------------------
-  bool core::init_service_node_keys()
+  bool core::init_masternode_keys()
   {
-    auto &keys = *m_service_node_keys;
+    auto &keys = *m_masternode_keys;
     // Primary SN pubkey (monero NIH curve25519 algo)
     if (!init_key(m_config_folder + "/key", keys.key, keys.pub,
           crypto::secret_key_to_public_key,
@@ -1003,7 +1000,7 @@ namespace cryptonote
 
     // Secondary standard ed25519 key, usable in tools wanting standard ed25519 keys
     //
-    // TODO(loki) - eventually it would be nice to make this become the only key pair that gets used
+    // TODO(quenero) - eventually it would be nice to make this become the only key pair that gets used
     // for new registrations instead of the above.  We'd still need to keep the above for
     // compatibility with existing stakes registered before the relevant fork height, but we could
     // then avoid needing to include this secondary key in uptime proofs for new SN registrations.
@@ -1038,7 +1035,7 @@ namespace cryptonote
     if (m_quorumnet_obj)
       quorumnet_delete(m_quorumnet_obj);
     m_long_poll_wake_up_clients.notify_all();
-    m_service_node_list.store();
+    m_masternode_list.store();
     m_miner.stop();
     m_mempool.deinit();
     m_blockchain_storage.deinit();
@@ -1393,7 +1390,7 @@ namespace cryptonote
     // this without a lock since these are (for now) just local instances.
     new_blinks.reserve(want_count);
 
-    std::unordered_map<uint64_t, std::shared_ptr<const service_nodes::quorum>> quorum_cache;
+    std::unordered_map<uint64_t, std::shared_ptr<const masternodes::quorum>> quorum_cache;
     for (size_t i = 0; i < blinks.size(); i++)
     {
       if (!want[i])
@@ -1406,10 +1403,10 @@ namespace cryptonote
       // now then there's no point of even trying to do signature validation.
       if (bdata.signature.size() != bdata.position.size() ||  // Each signature must have an associated quorum position
           bdata.signature.size() != bdata.quorum.size()   ||  // and quorum index
-          bdata.signature.size() < service_nodes::BLINK_MIN_VOTES * tools::enum_count<blink_tx::subquorum> || // too few signatures for possible validity
-          bdata.signature.size() > service_nodes::BLINK_SUBQUORUM_SIZE * tools::enum_count<blink_tx::subquorum> || // too many signatures
+          bdata.signature.size() < masternodes::BLINK_MIN_VOTES * tools::enum_count<blink_tx::subquorum> || // too few signatures for possible validity
+          bdata.signature.size() > masternodes::BLINK_SUBQUORUM_SIZE * tools::enum_count<blink_tx::subquorum> || // too many signatures
           blink_tx::quorum_height(bdata.height, blink_tx::subquorum::base) == 0 || // Height is too early (no blink quorum height)
-          std::any_of(bdata.position.begin(), bdata.position.end(), [](const auto &p) { return p >= service_nodes::BLINK_SUBQUORUM_SIZE; }) || // invalid position
+          std::any_of(bdata.position.begin(), bdata.position.end(), [](const auto &p) { return p >= masternodes::BLINK_SUBQUORUM_SIZE; }) || // invalid position
           std::any_of(bdata.quorum.begin(), bdata.quorum.end(), [](const auto &qi) { return qi >= tools::enum_count<blink_tx::subquorum>; }) // invalid quorum index
       ) {
         MINFO("Invalid blink tx " << bdata.tx_hash << ": invalid signature data");
@@ -1423,7 +1420,7 @@ namespace cryptonote
         auto q_height = blink.quorum_height(static_cast<blink_tx::subquorum>(qi));
         auto &q = quorum_cache[q_height];
         if (!q)
-          q = get_quorum(service_nodes::quorum_type::blink, q_height);
+          q = get_quorum(masternodes::quorum_type::blink, q_height);
         if (!q)
         {
           MINFO("Don't have a quorum for height " << q_height << " (yet?), ignoring this blink");
@@ -1486,7 +1483,7 @@ namespace cryptonote
   std::future<std::pair<blink_result, std::string>> core::handle_blink_tx(const std::string &tx_blob)
   {
     if (!m_quorumnet_obj) {
-      assert(!m_service_node_keys);
+      assert(!m_masternode_keys);
       std::lock_guard<std::mutex> lock{m_quorumnet_init_mutex};
       if (!m_quorumnet_obj)
         m_quorumnet_obj = quorumnet_new(*this, "" /* don't listen */);
@@ -1624,12 +1621,12 @@ namespace cryptonote
   {
     uint64_t emission_amount = 0;
     uint64_t total_fee_amount = 0;
-    uint64_t burnt_loki = 0;
+    uint64_t burnt_quenero = 0;
     if (count)
     {
       const uint64_t end = start_offset + count - 1;
       m_blockchain_storage.for_blocks_range(start_offset, end,
-        [this, &emission_amount, &total_fee_amount, &burnt_loki](uint64_t, const crypto::hash& hash, const block& b){
+        [this, &emission_amount, &total_fee_amount, &burnt_quenero](uint64_t, const crypto::hash& hash, const block& b){
       std::vector<transaction> txs;
       std::vector<crypto::hash> missed_txs;
       uint64_t coinbase_amount = get_outs_money_amount(b.miner_tx);
@@ -1640,7 +1637,7 @@ namespace cryptonote
         tx_fee_amount += get_tx_miner_fee(tx, b.major_version >= HF_VERSION_FEE_BURNING);
         if(b.major_version >= HF_VERSION_FEE_BURNING)
         {
-          burnt_loki += get_burned_amount_from_tx_extra(tx.extra);
+          burnt_quenero += get_burned_amount_from_tx_extra(tx.extra);
         }
       }
       
@@ -1650,7 +1647,7 @@ namespace cryptonote
       });
     }
 
-    return std::tuple<uint64_t, uint64_t, uint64_t>(emission_amount, total_fee_amount, burnt_loki);
+    return std::tuple<uint64_t, uint64_t, uint64_t>(emission_amount, total_fee_amount, burnt_quenero);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::check_tx_inputs_keyimages_diff(const transaction& tx) const
@@ -1719,22 +1716,22 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::submit_uptime_proof()
   {
-    if (!m_service_node_keys)
+    if (!m_masternode_keys)
       return true;
 
-    NOTIFY_UPTIME_PROOF::request req = m_service_node_list.generate_uptime_proof(*m_service_node_keys, m_sn_public_ip, m_storage_port, m_storage_lmq_port, m_quorumnet_port);
+    NOTIFY_UPTIME_PROOF::request req = m_masternode_list.generate_uptime_proof(*m_masternode_keys, m_sn_public_ip, m_storage_port, m_storage_lmq_port, m_quorumnet_port);
 
     cryptonote_connection_context fake_context{};
     bool relayed = get_protocol()->relay_uptime_proof(req, fake_context);
     if (relayed)
-      MGINFO("Submitted uptime-proof for Service Node (yours): " << m_service_node_keys->pub);
+      MGINFO("Submitted uptime-proof for Masternode (yours): " << m_masternode_keys->pub);
 
     return true;
   }
   //-----------------------------------------------------------------------------------------------
   bool core::handle_uptime_proof(const NOTIFY_UPTIME_PROOF::request &proof, bool &my_uptime_proof_confirmation)
   {
-    return m_service_node_list.handle_uptime_proof(proof, my_uptime_proof_confirmation);
+    return m_masternode_list.handle_uptime_proof(proof, my_uptime_proof_confirmation);
   }
   //-----------------------------------------------------------------------------------------------
   crypto::hash core::on_transaction_relayed(const cryptonote::blobdata& tx_blob)
@@ -1752,27 +1749,27 @@ namespace cryptonote
     return tx_hash;
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::relay_service_node_votes()
+  bool core::relay_masternode_votes()
   {
     auto height = get_current_blockchain_height();
     auto hf_version = get_hard_fork_version(height);
 
     auto quorum_votes = m_quorum_cop.get_relayable_votes(height, hf_version, true);
     auto p2p_votes    = m_quorum_cop.get_relayable_votes(height, hf_version, false);
-    if (!quorum_votes.empty() && m_quorumnet_obj && m_service_node_keys)
+    if (!quorum_votes.empty() && m_quorumnet_obj && m_masternode_keys)
       quorumnet_relay_obligation_votes(m_quorumnet_obj, quorum_votes);
 
     if (!p2p_votes.empty())
     {
-      NOTIFY_NEW_SERVICE_NODE_VOTE::request req{};
+      NOTIFY_NEW_MASTERNODE_VOTE::request req{};
       req.votes = std::move(p2p_votes);
       cryptonote_connection_context fake_context{};
-      get_protocol()->relay_service_node_votes(req, fake_context);
+      get_protocol()->relay_masternode_votes(req, fake_context);
     }
 
     return true;
   }
-  void core::set_service_node_votes_relayed(const std::vector<service_nodes::quorum_vote_t> &votes)
+  void core::set_masternode_votes_relayed(const std::vector<masternodes::quorum_vote_t> &votes)
   {
     m_quorum_cop.set_votes_relayed(votes);
   }
@@ -1851,7 +1848,7 @@ namespace cryptonote
     std::vector<block_complete_entry> blocks;
     m_miner.pause();
     {
-      LOKI_DEFER { m_miner.resume(); };
+      QUENERO_DEFER { m_miner.resume(); };
       try
       {
         blocks.push_back(get_block_complete_entry(b, m_mempool));
@@ -1910,9 +1907,9 @@ namespace cryptonote
     bool result = m_blockchain_storage.add_new_block(b, bvc, checkpoint);
     if (result)
     {
-      // TODO(loki): PERF(loki): This causes perf problems in integration mode, so in real-time operation it may not be
+      // TODO(quenero): PERF(quenero): This causes perf problems in integration mode, so in real-time operation it may not be
       // noticeable but could bubble up and cause slowness if the runtime variables align up undesiredly.
-      relay_service_node_votes(); // NOTE: nop if synchronising due to not accepting votes whilst syncing
+      relay_masternode_votes(); // NOTE: nop if synchronising due to not accepting votes whilst syncing
     }
     return result;
   }
@@ -2043,7 +2040,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   void core::do_uptime_proof_call()
   {
-    std::vector<service_nodes::service_node_pubkey_info> const states = get_service_node_list_state({ m_service_node_keys->pub });
+    std::vector<masternodes::masternode_pubkey_info> const states = get_masternode_list_state({ m_masternode_keys->pub });
 
     // wait one block before starting uptime proofs.
     if (!states.empty() && (states[0].info->registration_height + 1) < get_current_blockchain_height())
@@ -2053,35 +2050,12 @@ namespace cryptonote
         // proof if we are within half a tick of the target time.  (Essentially our target proof
         // window becomes the first time this triggers in the 57.5-62.5 minute window).
         uint64_t next_proof_time = 0;
-        m_service_node_list.access_proof(m_service_node_keys->pub, [&](auto &proof) { next_proof_time = proof.timestamp; });
+        m_masternode_list.access_proof(m_masternode_keys->pub, [&](auto &proof) { next_proof_time = proof.timestamp; });
         next_proof_time += UPTIME_PROOF_FREQUENCY_IN_SECONDS - UPTIME_PROOF_TIMER_SECONDS/2;
 
         if ((uint64_t) std::time(nullptr) < next_proof_time)
           return;
-
-        if (!check_external_ping(m_last_storage_server_ping, STORAGE_SERVER_PING_LIFETIME, "the storage server"))
-        {
-          MGINFO_RED(
-              "Failed to submit uptime proof: have not heard from the storage server recently. Make sure that it "
-              "is running! It is required to run alongside the Loki daemon");
-          return;
-        }
         uint8_t hf_version = get_blockchain_storage().get_current_hard_fork_version();
-        if (!check_external_ping(m_last_lokinet_ping, LOKINET_PING_LIFETIME, "Lokinet"))
-        {
-          if (hf_version >= cryptonote::network_version_14_blink)
-          {
-            MGINFO_RED(
-                "Failed to submit uptime proof: have not heard from lokinet recently. Make sure that it "
-                "is running! It is required to run alongside the Loki daemon");
-            return;
-          }
-          else
-          {
-            MGINFO_RED(
-                "Have not heard from lokinet recently. Make sure that it is running! "
-                "It is required to run alongside the Loki daemon after hard fork 14");
-          }
         }
 
         submit_uptime_proof();
@@ -2100,7 +2074,7 @@ namespace cryptonote
     {
       std::string main_message;
       if (m_offline)
-        main_message = "The daemon is running offline and will not attempt to sync to the Loki network.";
+        main_message = "The daemon is running offline and will not attempt to sync to the Quenero network.";
       else
         main_message = "The daemon will start synchronizing with the network. This may take a long time to complete.";
       MGINFO_YELLOW(ENDL << "**********************************************************************" << ENDL
@@ -2117,15 +2091,15 @@ namespace cryptonote
 
     m_fork_moaner.do_call(boost::bind(&core::check_fork_time, this));
     m_txpool_auto_relayer.do_call(boost::bind(&core::relay_txpool_transactions, this));
-    m_service_node_vote_relayer.do_call(boost::bind(&core::relay_service_node_votes, this));
+    m_masternode_vote_relayer.do_call(boost::bind(&core::relay_masternode_votes, this));
     // m_check_updates_interval.do_call(boost::bind(&core::check_updates, this));
     m_check_disk_space_interval.do_call(boost::bind(&core::check_disk_space, this));
     m_block_rate_interval.do_call(boost::bind(&core::check_block_rate, this));
-    m_sn_proof_cleanup_interval.do_call([&snl=m_service_node_list] { snl.cleanup_proofs(); return true; });
+    m_sn_proof_cleanup_interval.do_call([&snl=m_masternode_list] { snl.cleanup_proofs(); return true; });
 
     time_t const lifetime = time(nullptr) - get_start_time();
     int proof_delay = m_nettype == FAKECHAIN ? 5 : UPTIME_PROOF_INITIAL_DELAY_SECONDS;
-    if (m_service_node_keys && lifetime > proof_delay) // Give us some time to connect to peers before sending uptimes
+    if (m_masternode_keys && lifetime > proof_delay) // Give us some time to connect to peers before sending uptimes
     {
       do_uptime_proof_call();
     }
@@ -2134,7 +2108,7 @@ namespace cryptonote
     m_miner.on_idle();
     m_mempool.on_idle();
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     integration_test::state.core_is_idle = true;
 #endif
 
@@ -2192,7 +2166,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::check_updates()
   {
-    static const char software[] = "loki";
+    static const char software[] = "quenero";
 #ifdef BUILD_TAG
     static const char buildtag[] = BOOST_PP_STRINGIZE(BUILD_TAG);
     static const char subdir[] = "cli"; // because it can never be simple
@@ -2212,7 +2186,7 @@ namespace cryptonote
     if (!tools::check_updates(software, buildtag, version, hash))
       return false;
 
-    if (tools::vercmp(version.c_str(), LOKI_VERSION_STR) <= 0)
+    if (tools::vercmp(version.c_str(), QUENERO_VERSION_STR) <= 0)
     {
       m_update_available = false;
       return true;
@@ -2371,7 +2345,7 @@ namespace cryptonote
       return true;
     }
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     MDEBUG("Not checking block rate, integration test mode");
     return true;
 #endif
@@ -2391,7 +2365,7 @@ namespace cryptonote
       MDEBUG("blocks in the last " << seconds[n] / 60 << " minutes: " << b << " (probability " << p << ")");
       if (p < threshold)
       {
-        MWARNING("There were " << b << " blocks in the last " << seconds[n] / 60 << " minutes, there might be large hash rate changes, or we might be partitioned, cut off from the Loki network or under attack. Or it could be just sheer bad luck.");
+        MWARNING("There were " << b << " blocks in the last " << seconds[n] / 60 << " minutes, there might be large hash rate changes, or we might be partitioned, cut off from the Quenero network or under attack. Or it could be just sheer bad luck.");
 
         std::shared_ptr<tools::Notify> block_rate_notify = m_block_rate_notify;
         if (block_rate_notify)
@@ -2409,7 +2383,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   bool core::set_storage_server_peer_reachable(crypto::public_key const &pubkey, bool value)
   {
-    return m_service_node_list.set_storage_server_peer_reachable(pubkey, value);
+    return m_masternode_list.set_storage_server_peer_reachable(pubkey, value);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::update_blockchain_pruning()
@@ -2444,34 +2418,34 @@ namespace cryptonote
     return si.available;
   }
   //-----------------------------------------------------------------------------------------------
-  std::shared_ptr<const service_nodes::quorum> core::get_quorum(service_nodes::quorum_type type, uint64_t height, bool include_old, std::vector<std::shared_ptr<const service_nodes::quorum>> *alt_states) const
+  std::shared_ptr<const masternodes::quorum> core::get_quorum(masternodes::quorum_type type, uint64_t height, bool include_old, std::vector<std::shared_ptr<const masternodes::quorum>> *alt_states) const
   {
-    return m_service_node_list.get_quorum(type, height, include_old, alt_states);
+    return m_masternode_list.get_quorum(type, height, include_old, alt_states);
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::is_service_node(const crypto::public_key& pubkey, bool require_active) const
+  bool core::is_masternode(const crypto::public_key& pubkey, bool require_active) const
   {
-    return m_service_node_list.is_service_node(pubkey, require_active);
+    return m_masternode_list.is_masternode(pubkey, require_active);
   }
   //-----------------------------------------------------------------------------------------------
-  const std::vector<service_nodes::key_image_blacklist_entry> &core::get_service_node_blacklisted_key_images() const
+  const std::vector<masternodes::key_image_blacklist_entry> &core::get_masternode_blacklisted_key_images() const
   {
-    return m_service_node_list.get_blacklisted_key_images();
+    return m_masternode_list.get_blacklisted_key_images();
   }
   //-----------------------------------------------------------------------------------------------
-  std::vector<service_nodes::service_node_pubkey_info> core::get_service_node_list_state(const std::vector<crypto::public_key> &service_node_pubkeys) const
+  std::vector<masternodes::masternode_pubkey_info> core::get_masternode_list_state(const std::vector<crypto::public_key> &masternode_pubkeys) const
   {
-    return m_service_node_list.get_service_node_list_state(service_node_pubkeys);
+    return m_masternode_list.get_masternode_list_state(masternode_pubkeys);
   }
   //-----------------------------------------------------------------------------------------------
-  bool core::add_service_node_vote(const service_nodes::quorum_vote_t& vote, vote_verification_context &vvc)
+  bool core::add_masternode_vote(const masternodes::quorum_vote_t& vote, vote_verification_context &vvc)
   {
     return m_quorum_cop.handle_vote(vote, vvc);
   }
   //-----------------------------------------------------------------------------------------------
-  const core::service_node_keys* core::get_service_node_keys() const
+  const core::masternode_keys* core::get_masternode_keys() const
   {
-    return m_service_node_keys.get();
+    return m_masternode_keys.get();
   }
   uint32_t core::get_blockchain_pruning_seed() const
   {

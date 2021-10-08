@@ -35,8 +35,8 @@
 #include "daemon/command_parser_executor.h"
 #include "rpc/core_rpc_server_commands_defs.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "daemon"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon"
 
 namespace daemonize {
 
@@ -95,7 +95,7 @@ bool t_command_parser_executor::print_checkpoints(const std::vector<std::string>
   return m_executor.print_checkpoints(start_height, end_height, print_json);
 }
 
-bool t_command_parser_executor::print_sn_state_changes(const std::vector<std::string> &args)
+bool t_command_parser_executor::print_masternode_state_changes(const std::vector<std::string> &args)
 {
   uint64_t start_height;
   uint64_t end_height = cryptonote::COMMAND_RPC_GET_SN_STATE_CHANGES::HEIGHT_SENTINEL_VALUE;
@@ -119,13 +119,13 @@ bool t_command_parser_executor::print_sn_state_changes(const std::vector<std::st
 
   if (!args_list.empty())
   {
-    std::cout << "use: print_sn_state_changes <start_height> [end height]"
+    std::cout << "use: print_masternode_state_changes <start_height> [end height]"
               << "(omit arguments to scan until the current block)"
               << std::endl;
     return false;
   }
 
-  return m_executor.print_sn_state_changes(start_height, end_height);
+  return m_executor.print_masternode_state_changes(start_height, end_height);
 }
 
 bool t_command_parser_executor::print_peer_list(const std::vector<std::string>& args)
@@ -261,10 +261,10 @@ bool t_command_parser_executor::print_quorum_state(const std::vector<std::string
   return m_executor.print_quorum_state(start_height, end_height);
 }
 
-bool t_command_parser_executor::print_sn_key(const std::vector<std::string>& args)
+bool t_command_parser_executor::print_masternode_key(const std::vector<std::string>& args)
 {
   if (!args.empty()) return false;
-  bool result = m_executor.print_sn_key();
+  bool result = m_executor.print_masternode_key();
   return result;
 }
 
@@ -287,21 +287,21 @@ bool t_command_parser_executor::print_sr(const std::vector<std::string>& args)
   return result;
 }
 
-bool t_command_parser_executor::prepare_registration()
+bool t_command_parser_executor::masternode_registration()
 {
-  bool result = m_executor.prepare_registration();
+  bool result = m_executor.masternode_registration();
   return result;
 }
 
-bool t_command_parser_executor::print_sn(const std::vector<std::string>& args)
+bool t_command_parser_executor::print_masternode(const std::vector<std::string>& args)
 {
-  bool result = m_executor.print_sn(args);
+  bool result = m_executor.print_masternode(args);
   return result;
 }
 
-bool t_command_parser_executor::print_sn_status(const std::vector<std::string>& args)
+bool t_command_parser_executor::print_masternode_status(const std::vector<std::string>& args)
 {
-  bool result = m_executor.print_sn_status(args);
+  bool result = m_executor.print_masternode_status(args);
   return result;
 }
 
@@ -900,7 +900,7 @@ bool t_command_parser_executor::pop_blocks(const std::vector<std::string>& args)
 
 bool t_command_parser_executor::version(const std::vector<std::string>& args)
 {
-  std::cout << "Loki '" << LOKI_RELEASE_NAME << "' (v" << LOKI_VERSION_FULL << ")" << std::endl;
+  std::cout << "Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL << ")" << std::endl;
   return true;
 }
 
@@ -910,10 +910,10 @@ bool t_command_parser_executor::prune_blockchain(const std::vector<std::string>&
 
   if (args.empty() || args[0] != "confirm")
   {
-    std::cout << "Warning: pruning from within lokid will not shrink the database file size." << std::endl;
+    std::cout << "Warning: pruning from within quenerod will not shrink the database file size." << std::endl;
     std::cout << "Instead, parts of the file will be marked as free, so the file will not grow" << std::endl;
     std::cout << "until that newly free space is used up. If you want a smaller file size now," << std::endl;
-    std::cout << "exit lokid and run loki-blockchain-prune (you will temporarily need more" << std::endl;
+    std::cout << "exit quenerod and run quenero-blockchain-prune (you will temporarily need more" << std::endl;
     std::cout << "disk space for the database conversion though). If you are OK with the database" << std::endl;
     std::cout << "file keeping the same size, re-run this command with the \"confirm\" parameter." << std::endl;
     return true;

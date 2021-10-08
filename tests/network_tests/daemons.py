@@ -126,16 +126,16 @@ class Daemon(RPCDaemon):
     base_args = ('--dev-allow-local-ips', '--fixed-difficulty=1', '--regtest', '--non-interactive', '--rpc-ssl=disabled', '--rpc-long-poll-connections=0')
 
     def __init__(self, *,
-            lokid='lokid',
+            quenerod='quenerod',
             listen_ip=None, p2p_port=None, rpc_port=None, zmq_port=None, qnet_port=None, ss_port=None,
             name=None,
             datadir=None,
-            service_node=False,
+            masternode=False,
             log_level=2,
             peers=()):
         self.rpc_port = rpc_port or next_port()
         if name is None:
-            name = 'lokid@{}'.format(self.rpc_port)
+            name = 'quenerod@{}'.format(self.rpc_port)
         super().__init__(name)
         self.listen_ip = listen_ip or LISTEN_IP
         self.p2p_port = p2p_port or next_port()
@@ -144,11 +144,11 @@ class Daemon(RPCDaemon):
         self.ss_port = ss_port or next_port()
         self.peers = []
 
-        self.args = [lokid] + list(self.__class__.base_args)
+        self.args = [quenerod] + list(self.__class__.base_args)
         self.args += (
-                '--data-dir={}/loki-{}-{}'.format(datadir or '.', self.listen_ip, self.rpc_port),
+                '--data-dir={}/quenero-{}-{}'.format(datadir or '.', self.listen_ip, self.rpc_port),
                 '--log-level={}'.format(log_level),
-                '--log-file=loki.log'.format(self.listen_ip, self.p2p_port),
+                '--log-file=quenero.log'.format(self.listen_ip, self.p2p_port),
                 '--p2p-bind-ip={}'.format(self.listen_ip),
                 '--p2p-bind-port={}'.format(self.p2p_port),
                 '--rpc-bind-ip={}'.format(self.listen_ip),
@@ -161,7 +161,7 @@ class Daemon(RPCDaemon):
         for d in peers:
             self.add_peer(d)
 
-        if service_node:
+        if masternode:
             self.args += (
                     '--service-node',
                     '--service-node-public-ip={}'.format(self.listen_ip),
@@ -214,12 +214,10 @@ class Daemon(RPCDaemon):
         return [x['id_hash'] for x in self.rpc("/get_transaction_pool").json()['transactions']]
 
 
-    def ping(self, *, storage=True, lokinet=True):
-        """Sends fake storage server and lokinet pings to the running lokid"""
+    def ping(self, *, storage=True):
+        """Sends fake storage server pings to the running quenerod"""
         if storage:
             self.json_rpc("storage_server_ping", { "version_major": 9, "version_minor": 9, "version_patch": 9 })
-        if lokinet:
-            self.json_rpc("lokinet_ping", { "version": [9,9,9] })
 
 
     def p2p_resync(self):
@@ -236,7 +234,7 @@ class Wallet(RPCDaemon):
             self,
             node,
             *,
-            rpc_wallet='loki-wallet-rpc',
+            rpc_wallet='quenero-wallet-rpc',
             name=None,
             datadir=None,
             listen_ip=None,
@@ -342,7 +340,7 @@ class Wallet(RPCDaemon):
 
 
     def register_sn(self, sn):
-        r = sn.json_rpc("get_service_node_registration_cmd", {
+        r = sn.json_rpc("get_masternode_registration_cmd", {
             "operator_cut": "100",
             "contributions": [{"address": self.address(), "amount": 100000000000}],
             "staking_requirement": 100000000000
@@ -350,6 +348,6 @@ class Wallet(RPCDaemon):
         if 'error' in r:
             raise RuntimeError("Registration cmd generation failed: {}".format(r['error']['message']))
         cmd = r['result']['registration_cmd']
-        r = self.json_rpc("register_service_node", {"register_service_node_str": cmd}).json()
+        r = self.json_rpc("register_masternode", {"register_masternode_str": cmd}).json()
         if 'error' in r:
             raise RuntimeError("Failed to submit service node registration tx: {}".format(r['error']['message']))

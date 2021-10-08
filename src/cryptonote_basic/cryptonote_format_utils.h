@@ -44,7 +44,7 @@ namespace epee
   class wipeable_string;
 }
 
-namespace service_nodes { struct quorum_vote_t; }
+namespace masternodes { struct quorum_vote_t; }
 
 namespace cryptonote
 {
@@ -92,13 +92,13 @@ namespace cryptonote
   void add_tx_pub_key_to_extra(transaction_prefix& tx, const crypto::public_key& tx_pub_key);
   void add_tx_pub_key_to_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& tx_pub_key);
 
-  bool add_service_node_state_change_to_tx_extra(std::vector<uint8_t>& tx_extra, const tx_extra_service_node_state_change& state_change, uint8_t hf_version);
-  bool get_service_node_state_change_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_service_node_state_change& state_change, uint8_t hf_version);
-  bool get_service_node_register_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_service_node_register& registration);
+  bool add_masternode_state_change_to_tx_extra(std::vector<uint8_t>& tx_extra, const tx_extra_masternode_state_change& state_change, uint8_t hf_version);
+  bool get_masternode_state_change_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_masternode_state_change& state_change, uint8_t hf_version);
+  bool get_masternode_register_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_masternode_register& registration);
 
-  bool get_service_node_pubkey_from_tx_extra(const std::vector<uint8_t>& tx_extra, crypto::public_key& pubkey);
-  bool get_service_node_contributor_from_tx_extra(const std::vector<uint8_t>& tx_extra, cryptonote::account_public_address& address);
-  bool add_service_node_register_to_tx_extra(std::vector<uint8_t>& tx_extra, const std::vector<cryptonote::account_public_address>& addresses, uint64_t portions_for_operator, const std::vector<uint64_t>& portions, uint64_t expiration_timestamp, const crypto::signature& signature);
+  bool get_masternode_pubkey_from_tx_extra(const std::vector<uint8_t>& tx_extra, crypto::public_key& pubkey);
+  bool get_masternode_contributor_from_tx_extra(const std::vector<uint8_t>& tx_extra, cryptonote::account_public_address& address);
+  bool add_masternode_register_to_tx_extra(std::vector<uint8_t>& tx_extra, const std::vector<cryptonote::account_public_address>& addresses, uint64_t portions_for_operator, const std::vector<uint64_t>& portions, uint64_t expiration_timestamp, const crypto::signature& signature);
 
   bool get_tx_secret_key_from_tx_extra(const std::vector<uint8_t>& tx_extra, crypto::secret_key& key);
   void add_tx_secret_key_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::secret_key& key);
@@ -107,13 +107,13 @@ namespace cryptonote
   bool get_tx_key_image_unlock_from_tx_extra(const std::vector<uint8_t>& tx_extra, tx_extra_tx_key_image_unlock &unlock);
   bool add_tx_key_image_unlock_to_tx_extra(std::vector<uint8_t>& tx_extra, const tx_extra_tx_key_image_unlock& unlock);
 
-  void add_service_node_winner_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& winner);
-  void add_service_node_pubkey_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& pubkey);
-  void add_service_node_contributor_to_tx_extra(std::vector<uint8_t>& tx_extra, const cryptonote::account_public_address& address);
-  crypto::public_key get_service_node_winner_from_tx_extra(const std::vector<uint8_t>& tx_extra);
+  void add_masternode_winner_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& winner);
+  void add_masternode_pubkey_to_tx_extra(std::vector<uint8_t>& tx_extra, const crypto::public_key& pubkey);
+  void add_masternode_contributor_to_tx_extra(std::vector<uint8_t>& tx_extra, const cryptonote::account_public_address& address);
+  crypto::public_key get_masternode_winner_from_tx_extra(const std::vector<uint8_t>& tx_extra);
 
-  bool get_loki_name_system_from_tx_extra(std::vector<uint8_t> const &tx_extra, tx_extra_loki_name_system &entry);
-  void add_loki_name_system_to_tx_extra  (std::vector<uint8_t>       &tx_extra, tx_extra_loki_name_system const &entry);
+  bool get_quenero_name_system_from_tx_extra(std::vector<uint8_t> const &tx_extra, tx_extra_quenero_name_system &entry);
+  void add_quenero_name_system_to_tx_extra  (std::vector<uint8_t>       &tx_extra, tx_extra_quenero_name_system const &entry);
 
   std::vector<crypto::public_key> get_additional_tx_pub_keys_from_extra(const std::vector<uint8_t>& tx_extra);
   std::vector<crypto::public_key> get_additional_tx_pub_keys_from_extra(const transaction_prefix& tx);
@@ -183,7 +183,7 @@ namespace cryptonote
   std::string print_money(uint64_t amount, unsigned int decimal_point = -1);
 
   std::string print_tx_verification_context  (tx_verification_context const &tvc, transaction const *tx = nullptr);
-  std::string print_vote_verification_context(vote_verification_context const &vvc, service_nodes::quorum_vote_t const *vote = nullptr);
+  std::string print_vote_verification_context(vote_verification_context const &vvc, masternodes::quorum_vote_t const *vote = nullptr);
 
   inline std::ostream &operator<<(std::ostream &stream, transaction const &tx)
   {

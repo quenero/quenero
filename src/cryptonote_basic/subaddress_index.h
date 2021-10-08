@@ -33,11 +33,11 @@
 #include <boost/serialization/version.hpp>
 #include <ostream>
 
-#include "common/loki.h"
+#include "common/quenero.h"
 
 namespace cryptonote
 {
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct subaddress_index
   {
     uint32_t major; // The account index, major index

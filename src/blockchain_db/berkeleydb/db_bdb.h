@@ -409,9 +409,9 @@ private:
   // fix up anything that may be wrong due to past bugs
   virtual void fixup(fixup_context const context);
 
-  virtual void set_service_node_data(const std::string& data, bool long_term);
-  virtual bool get_service_node_data(std::string& data, bool long_term);
-  virtual void clear_service_node_data();
+  virtual void set_masternode_data(const std::string& data, bool long_term);
+  virtual bool get_masternode_data(std::string& data, bool long_term);
+  virtual void clear_masternode_data();
 
   bool m_run_checkpoint;
   std::unique_ptr<boost::thread> m_checkpoint_thread;

@@ -68,8 +68,8 @@ file(COPY
   data/wallet_testnet.keys
   data/wallet_testnet
   data/outputs
-  data/unsigned_loki_tx
-  data/signed_loki_tx
+  data/unsigned_quenero_tx
+  data/signed_quenero_tx
   DESTINATION data)
 
 find_package(PythonInterp 3)

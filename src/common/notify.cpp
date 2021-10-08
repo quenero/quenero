@@ -33,8 +33,8 @@
 #include "spawn.h"
 #include "notify.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "notify"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "notify"
 
 namespace tools
 {

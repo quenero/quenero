@@ -29,7 +29,7 @@
 
 #include <boost/range/adaptor/reversed.hpp>
 
-#include "cryptonote_core/service_node_rules.h"
+#include "cryptonote_core/masternode_rules.h"
 #include "checkpoints/checkpoints.h"
 #include "string_tools.h"
 #include "blockchain_db.h"
@@ -50,8 +50,8 @@ static const char *db_types[] = {
   NULL
 };
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "blockchain.db"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "blockchain.db"
 
 using epee::string_tools::pod_to_hex;
 
@@ -151,7 +151,7 @@ void BlockchainDB::add_transaction(const crypto::hash& blk_hash, const std::pair
 
     crypto::secret_key secret_tx_key;
     cryptonote::account_public_address address;
-    if (get_tx_secret_key_from_tx_extra(tx.extra, secret_tx_key) && get_service_node_contributor_from_tx_extra(tx.extra, address))
+    if (get_tx_secret_key_from_tx_extra(tx.extra, secret_tx_key) && get_masternode_contributor_from_tx_extra(tx.extra, address))
       has_blacklisted_outputs = true;
   }
 
@@ -427,7 +427,7 @@ void BlockchainDB::fixup(fixup_context const context)
 
 bool BlockchainDB::get_immutable_checkpoint(checkpoint_t *immutable_checkpoint, uint64_t block_height) const
 {
-  size_t constexpr NUM_CHECKPOINTS = service_nodes::CHECKPOINT_NUM_CHECKPOINTS_FOR_CHAIN_FINALITY;
+  size_t constexpr NUM_CHECKPOINTS = masternodes::CHECKPOINT_NUM_CHECKPOINTS_FOR_CHAIN_FINALITY;
   static_assert(NUM_CHECKPOINTS == 2,
                 "Expect checkpoint finality to be 2, otherwise the immutable logic needs to check for any hardcoded "
                 "checkpoints inbetween");
@@ -438,7 +438,7 @@ bool BlockchainDB::get_immutable_checkpoint(checkpoint_t *immutable_checkpoint, 
     return false;
 
   checkpoint_t *checkpoint_ptr = nullptr;
-  if (checkpoints[0].type != checkpoint_type::service_node) // checkpoint[0] is the first closest checkpoint that is <= my height
+  if (checkpoints[0].type != checkpoint_type::masternode) // checkpoint[0] is the first closest checkpoint that is <= my height
   {
     checkpoint_ptr = &checkpoints[0]; // Must be hard-coded then, always immutable
   }

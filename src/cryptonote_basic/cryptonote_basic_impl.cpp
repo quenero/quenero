@@ -43,11 +43,11 @@ using namespace epee;
 #include "crypto/hash.h"
 #include "int-util.h"
 #include "common/dns_utils.h"
-#include "common/loki.h"
+#include "common/quenero.h"
 #include <cfenv>
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "cn"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "cn"
 
 namespace cryptonote {
 
@@ -80,7 +80,7 @@ namespace cryptonote {
     return CRYPTONOTE_MAX_TX_SIZE;
   }
   //-----------------------------------------------------------------------------------------------
-  // TODO(loki): Move into loki_economy, this will require access to loki::exp2
+  // TODO(quenero): Move into quenero_economy, this will require access to quenero::exp2
   uint64_t block_reward_unpenalized_formula_v7(uint64_t already_generated_coins, uint64_t height)
   {
     uint64_t emission_supply_component = (already_generated_coins * EMISSION_SUPPLY_MULTIPLIER) / EMISSION_SUPPLY_DIVISOR;
@@ -95,7 +95,7 @@ namespace cryptonote {
   uint64_t block_reward_unpenalized_formula_v8(uint64_t height)
   {
     std::fesetround(FE_TONEAREST);
-    uint64_t result = 28'000'000'000. + 100'000'000'000. / loki::exp2(height / (720. * 90)); // halve every 90 days.
+    uint64_t result = 28'000'000'000. + 100'000'000'000. / quenero::exp2(height / (720. * 90)); // halve every 90 days.
     return result;
   }
 

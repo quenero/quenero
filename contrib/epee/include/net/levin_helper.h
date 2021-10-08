@@ -32,8 +32,8 @@
 #include "serializeble_struct_helper.h"
 #include "int-util.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "net"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "net"
 
 namespace epee
 {

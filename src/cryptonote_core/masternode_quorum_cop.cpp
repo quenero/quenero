@@ -26,25 +26,25 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "service_node_quorum_cop.h"
-#include "service_node_voting.h"
-#include "service_node_list.h"
+#include "masternode_quorum_cop.h"
+#include "masternode_voting.h"
+#include "masternode_list.h"
 #include "cryptonote_config.h"
 #include "cryptonote_core.h"
 #include "version.h"
-#include "common/loki.h"
+#include "common/quenero.h"
 #include "common/util.h"
 #include "net/local_ip.h"
 #include <boost/endian/conversion.hpp>
 
-#include "common/loki_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "quorum_cop"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "quorum_cop"
 
-namespace service_nodes
+namespace masternodes
 {
-  char const *service_node_test_results::why() const
+  char const *masternode_test_results::why() const
   {
     static char buf[2048];
     buf[0]              = 0;
@@ -53,14 +53,14 @@ namespace service_nodes
 
     if (passed())
     {
-      buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Service Node is passing all local tests");
+      buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Masternode is passing all local tests");
     }
     else
     {
-      buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Service Node is currently failing the following tests: ");
+      buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Masternode is currently failing the following tests: ");
       if (!uptime_proved)         buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Uptime proof missing. ");
       if (!voted_in_checkpoints)  buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Skipped voting in at least %d checkpoints. ", (int)(CHECKPOINT_NUM_QUORUMS_TO_PARTICIPATE_IN - CHECKPOINT_MAX_MISSABLE_VOTES));
-      buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Note: Storage server may not be reachable. This is only testable by an external Service Node.");
+      buf_ptr += snprintf(buf_ptr, buf_end - buf_ptr, "Note: Storage server may not be reachable. This is only testable by an external Masternode.");
     }
     return buf;
   }
@@ -78,14 +78,14 @@ namespace service_nodes
 
   // Perform service node tests -- this returns true is the server node is in a good state, that is,
   // has submitted uptime proofs, participated in required quorums, etc.
-  service_node_test_results quorum_cop::check_service_node(uint8_t hf_version, const crypto::public_key &pubkey, const service_node_info &info) const
+  masternode_test_results quorum_cop::check_masternode(uint8_t hf_version, const crypto::public_key &pubkey, const masternode_info &info) const
   {
-    service_node_test_results result; // Defaults to true for individual tests
+    masternode_test_results result; // Defaults to true for individual tests
     bool ss_reachable = true;
     uint64_t timestamp = 0;
     decltype(std::declval<proof_info>().public_ips) ips{};
     decltype(std::declval<proof_info>().votes) votes;
-    m_core.get_service_node_list().access_proof(pubkey, [&](const proof_info &proof) {
+    m_core.get_masternode_list().access_proof(pubkey, [&](const proof_info &proof) {
         ss_reachable = proof.storage_server_reachable;
         timestamp = std::max(proof.timestamp, proof.effective_timestamp);
         ips = proof.public_ips;
@@ -96,7 +96,7 @@ namespace service_nodes
     bool check_uptime_obligation     = true;
     bool check_checkpoint_obligation = true;
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     if (integration_test::state.disable_obligation_uptime_proof) check_uptime_obligation = false;
     if (integration_test::state.disable_obligation_checkpointing) check_checkpoint_obligation = false;
 #endif
@@ -104,7 +104,7 @@ namespace service_nodes
     if (check_uptime_obligation && time_since_last_uptime_proof > UPTIME_PROOF_MAX_TIME_IN_SECONDS)
     {
       LOG_PRINT_L1(
-          "Service Node: " << pubkey << ", failed uptime proof obligation check: the last uptime proof was older than: "
+          "Masternode: " << pubkey << ", failed uptime proof obligation check: the last uptime proof was older than: "
                            << UPTIME_PROOF_MAX_TIME_IN_SECONDS << "s. Time since last uptime proof was: "
                            << tools::get_human_readable_timespan(std::chrono::seconds(time_since_last_uptime_proof)));
       result.uptime_proved = false;
@@ -112,7 +112,7 @@ namespace service_nodes
 
     if (!ss_reachable)
     {
-      LOG_PRINT_L1("Service Node storage server is not reachable for node: " << pubkey);
+      LOG_PRINT_L1("Masternode storage server is not reachable for node: " << pubkey);
       if (hf_version >= cryptonote::network_version_13_enforce_checkpoints)
           result.storage_server_reachable = false;
     }
@@ -141,7 +141,7 @@ namespace service_nodes
 
       if (missed_votes > CHECKPOINT_MAX_MISSABLE_VOTES)
       {
-        LOG_PRINT_L1("Service Node: " << pubkey << ", failed checkpoint obligation check: missed the last: "
+        LOG_PRINT_L1("Masternode: " << pubkey << ", failed checkpoint obligation check: missed the last: "
                                       << missed_votes << " checkpoint votes from: "
                                       << CHECKPOINT_NUM_QUORUMS_TO_PARTICIPATE_IN
                                       << " quorums that they were required to participate in.");
@@ -204,14 +204,14 @@ namespace service_nodes
   void quorum_cop::process_quorums(cryptonote::block const &block)
   {
     uint8_t const hf_version = block.major_version;
-    if (hf_version < cryptonote::network_version_9_service_nodes)
+    if (hf_version < cryptonote::network_version_9_masternodes)
       return;
 
     uint64_t const REORG_SAFETY_BUFFER_BLOCKS = (hf_version >= cryptonote::network_version_12_checkpointing)
                                                     ? REORG_SAFETY_BUFFER_BLOCKS_POST_HF12
                                                     : REORG_SAFETY_BUFFER_BLOCKS_PRE_HF12;
-    auto my_keys = m_core.get_service_node_keys();
-    bool voting_enabled = my_keys && m_core.is_service_node(my_keys->pub, /*require_active=*/true);
+    auto my_keys = m_core.get_masternode_keys();
+    bool voting_enabled = my_keys && m_core.is_masternode(my_keys->pub, /*require_active=*/true);
 
     uint64_t const height        = cryptonote::get_block_height(block);
     uint64_t const latest_height = std::max(m_core.get_current_blockchain_height(), m_core.get_target_blockchain_height());
@@ -222,7 +222,7 @@ namespace service_nodes
     if (height < start_voting_from_height)
       return;
 
-    service_nodes::quorum_type const max_quorum_type = service_nodes::max_quorum_type_for_hf(hf_version);
+    masternodes::quorum_type const max_quorum_type = masternodes::max_quorum_type_for_hf(hf_version);
     bool tested_myself_once_per_block                = false;
 
     time_t start_time   = m_core.get_start_time();
@@ -232,7 +232,7 @@ namespace service_nodes
     {
       quorum_type const type = static_cast<quorum_type>(i);
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
       if (integration_test::state.disable_checkpoint_quorum && type == quorum_type::checkpointing) continue;
       if (integration_test::state.disable_obligation_quorum && type == quorum_type::obligations) continue;
 #endif
@@ -252,7 +252,7 @@ namespace service_nodes
           for (; m_obligations_height < (height - REORG_SAFETY_BUFFER_BLOCKS); m_obligations_height++)
           {
             uint8_t const obligations_height_hf_version = m_core.get_hard_fork_version(m_obligations_height);
-            if (obligations_height_hf_version < cryptonote::network_version_9_service_nodes) continue;
+            if (obligations_height_hf_version < cryptonote::network_version_9_masternodes) continue;
 
             // NOTE: Count checkpoints for other nodes, irrespective of being
             // a service node or not for statistics. Also count checkpoints
@@ -291,7 +291,7 @@ namespace service_nodes
             auto quorum = m_core.get_quorum(quorum_type::obligations, m_obligations_height);
             if (!quorum)
             {
-              // TODO(loki): Fatal error
+              // TODO(quenero): Fatal error
               LOG_ERROR("Obligations quorum for height: " << m_obligations_height << " was not cached in daemon!");
               continue;
             }
@@ -303,7 +303,7 @@ namespace service_nodes
               //
               // NOTE: I am in the quorum
               //
-              auto worker_states = m_core.get_service_node_list_state(quorum->workers);
+              auto worker_states = m_core.get_masternode_list_state(quorum->workers);
               auto worker_it = worker_states.begin();
               CRITICAL_REGION_LOCAL(m_lock);
               int good = 0, total = 0;
@@ -323,7 +323,7 @@ namespace service_nodes
                 if (!info.can_be_voted_on(m_obligations_height))
                   continue;
 
-                auto test_results = check_service_node(obligations_height_hf_version, node_key, info);
+                auto test_results = check_masternode(obligations_height_hf_version, node_key, info);
                 bool passed       = test_results.passed();
 
                 new_state vote_for_state;
@@ -373,7 +373,7 @@ namespace service_nodes
                   }
                 }
 
-                quorum_vote_t vote = service_nodes::make_state_change_vote(m_obligations_height, static_cast<uint16_t>(index_in_group), node_index, vote_for_state, *my_keys);
+                quorum_vote_t vote = masternodes::make_state_change_vote(m_obligations_height, static_cast<uint16_t>(index_in_group), node_index, vote_for_state, *my_keys);
                 cryptonote::vote_verification_context vvc;
                 if (!handle_vote(vote, vvc))
                   LOG_ERROR("Failed to add state change vote; reason: " << print_vote_verification_context(vvc, &vote));
@@ -388,14 +388,14 @@ namespace service_nodes
               // based on _our_ data and if so, report it to the user so they
               // know about it.
 
-              const auto states_array = m_core.get_service_node_list_state({my_keys->pub});
+              const auto states_array = m_core.get_masternode_list_state({my_keys->pub});
               if (states_array.size())
               {
                 const auto &info = *states_array[0].info;
                 if (info.can_be_voted_on(m_obligations_height))
                 {
                   tested_myself_once_per_block = true;
-                  auto my_test_results         = check_service_node(obligations_height_hf_version, my_keys->pub, info);
+                  auto my_test_results         = check_masternode(obligations_height_hf_version, my_keys->pub, info);
                   if (info.is_active())
                   {
                     if (!my_test_results.passed())
@@ -403,16 +403,16 @@ namespace service_nodes
                       // NOTE: Don't warn uptime proofs if the daemon is just
                       // recently started and is candidate for testing (i.e.
                       // restarting the daemon)
-                      if (!my_test_results.uptime_proved && live_time < LOKI_HOUR(1))
+                      if (!my_test_results.uptime_proved && live_time < QUENERO_HOUR(1))
                           continue;
 
-                      LOG_PRINT_L0("Service Node (yours) is active but is not passing tests for quorum: " << m_obligations_height);
+                      LOG_PRINT_L0("Masternode (yours) is active but is not passing tests for quorum: " << m_obligations_height);
                       LOG_PRINT_L0(my_test_results.why());
                     }
                   }
                   else if (info.is_decommissioned())
                   {
-                    LOG_PRINT_L0("Service Node (yours) is currently decommissioned and being tested in quorum: " << m_obligations_height);
+                    LOG_PRINT_L0("Masternode (yours) is currently decommissioned and being tested in quorum: " << m_obligations_height);
                     LOG_PRINT_L0(my_test_results.why());
                   }
                 }
@@ -446,7 +446,7 @@ namespace service_nodes
               auto quorum = m_core.get_quorum(quorum_type::checkpointing, m_last_checkpointed_height);
               if (!quorum)
               {
-                // TODO(loki): Fatal error
+                // TODO(quenero): Fatal error
                 LOG_ERROR("Checkpoint quorum for height: " << m_last_checkpointed_height << " was not cached in daemon!");
                 continue;
               }
@@ -494,23 +494,23 @@ namespace service_nodes
 
     // NOTE: Verify state change is still valid or have we processed some other state change already that makes it invalid
     {
-      crypto::public_key const &service_node_pubkey = quorum.workers[vote.state_change.worker_index];
-      auto service_node_infos = core.get_service_node_list_state({service_node_pubkey});
-      if (!service_node_infos.size() ||
-          !service_node_infos[0].info->can_transition_to_state(hf_version, vote.block_height, vote.state_change.state))
+      crypto::public_key const &masternode_pubkey = quorum.workers[vote.state_change.worker_index];
+      auto masternode_infos = core.get_masternode_list_state({masternode_pubkey});
+      if (!masternode_infos.size() ||
+          !masternode_infos[0].info->can_transition_to_state(hf_version, vote.block_height, vote.state_change.state))
         // NOTE: Vote is valid but is invalidated because we cannot apply the change to a service node or it is not on the network anymore
         //       So don't bother generating a state change tx.
         return true;
     }
 
-    cryptonote::tx_extra_service_node_state_change state_change{vote.state_change.state, vote.block_height, vote.state_change.worker_index};
+    cryptonote::tx_extra_masternode_state_change state_change{vote.state_change.state, vote.block_height, vote.state_change.worker_index};
     state_change.votes.reserve(votes.size());
 
     for (const auto &pool_vote : votes)
       state_change.votes.emplace_back(pool_vote.vote.signature, pool_vote.vote.index_in_group);
 
     cryptonote::transaction state_change_tx{};
-    if (cryptonote::add_service_node_state_change_to_tx_extra(state_change_tx.extra, state_change, hf_version))
+    if (cryptonote::add_masternode_state_change_to_tx_extra(state_change_tx.extra, state_change, hf_version))
     {
       state_change_tx.version = cryptonote::transaction::get_max_version_for_hf(hf_version);
       state_change_tx.type    = cryptonote::txtype::state_change;
@@ -565,12 +565,12 @@ namespace service_nodes
         checkpoint.block_hash == vote.checkpoint.block_hash)
     {
       update_checkpoint = false;
-      if (checkpoint.signatures.size() != service_nodes::CHECKPOINT_QUORUM_SIZE)
+      if (checkpoint.signatures.size() != masternodes::CHECKPOINT_QUORUM_SIZE)
       {
-        checkpoint.signatures.reserve(service_nodes::CHECKPOINT_QUORUM_SIZE);
+        checkpoint.signatures.reserve(masternodes::CHECKPOINT_QUORUM_SIZE);
         std::sort(checkpoint.signatures.begin(),
                   checkpoint.signatures.end(),
-                  [](service_nodes::voter_to_signature const &lhs, service_nodes::voter_to_signature const &rhs) {
+                  [](masternodes::voter_to_signature const &lhs, masternodes::voter_to_signature const &rhs) {
                     return lhs.voter_index < rhs.voter_index;
                   });
 
@@ -595,7 +595,7 @@ namespace service_nodes
     else
     {
       update_checkpoint = true;
-      checkpoint = make_empty_service_node_checkpoint(vote.checkpoint.block_hash, vote.block_height);
+      checkpoint = make_empty_masternode_checkpoint(vote.checkpoint.block_hash, vote.block_height);
       checkpoint.signatures.reserve(votes.size());
       for (pool_vote_entry const &pool_vote : votes)
         checkpoint.signatures.push_back(voter_to_signature(pool_vote.vote));
@@ -651,7 +651,7 @@ namespace service_nodes
   // Calculate the decommission credit for a service node.  If the SN is current decommissioned this
   // returns the number of blocks remaining in the credit; otherwise this is the number of currently
   // accumulated blocks.
-  int64_t quorum_cop::calculate_decommission_credit(const service_node_info &info, uint64_t current_height)
+  int64_t quorum_cop::calculate_decommission_credit(const masternode_info &info, uint64_t current_height)
   {
     // If currently decommissioned, we need to know how long it was up before being decommissioned;
     // otherwise we need to know how long since it last become active until now (or 0 if not staked

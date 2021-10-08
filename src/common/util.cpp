@@ -88,8 +88,8 @@ using namespace epee;
 #include <openssl/sha.h>
 #include "i18n.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "util"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "util"
 
 namespace
 {
@@ -677,10 +677,10 @@ std::string get_nix_version_display_string()
   {
     ub_ctx *ctx = ub_ctx_create();
     if (!ctx) return false; // cheat a bit, should not happen unless OOM
-    char *loki = strdup("loki"), *unbound = strdup("unbound");
-    ub_ctx_zone_add(ctx, loki, unbound); // this calls ub_ctx_finalize first, then errors out with UB_SYNTAX
+    char *quenero = strdup("quenero"), *unbound = strdup("unbound");
+    ub_ctx_zone_add(ctx, quenero, unbound); // this calls ub_ctx_finalize first, then errors out with UB_SYNTAX
     free(unbound);
-    free(loki);
+    free(quenero);
     // if no threads, bails out early with UB_NOERROR, otherwise fails with UB_AFTERFINAL id already finalized
     bool with_threads = ub_ctx_async(ctx, 1) != 0; // UB_AFTERFINAL is not defined in public headers, check any error
     ub_ctx_delete(ctx);

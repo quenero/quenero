@@ -31,9 +31,9 @@
 #include "serialization/serialization.h"
 #include "cryptonote_protocol/cryptonote_protocol_handler_common.h"
 #include "cryptonote_basic/cryptonote_basic_impl.h"
-#include "cryptonote_core/service_node_voting.h"
+#include "cryptonote_core/masternode_voting.h"
 
-#include "common/loki.h"
+#include "common/quenero.h"
 
 namespace cryptonote
 {
@@ -42,9 +42,9 @@ namespace cryptonote
   struct checkpoint_t;
 };
 
-namespace service_nodes
+namespace masternodes
 {
-  struct service_node_info;
+  struct masternode_info;
 
   struct quorum
   {
@@ -76,7 +76,7 @@ namespace service_nodes
     }
   };
 
-  struct service_node_test_results {
+  struct masternode_test_results {
     bool uptime_proved            = true;
     bool single_ip                = true;
     bool voted_in_checkpoints     = true;
@@ -102,11 +102,11 @@ namespace service_nodes
     std::vector<quorum_vote_t> get_relayable_votes(uint64_t current_height, uint8_t hf_version, bool quorum_relay);
     bool                       handle_vote        (quorum_vote_t const &vote, cryptonote::vote_verification_context &vvc);
 
-    static int64_t calculate_decommission_credit(const service_node_info &info, uint64_t current_height);
+    static int64_t calculate_decommission_credit(const masternode_info &info, uint64_t current_height);
 
   private:
     void process_quorums(cryptonote::block const &block);
-    service_node_test_results check_service_node(uint8_t hf_version, const crypto::public_key &pubkey, const service_node_info &info) const;
+    masternode_test_results check_masternode(uint8_t hf_version, const crypto::public_key &pubkey, const masternode_info &info) const;
 
     cryptonote::core& m_core;
     voting_pool       m_vote_pool;

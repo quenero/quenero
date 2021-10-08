@@ -55,10 +55,10 @@ using namespace epee;
 #include "rpc/core_rpc_server_commands_defs.h"
 #include "rpc/core_rpc_server.h"
 #include "daemonizer/daemonizer.h"
-#include "cryptonote_core/loki_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "wallet.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "wallet.rpc"
 
 #define DEFAULT_AUTO_REFRESH_PERIOD 20 // seconds
 
@@ -70,7 +70,7 @@ namespace
   const command_line::arg_descriptor<std::string> arg_wallet_dir = {"wallet-dir", "Directory for newly created wallets"};
   const command_line::arg_descriptor<bool> arg_prompt_for_password = {"prompt-for-password", "Prompts for password when not provided", false};
 
-  constexpr const char default_rpc_username[] = "loki";
+  constexpr const char default_rpc_username[] = "quenero";
 
   boost::optional<tools::password_container> password_prompter(const char *prompt, bool verify)
   {
@@ -232,7 +232,7 @@ namespace tools
           string_encoding::base64_encode(rand_128bit.data(), rand_128bit.size())
         );
 
-        std::string temp = "loki-wallet-rpc." + bind_port + ".login";
+        std::string temp = "quenero-wallet-rpc." + bind_port + ".login";
         rpc_login_file = tools::private_file::create(temp);
         if (!rpc_login_file.handle())
         {
@@ -281,7 +281,7 @@ namespace tools
     tools::wallet2::BackgroundMiningSetupType setup = m_wallet->setup_background_mining();
     if (setup == tools::wallet2::BackgroundMiningNo)
     {
-      MLOG_RED(el::Level::Warning, "Background mining not enabled. Run \"set setup-background-mining 1\" in loki-wallet-cli to change.");
+      MLOG_RED(el::Level::Warning, "Background mining not enabled. Run \"set setup-background-mining 1\" in quenero-wallet-cli to change.");
       return;
     }
 
@@ -306,8 +306,8 @@ namespace tools
     {
       MINFO("The daemon is not set up to background mine.");
       MINFO("With background mining enabled, the daemon will mine when idle and not on batttery.");
-      MINFO("Enabling this supports the network you are using, and makes you eligible for receiving new Loki");
-      MINFO("Set setup-background-mining to 1 in loki-wallet-cli to change.");
+      MINFO("Enabling this supports the network you are using, and makes you eligible for receiving new Quenero");
+      MINFO("Set setup-background-mining to 1 in quenero-wallet-cli to change.");
       return;
     }
 
@@ -660,7 +660,7 @@ namespace tools
           }
           if (addresses.empty())
           {
-            er.message = std::string("No Loki address found at ") + url;
+            er.message = std::string("No Quenero address found at ") + url;
             return {};
           }
           return addresses[0];
@@ -871,7 +871,7 @@ namespace tools
         er.message = tools::ERR_MSG_NETWORK_VERSION_QUERY_FAILED;
         return false;
       }
-      cryptonote::loki_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
+      cryptonote::quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
       std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, tx_params);
 
       if (ptx_vector.empty())
@@ -935,7 +935,7 @@ namespace tools
         return false;
       }
 
-      cryptonote::loki_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
+      cryptonote::quenero_construct_tx_params tx_params = tools::wallet2::construct_params(*hf_version, cryptonote::txtype::standard, priority);
       LOG_PRINT_L2("on_transfer_split calling create_transactions_2");
       std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, CRYPTONOTE_DEFAULT_TX_MIXIN, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, tx_params);
       LOG_PRINT_L2("on_transfer_split called create_transactions_2");
@@ -1914,7 +1914,7 @@ namespace tools
         }
         if (addresses.empty())
         {
-          er.message = std::string("No Loki address found at ") + url;
+          er.message = std::string("No Quenero address found at ") + url;
           return {};
         }
         return addresses[0];
@@ -2346,12 +2346,12 @@ namespace tools
 
     for (tools::transfer_view const &entry : transfers)
     {
-      // TODO(loki): This discrepancy between having to use pay_type if type is
+      // TODO(quenero): This discrepancy between having to use pay_type if type is
       // empty and type if pay type is neither is super unintuitive.
       if (entry.pay_type == tools::pay_type::in ||
           entry.pay_type == tools::pay_type::miner ||
           entry.pay_type == tools::pay_type::governance ||
-          entry.pay_type == tools::pay_type::service_node)
+          entry.pay_type == tools::pay_type::masternode)
       {
         res.in.push_back(entry);
       }
@@ -2704,7 +2704,7 @@ namespace tools
         }
         if (addresses.empty())
         {
-          er.message = std::string("No Loki address found at ") + url;
+          er.message = std::string("No Quenero address found at ") + url;
           return {};
         }
         return addresses[0];
@@ -4016,7 +4016,7 @@ namespace tools
             }
             if (addresses.empty())
             {
-              er.message = std::string("No Loki address found at ") + url;
+              er.message = std::string("No Quenero address found at ") + url;
               return {};
             }
             address = addresses[0];
@@ -4141,7 +4141,7 @@ namespace tools
   //------------------------------------------------------------------------------------------------------------------------------
 
   //
-  // Loki
+  // Quenero
   //
   bool wallet_rpc_server::on_stake(const wallet_rpc::COMMAND_RPC_STAKE::request& req, wallet_rpc::COMMAND_RPC_STAKE::response& res, epee::json_rpc::error& er, const connection_context *ctx)
   {
@@ -4162,14 +4162,14 @@ namespace tools
       return false;
     }
 
-    if (!epee::string_tools::hex_to_pod(req.service_node_key, snode_key))
+    if (!epee::string_tools::hex_to_pod(req.masternode_key, snode_key))
     {
       er.code    = WALLET_RPC_ERROR_CODE_WRONG_KEY;
-      er.message = std::string("Unparsable service node key given: ") + req.service_node_key;
+      er.message = std::string("Unparsable service node key given: ") + req.masternode_key;
       return false;
     }
 
-    // NOTE(loki): Pre-emptively set subaddr_account to 0. We don't support onwards from Infinite Staking which is when this call was implemented.
+    // NOTE(quenero): Pre-emptively set subaddr_account to 0. We don't support onwards from Infinite Staking which is when this call was implemented.
     tools::wallet2::stake_result stake_result = m_wallet->create_stake_tx(snode_key, addr_info, req.amount, 0 /*amount_fraction*/, req.priority, 0 /*subaddr_account*/, req.subaddr_indices);
     if (stake_result.status != tools::wallet2::stake_result_status::success)
     {
@@ -4183,7 +4183,7 @@ namespace tools
         res.tx_hash, req.get_tx_hex, res.tx_blob, req.get_tx_metadata, res.tx_metadata, er);
   }
 
-  bool wallet_rpc_server::on_register_service_node(const wallet_rpc::COMMAND_RPC_REGISTER_SERVICE_NODE::request& req, wallet_rpc::COMMAND_RPC_REGISTER_SERVICE_NODE::response& res, epee::json_rpc::error& er, const connection_context *ctx)
+  bool wallet_rpc_server::on_register_masternode(const wallet_rpc::COMMAND_RPC_REGISTER_MASTERNODE::request& req, wallet_rpc::COMMAND_RPC_REGISTER_MASTERNODE::response& res, epee::json_rpc::error& er, const connection_context *ctx)
   {
     if (!m_wallet) return not_open(er);
     if (m_restricted)
@@ -4194,17 +4194,17 @@ namespace tools
     }
 
     std::vector<std::string> args;
-    boost::split(args, req.register_service_node_str, boost::is_any_of(" "));
+    boost::split(args, req.register_masternode_str, boost::is_any_of(" "));
 
     if (args.size() > 0)
     {
-      if (args[0] == "register_service_node")
+      if (args[0] == "register_masternode")
         args.erase(args.begin());
     }
 
-    // NOTE(loki): Pre-emptively set subaddr_account to 0. We don't support onwards from Infinite Staking which is when this call was implemented.
-    tools::wallet2::register_service_node_result register_result = m_wallet->create_register_service_node_tx(args, 0 /*subaddr_account*/);
-    if (register_result.status != tools::wallet2::register_service_node_result_status::success)
+    // NOTE(quenero): Pre-emptively set subaddr_account to 0. We don't support onwards from Infinite Staking which is when this call was implemented.
+    tools::wallet2::register_masternode_result register_result = m_wallet->create_register_masternode_tx(args, 0 /*subaddr_account*/);
+    if (register_result.status != tools::wallet2::register_masternode_result_status::success)
     {
       er.code    = WALLET_RPC_ERROR_CODE_TX_NOT_POSSIBLE;
       er.message = register_result.msg;
@@ -4227,10 +4227,10 @@ namespace tools
     }
 
     crypto::public_key snode_key             = {};
-    if (!epee::string_tools::hex_to_pod(req.service_node_key, snode_key))
+    if (!epee::string_tools::hex_to_pod(req.masternode_key, snode_key))
     {
       er.code    = WALLET_RPC_ERROR_CODE_WRONG_KEY;
-      er.message = std::string("Unparsable service node key given: ") + req.service_node_key;
+      er.message = std::string("Unparsable service node key given: ") + req.masternode_key;
       return false;
     }
 
@@ -4240,7 +4240,7 @@ namespace tools
     return true;
   }
 
-  // TODO(loki): Deprecate this and make it return the TX as hex? Then just transfer it as normal? But these have no fees and or amount .. so maybe not?
+  // TODO(quenero): Deprecate this and make it return the TX as hex? Then just transfer it as normal? But these have no fees and or amount .. so maybe not?
   bool wallet_rpc_server::on_request_stake_unlock(const wallet_rpc::COMMAND_RPC_REQUEST_STAKE_UNLOCK::request& req, wallet_rpc::COMMAND_RPC_REQUEST_STAKE_UNLOCK::response& res, epee::json_rpc::error& er, const connection_context *ctx)
   {
     if (!m_wallet) return not_open(er);
@@ -4252,10 +4252,10 @@ namespace tools
     }
 
     crypto::public_key snode_key             = {};
-    if (!epee::string_tools::hex_to_pod(req.service_node_key, snode_key))
+    if (!epee::string_tools::hex_to_pod(req.masternode_key, snode_key))
     {
       er.code    = WALLET_RPC_ERROR_CODE_WRONG_KEY;
-      er.message = std::string("Unparsable service node key given: ") + req.service_node_key;
+      er.message = std::string("Unparsable service node key given: ") + req.masternode_key;
       return false;
     }
 
@@ -4605,12 +4605,12 @@ int main(int argc, char** argv) {
   bool should_terminate = false;
   std::tie(vm, should_terminate) = wallet_args::main(
     argc, argv,
-    "loki-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
-    tools::wallet_rpc_server::tr("This is the RPC loki wallet. It needs to connect to a loki\ndaemon to work correctly."),
+    "quenero-wallet-rpc [--wallet-file=<file>|--generate-from-json=<file>|--wallet-dir=<directory>] [--rpc-bind-port=<port>]",
+    tools::wallet_rpc_server::tr("This is the RPC quenero wallet. It needs to connect to a quenero\ndaemon to work correctly."),
     desc_params,
     po::positional_options_description(),
     [](const std::string &s, bool emphasis){ epee::set_console_color(emphasis ? epee::console_color_white : epee::console_color_default, emphasis); std::cout << s << std::endl; if (emphasis) epee::reset_console_color(); },
-    "loki-wallet-rpc.log",
+    "quenero-wallet-rpc.log",
     true
   );
   if (!vm)

@@ -33,8 +33,8 @@
 #include "dns_utils.h"
 #include "updates.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "updates"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "updates"
 
 namespace tools
 {

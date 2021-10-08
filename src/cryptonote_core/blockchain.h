@@ -57,10 +57,10 @@
 #include "checkpoints/checkpoints.h"
 #include "cryptonote_basic/hardfork.h"
 #include "blockchain_db/blockchain_db.h"
-#include "cryptonote_core/loki_name_system.h"
+#include "cryptonote_core/quenero_name_system.h"
 
 struct sqlite3;
-namespace service_nodes { class service_node_list; };
+namespace masternodes { class masternode_list; };
 namespace tools { class Notify; }
 
 namespace cryptonote
@@ -123,7 +123,7 @@ namespace cryptonote
      *
      * @param tx_pool a reference to the transaction pool to be kept by the Blockchain
      */
-    Blockchain(tx_memory_pool& tx_pool, service_nodes::service_node_list& service_node_list);
+    Blockchain(tx_memory_pool& tx_pool, masternodes::masternode_list& masternode_list);
 
     /**
      * @brief Blockchain destructor
@@ -608,7 +608,7 @@ namespace cryptonote
      * v8, and per byte from v8.
      *
      * The per-output fee is a fixed amount per output created in the
-     * transaction beginning in Loki hard fork 13 and will be 0 before v13.
+     * transaction beginning in Quenero hard fork 13 and will be 0 before v13.
      *
      * @param block_reward the current block reward
      * @param median_block_weight the median block weight in the past window
@@ -636,7 +636,7 @@ namespace cryptonote
      * This function validates the fee is enough for the transaction.
      * This is based on the weight of the transaction, and, after a
      * height threshold, on the average weight of transaction in a past window.
-     * From Loki v13 the amount must also include a per-output-created fee.
+     * From Quenero v13 the amount must also include a per-output-created fee.
      *
      * @param tx_weight the transaction weight
      * @param tx_outs the number of outputs created in the transaction
@@ -955,9 +955,9 @@ namespace cryptonote
     }
 
     /// @brief return a reference to the service node list
-    const service_nodes::service_node_list &get_service_node_list() const { return m_service_node_list; }
+    const masternodes::masternode_list &get_masternode_list() const { return m_masternode_list; }
     /// @brief return a reference to the service node list
-    service_nodes::service_node_list &get_service_node_list() { return m_service_node_list; }
+    masternodes::masternode_list &get_masternode_list() { return m_masternode_list; }
 
     /**
      * @brief get a number of outputs of a specific amount
@@ -1059,7 +1059,7 @@ namespace cryptonote
   private:
 #endif
 
-    bool load_missing_blocks_into_loki_subsystems();
+    bool load_missing_blocks_into_quenero_subsystems();
 
     // TODO: evaluate whether or not each of these typedefs are left over from blockchain_storage
     typedef std::unordered_set<crypto::key_image> key_images_container;
@@ -1072,7 +1072,7 @@ namespace cryptonote
     BlockchainDB* m_db;
 
     tx_memory_pool&                   m_tx_pool;
-    service_nodes::service_node_list& m_service_node_list;
+    masternodes::masternode_list& m_masternode_list;
     lns::name_system_db               m_lns_db;
 
     mutable boost::recursive_mutex m_blockchain_lock; // TODO: add here reader/writer lock

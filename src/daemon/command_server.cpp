@@ -33,10 +33,10 @@
 #include "string_tools.h"
 #include "daemon/command_server.h"
 
-#include "common/loki_integration_test_hooks.h"
+#include "common/quenero_integration_test_hooks.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "daemon"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon"
 
 namespace daemonize {
 
@@ -111,9 +111,9 @@ t_command_server::t_command_server(
     , "Print the quorum state for the range of block heights, omit the height to print the latest quorum"
     );
   m_command_lookup.set_handler(
-      "print_sn_key"
-    , std::bind(&t_command_parser_executor::print_sn_key, &m_parser, p::_1)
-    , "print_sn_key"
+      "print_masternode_key"
+    , std::bind(&t_command_parser_executor::print_masternode_key, &m_parser, p::_1)
+    , "print_masternode_key"
     , "Print this daemon's service node key, if it is one and launched in service node mode."
     );
   m_command_lookup.set_handler(
@@ -123,21 +123,21 @@ t_command_server::t_command_server(
     , "Print the staking requirement for the height."
     );
   m_command_lookup.set_handler(
-      "prepare_registration"
-    , std::bind(&t_command_parser_executor::prepare_registration, &m_parser)
-    , "prepare_registration"
+      "masternode_registration"
+    , std::bind(&t_command_parser_executor::masternode_registration, &m_parser)
+    , "masternode_registration"
     , "Interactive prompt to prepare a service node registration command. The resulting registration command can be run in the command-line wallet to send the registration to the blockchain."
     );
   m_command_lookup.set_handler(
-      "print_sn"
-    , std::bind(&t_command_parser_executor::print_sn, &m_parser, p::_1)
-    , "print_sn [<pubkey> [...]] [+json|+detail]"
+      "print_masternode"
+    , std::bind(&t_command_parser_executor::print_masternode, &m_parser, p::_1)
+    , "print_masternode [<pubkey> [...]] [+json|+detail]"
     , "Print service node registration info for the current height"
     );
   m_command_lookup.set_handler(
-      "print_sn_status"
-    , std::bind(&t_command_parser_executor::print_sn_status, &m_parser, p::_1)
-    , "print_sn_status [+json|+detail]"
+      "print_masternode_status"
+    , std::bind(&t_command_parser_executor::print_masternode_status, &m_parser, p::_1)
+    , "print_masternode_status [+json|+detail]"
     , "Print service node registration info for this service node"
     );
   m_command_lookup.set_handler(
@@ -311,7 +311,7 @@ t_command_server::t_command_server(
     , "bc_dyn_stats <last_block_count>"
     , "Print the information about current blockchain dynamic state."
     );
-    // TODO(loki): Implement
+    // TODO(quenero): Implement
 #if 0
     m_command_lookup.set_handler(
       "update"
@@ -342,7 +342,7 @@ t_command_server::t_command_server(
     , std::bind(&t_command_parser_executor::version, &m_parser, p::_1)
     , "Print version information."
     );
-#if 0 // TODO(loki): Pruning not supported because of Service Node List
+#if 0 // TODO(quenero): Pruning not supported because of Masternode List
     m_command_lookup.set_handler(
       "prune_blockchain"
     , std::bind(&t_command_parser_executor::prune_blockchain, &m_parser, p::_1)
@@ -361,12 +361,12 @@ t_command_server::t_command_server(
     , "Query the available checkpoints between the range, omit arguments to print the last 60 checkpoints"
     );
     m_command_lookup.set_handler(
-      "print_sn_state_changes"
-    , std::bind(&t_command_parser_executor::print_sn_state_changes, &m_parser, p::_1)
-    , "print_sn_state_changes <start_height> [end height]"
+      "print_masternode_state_changes"
+    , std::bind(&t_command_parser_executor::print_masternode_state_changes, &m_parser, p::_1)
+    , "print_masternode_state_changes <start_height> [end height]"
     , "Query the state changes between the range, omit the last argument to scan until the current block"
     );
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     m_command_lookup.set_handler(
       "relay_votes_and_uptime", std::bind([rpc_server](std::vector<std::string> const &args) {
         rpc_server->on_relay_uptime_and_votes();
@@ -440,7 +440,7 @@ bool t_command_server::process_command_vec(const std::vector<std::string>& cmd)
   return result;
 }
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
 #include <thread>
 #endif
 
@@ -448,7 +448,7 @@ bool t_command_server::start_handling(std::function<void(void)> exit_handler)
 {
   if (m_is_rpc) return false;
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   auto handle_pipe = [&]()
   {
     // TODO(doyle): Hack, don't hook into input until the daemon has completely initialised, i.e. you can print the status
@@ -506,7 +506,7 @@ bool t_command_server::help(const std::vector<std::string>& args)
 std::string t_command_server::get_commands_str()
 {
   std::stringstream ss;
-  ss << "Loki '" << LOKI_RELEASE_NAME << "' (v" << LOKI_VERSION_FULL << ")" << std::endl;
+  ss << "Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL << ")" << std::endl;
   ss << "Commands: " << std::endl;
   std::string usage = m_command_lookup.get_usage();
   boost::replace_all(usage, "\n", "\n  ");

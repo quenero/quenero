@@ -28,8 +28,8 @@
 
 #include "quorumnet.h"
 #include "cryptonote_core/cryptonote_core.h"
-#include "cryptonote_core/service_node_voting.h"
-#include "cryptonote_core/service_node_rules.h"
+#include "cryptonote_core/masternode_voting.h"
+#include "cryptonote_core/masternode_rules.h"
 #include "cryptonote_core/tx_blink.h"
 #include "cryptonote_core/tx_pool.h"
 #include "quorumnet_conn_matrix.h"
@@ -37,28 +37,28 @@
 #include "common/random.h"
 #include "common/lock.h"
 
-#include <lokimq/lokimq.h>
-#include <lokimq/hex.h>
+#include <queneromq/queneromq.h>
+#include <queneromq/hex.h>
 #include <shared_mutex>
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "qnet"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "qnet"
 
 namespace quorumnet {
 
 namespace {
 
-using namespace service_nodes;
+using namespace masternodes;
 using namespace std::literals;
-using namespace lokimq;
-using namespace lokimq::literals;
+using namespace queneromq;
+using namespace queneromq::literals;
 
 using blink_tx = cryptonote::blink_tx;
 
 constexpr auto NUM_BLINK_QUORUMS = tools::enum_count<blink_tx::subquorum>;
 static_assert(std::is_same<const uint8_t, decltype(NUM_BLINK_QUORUMS)>(), "unexpected underlying blink quorum count type");
 
-using quorum_array = std::array<std::shared_ptr<const service_nodes::quorum>, NUM_BLINK_QUORUMS>;
+using quorum_array = std::array<std::shared_ptr<const masternodes::quorum>, NUM_BLINK_QUORUMS>;
 
 using pending_signature = std::tuple<bool, uint8_t, int, crypto::signature>; // approval, subquorum, subquorum position, signature
 
@@ -69,7 +69,7 @@ struct pending_signature_hash {
 using pending_signature_set = std::unordered_set<pending_signature, pending_signature_hash>;
 
 struct SNNWrapper {
-    LokiMQ lmq;
+    QueneroMQ lmq;
     cryptonote::core &core;
 
     // Track submitted blink txes here; unlike the blinks stored in the mempool we store these ones
@@ -114,7 +114,7 @@ crypto::x25519_public_key x25519_from_string(string_view pubkey) {
     return x25519_pub;
 }
 
-std::string get_connect_string(const service_node_list &sn_list, const crypto::x25519_public_key &x25519_pub) {
+std::string get_connect_string(const masternode_list &sn_list, const crypto::x25519_public_key &x25519_pub) {
     if (!x25519_pub) {
         MDEBUG("no connection available: pubkey is empty");
         return "";
@@ -127,7 +127,7 @@ std::string get_connect_string(const service_node_list &sn_list, const crypto::x
     bool found = false;
     uint32_t ip = 0;
     uint16_t port = 0;
-    sn_list.for_each_service_node_info_and_proof(&pubkey, &pubkey + 1, [&](auto&, auto&, auto& proof) {
+    sn_list.for_each_masternode_info_and_proof(&pubkey, &pubkey + 1, [&](auto&, auto&, auto& proof) {
         found = true;
         ip = proof.public_ip;
         port = proof.quorumnet_port;
@@ -155,18 +155,18 @@ constexpr el::Level easylogging_level(LogLevel level) {
     return el::Level::Unknown;
 };
 void snn_write_log(LogLevel level, const char *file, int line, std::string msg) {
-    if (ELPP->vRegistry()->allowed(easylogging_level(level), LOKI_DEFAULT_LOG_CATEGORY))
-        el::base::Writer(easylogging_level(level), file, line, ELPP_FUNC, el::base::DispatchAction::NormalLog).construct(LOKI_DEFAULT_LOG_CATEGORY) << msg;
+    if (ELPP->vRegistry()->allowed(easylogging_level(level), QUENERO_DEFAULT_LOG_CATEGORY))
+        el::base::Writer(easylogging_level(level), file, line, ELPP_FUNC, el::base::DispatchAction::NormalLog).construct(QUENERO_DEFAULT_LOG_CATEGORY) << msg;
 }
 
 void setup_endpoints(SNNWrapper& snw);
 
 void *new_snnwrapper(cryptonote::core &core, const std::string &bind) {
-    auto keys = core.get_service_node_keys();
-    auto peer_lookup = [&sn_list = core.get_service_node_list()](string_view x25519_pub) {
+    auto keys = core.get_masternode_keys();
+    auto peer_lookup = [&sn_list = core.get_masternode_list()](string_view x25519_pub) {
         return get_connect_string(sn_list, x25519_from_string(x25519_pub));
     };
-    auto allow = [&sn_list = core.get_service_node_list()](string_view ip, string_view x25519_pubkey_str) -> Allow {
+    auto allow = [&sn_list = core.get_masternode_list()](string_view ip, string_view x25519_pubkey_str) -> Allow {
         auto x25519_pubkey = x25519_from_string(x25519_pubkey_str);
         auto pubkey = sn_list.get_pubkey_from_x25519(x25519_pubkey);
         MINFO("Accepting incoming " << (pubkey ? "SN" : "non-SN") << " connection authentication from ip/x25519/pubkey: " << ip << "/" << x25519_pubkey << "/" << pubkey);
@@ -194,7 +194,7 @@ void *new_snnwrapper(cryptonote::core &core, const std::string &bind) {
         seckey = get_data_as_string(keys->key_x25519.data);
         sn = true;
     } else {
-        MINFO("Starting remote-only lokimq instance");
+        MINFO("Starting remote-only queneromq instance");
         sn = false;
     }
 
@@ -280,7 +280,7 @@ public:
             )
     : lmq{snw.lmq} {
 
-        auto keys = snw.core.get_service_node_keys();
+        auto keys = snw.core.get_masternode_keys();
         assert(keys);
         const auto &my_pubkey = keys->pub;
         exclude.insert(my_pubkey);
@@ -314,7 +314,7 @@ public:
         }
 
         // Lookup the x25519 and ZMQ connection string for all peers
-        snw.core.get_service_node_list().for_each_service_node_info_and_proof(need_remotes.begin(), need_remotes.end(),
+        snw.core.get_masternode_list().for_each_masternode_info_and_proof(need_remotes.begin(), need_remotes.end(),
             [this](const auto &pubkey, const auto &info, const auto &proof) {
               if (info.is_active() && proof.pubkey_x25519 && proof.quorumnet_port && proof.public_ip)
                 remotes.emplace(pubkey, std::make_pair(proof.pubkey_x25519,
@@ -332,7 +332,7 @@ public:
     }
 
 private:
-    LokiMQ &lmq;
+    QueneroMQ &lmq;
 
     /// Looks up a pubkey in known remotes and adds it to `peers`.  If strong, it is added with an
     /// address, otherwise it is added with an empty address.  If the element already exists, it
@@ -490,15 +490,15 @@ quorum_vote_t deserialize_vote(string_view v) {
     return vote;
 }
 
-void relay_obligation_votes(void *obj, const std::vector<service_nodes::quorum_vote_t> &votes) {
+void relay_obligation_votes(void *obj, const std::vector<masternodes::quorum_vote_t> &votes) {
     auto &snw = SNNWrapper::from(obj);
 
-    auto my_keys_ptr = snw.core.get_service_node_keys();
+    auto my_keys_ptr = snw.core.get_masternode_keys();
     assert(my_keys_ptr);
     const auto &my_keys = *my_keys_ptr;
 
     MDEBUG("Starting relay of " << votes.size() << " votes");
-    std::vector<service_nodes::quorum_vote_t> relayed_votes;
+    std::vector<masternodes::quorum_vote_t> relayed_votes;
     relayed_votes.reserve(votes.size());
     for (auto &vote : votes) {
         if (vote.type != quorum_type::obligations) {
@@ -506,17 +506,17 @@ void relay_obligation_votes(void *obj, const std::vector<service_nodes::quorum_v
             continue;
         }
 
-        auto quorum = snw.core.get_service_node_list().get_quorum(vote.type, vote.block_height);
+        auto quorum = snw.core.get_masternode_list().get_quorum(vote.type, vote.block_height);
         if (!quorum) {
             MWARNING("Unable to relay vote: no " << vote.type << " quorum available for height " << vote.block_height);
             continue;
         }
 
         auto &quorum_voters = quorum->validators;
-        if (quorum_voters.size() < service_nodes::min_votes_for_quorum_type(vote.type)) {
+        if (quorum_voters.size() < masternodes::min_votes_for_quorum_type(vote.type)) {
             MWARNING("Invalid vote relay: " << vote.type << " quorum @ height " << vote.block_height <<
                     " does not have enough validators (" << quorum_voters.size() << ") to reach the minimum required votes ("
-                    << service_nodes::min_votes_for_quorum_type(vote.type) << ")");
+                    << masternodes::min_votes_for_quorum_type(vote.type) << ")");
             continue;
         }
 
@@ -530,7 +530,7 @@ void relay_obligation_votes(void *obj, const std::vector<service_nodes::quorum_v
         relayed_votes.push_back(vote);
     }
     MDEBUG("Relayed " << relayed_votes.size() << " votes");
-    snw.core.set_service_node_votes_relayed(relayed_votes);
+    snw.core.set_masternode_votes_relayed(relayed_votes);
 }
 
 void handle_obligation_vote(Message& m, SNNWrapper& snw) {
@@ -556,7 +556,7 @@ void handle_obligation_vote(Message& m, SNNWrapper& snw) {
         }
 
         cryptonote::vote_verification_context vvc{};
-        snw.core.add_service_node_vote(vote, vvc);
+        snw.core.add_masternode_vote(vote, vvc);
         if (vvc.m_verification_failed)
         {
             MWARNING("Vote verification failed; ignoring vote");
@@ -587,7 +587,7 @@ std::enable_if_t<std::is_integral<I>::value, I> get_or(bt_dict &d, const std::st
 // input quorum checksum matches the computed checksum for the quorums (if provided), otherwise sets
 // the given output checksum (if provided) to the calculated value.  Throws std::runtime_error on
 // failure.
-quorum_array get_blink_quorums(uint64_t blink_height, const service_node_list &snl, const uint64_t *input_checksum, uint64_t *output_checksum = nullptr) {
+quorum_array get_blink_quorums(uint64_t blink_height, const masternode_list &snl, const uint64_t *input_checksum, uint64_t *output_checksum = nullptr) {
     // We currently just use two quorums, Q and Q' in the whitepaper, but this code is designed to
     // work fine with more quorums (but don't use a single subquorum; that could only be secure or
     // reliable but not both).
@@ -760,7 +760,7 @@ void process_blink_signatures(SNNWrapper &snw, const std::shared_ptr<blink_tx> &
 
     peer_info::exclude_set relay_exclude;
     if (!received_from.empty()) {
-        auto pubkey = snw.core.get_service_node_list().get_pubkey_from_x25519(x25519_from_string(received_from));
+        auto pubkey = snw.core.get_masternode_list().get_pubkey_from_x25519(x25519_from_string(received_from));
         if (pubkey)
             relay_exclude.insert(std::move(pubkey));
     }
@@ -827,7 +827,7 @@ void process_blink_signatures(SNNWrapper &snw, const std::shared_ptr<blink_tx> &
 ///     "#" - precomputed tx hash.  This much match the actual hash of the transaction (the blink
 ///           submission will fail immediately if it does not).
 ///
-void handle_blink(lokimq::Message& m, SNNWrapper& snw) {
+void handle_blink(queneromq::Message& m, SNNWrapper& snw) {
     // TODO: if someone sends an invalid tx (i.e. one that doesn't get to the distribution stage)
     // then put a timeout on that IP during which new submissions from them are dropped for a short
     // time.
@@ -839,7 +839,7 @@ void handle_blink(lokimq::Message& m, SNNWrapper& snw) {
 
     MDEBUG("Received a blink tx from " << (m.conn.sn() ? "SN " : "non-SN ") << to_hex(m.conn.pubkey()));
 
-    auto keys = snw.core.get_service_node_keys();
+    auto keys = snw.core.get_masternode_keys();
     assert(keys);
     if (!keys) return;
 
@@ -944,7 +944,7 @@ void handle_blink(lokimq::Message& m, SNNWrapper& snw) {
     quorum_array blink_quorums;
     uint64_t checksum = get_int<uint64_t>(data.at("q"));
     try {
-        blink_quorums = get_blink_quorums(blink_height, snw.core.get_service_node_list(), &checksum);
+        blink_quorums = get_blink_quorums(blink_height, snw.core.get_masternode_list(), &checksum);
     } catch (const std::runtime_error &e) {
         MINFO("Rejecting blink tx: " << e.what());
         if (tag)
@@ -953,7 +953,7 @@ void handle_blink(lokimq::Message& m, SNNWrapper& snw) {
     }
 
     peer_info pinfo{snw, quorum_type::blink, blink_quorums.begin(), blink_quorums.end(), true /*opportunistic*/,
-        {snw.core.get_service_node_list().get_pubkey_from_x25519(x25519_from_string(m.conn.pubkey()))} // exclude the peer that just sent it to us
+        {snw.core.get_masternode_list().get_pubkey_from_x25519(x25519_from_string(m.conn.pubkey()))} // exclude the peer that just sent it to us
         };
 
     if (pinfo.my_position_count > 0)
@@ -1187,7 +1187,7 @@ void handle_blink_signature(Message& m, SNNWrapper& snw) {
     if (!(blink_height && saw_hash && saw_checksum && saw_i && saw_r && saw_p && saw_s))
         throw std::invalid_argument("Invalid blink signature data: missing required fields");
 
-    auto blink_quorums = get_blink_quorums(blink_height, snw.core.get_service_node_list(), &checksum); // throws if bad quorum or checksum mismatch
+    auto blink_quorums = get_blink_quorums(blink_height, snw.core.get_masternode_list(), &checksum); // throws if bad quorum or checksum mismatch
 
     uint64_t reply_tag = 0;
     ConnectionID reply_conn;
@@ -1299,7 +1299,7 @@ std::future<std::pair<cryptonote::blink_result, std::string>> send_blink(void *o
         auto &snw = SNNWrapper::from(obj);
         uint64_t height = snw.core.get_current_blockchain_height();
         uint64_t checksum;
-        auto quorums = get_blink_quorums(height, snw.core.get_service_node_list(), nullptr, &checksum);
+        auto quorums = get_blink_quorums(height, snw.core.get_masternode_list(), nullptr, &checksum);
 
         // Lookup the x25519 and ZMQ connection string for all possible blink recipients so that we
         // know where to send it to, and so that we can immediately exclude SNs that aren't active
@@ -1312,7 +1312,7 @@ std::future<std::pair<cryptonote::blink_result, std::string>> send_blink(void *o
 
         std::vector<std::pair<std::string, std::string>> remotes; // x25519 pubkey -> connect string
         remotes.reserve(candidates.size());
-        snw.core.get_service_node_list().for_each_service_node_info_and_proof(candidates.begin(), candidates.end(),
+        snw.core.get_masternode_list().for_each_masternode_info_and_proof(candidates.begin(), candidates.end(),
             [&remotes](const auto &pubkey, const auto &info, const auto &proof) {
                 if (!info.is_active()) {
                     MTRACE("Not include inactive node " << pubkey);

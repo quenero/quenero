@@ -56,10 +56,10 @@ public:
   boost::optional<std::string> get_fee_quantization_mask(uint64_t &fee_quantization_mask) const;
   boost::optional<uint8_t>     get_hardfork_version() const;
 
-  std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry>             get_service_nodes(std::vector<std::string> const &pubkeys, boost::optional<std::string> &failed) const;
-  std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry>             get_all_service_nodes(boost::optional<std::string> &failed) const;
-  std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry>             get_contributed_service_nodes(const std::string &contributor, boost::optional<std::string> &failed) const;
-  std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry> get_service_node_blacklisted_key_images(boost::optional<std::string> &failed) const;
+  std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry>             get_masternodes(std::vector<std::string> const &pubkeys, boost::optional<std::string> &failed) const;
+  std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry>             get_all_masternodes(boost::optional<std::string> &failed) const;
+  std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry>             get_contributed_masternodes(const std::string &contributor, boost::optional<std::string> &failed) const;
+  std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry> get_masternode_blacklisted_key_images(boost::optional<std::string> &failed) const;
   std::vector<cryptonote::COMMAND_RPC_LNS_OWNERS_TO_NAMES::response_entry>            lns_owners_to_names(cryptonote::COMMAND_RPC_LNS_OWNERS_TO_NAMES::request const &request, boost::optional<std::string> &failed) const;
   std::vector<cryptonote::COMMAND_RPC_LNS_NAMES_TO_OWNERS::response_entry>            lns_names_to_owners(cryptonote::COMMAND_RPC_LNS_NAMES_TO_OWNERS::request const &request, boost::optional<std::string> &failed) const;
 
@@ -70,17 +70,17 @@ private:
   std::recursive_mutex &m_daemon_rpc_mutex;
   bool m_offline;
 
-  mutable uint64_t m_service_node_blacklisted_key_images_cached_height;
-  mutable std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::entry> m_service_node_blacklisted_key_images;
+  mutable uint64_t m_masternode_blacklisted_key_images_cached_height;
+  mutable std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::entry> m_masternode_blacklisted_key_images;
 
-  bool update_all_service_nodes_cache(uint64_t height, boost::optional<std::string> &failed) const;
+  bool update_all_masternodes_cache(uint64_t height, boost::optional<std::string> &failed) const;
 
-  mutable uint64_t m_all_service_nodes_cached_height;
-  mutable std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry> m_all_service_nodes;
+  mutable uint64_t m_all_masternodes_cached_height;
+  mutable std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry> m_all_masternodes;
 
-  mutable uint64_t m_contributed_service_nodes_cached_height;
-  mutable std::string m_contributed_service_nodes_cached_address;
-  mutable std::vector<cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response::entry> m_contributed_service_nodes;
+  mutable uint64_t m_contributed_masternodes_cached_height;
+  mutable std::string m_contributed_masternodes_cached_address;
+  mutable std::vector<cryptonote::COMMAND_RPC_GET_MASTERNODES::response::entry> m_contributed_masternodes;
 
   mutable uint64_t m_height;
   mutable uint64_t m_immutable_height;

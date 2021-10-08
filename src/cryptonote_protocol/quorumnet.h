@@ -28,11 +28,11 @@
 
 #pragma once
 
-// This file (plus .cpp) contains the glue layer between cryptonote_core and loki-mq.
+// This file (plus .cpp) contains the glue layer between cryptonote_core and quenero-mq.
 
 #include <vector>
 
-namespace service_nodes {
+namespace masternodes {
     struct quorum_vote_t;
 };
 

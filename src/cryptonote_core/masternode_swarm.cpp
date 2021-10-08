@@ -1,8 +1,8 @@
-#include "service_node_swarm.h"
+#include "masternode_swarm.h"
 #include "common/random.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "service_nodes"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "masternodes"
 
 #ifdef UNIT_TEST
   #define prod_static
@@ -10,7 +10,7 @@
   #define prod_static static
 #endif
 
-namespace service_nodes
+namespace masternodes
 {
   static uint64_t get_new_swarm_id(const swarm_snode_map_t &swarm_to_snodes)
   {

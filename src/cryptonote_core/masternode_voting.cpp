@@ -26,8 +26,8 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "service_node_voting.h"
-#include "service_node_list.h"
+#include "masternode_voting.h"
+#include "masternode_list.h"
 #include "cryptonote_basic/tx_extra.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_basic/verification_context.h"
@@ -45,16 +45,16 @@
 
 #include <boost/endian/conversion.hpp>
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "service_nodes"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "masternodes"
 
-namespace service_nodes
+namespace masternodes
 {
-  static crypto::hash make_state_change_vote_hash(uint64_t block_height, uint32_t service_node_index, new_state state)
+  static crypto::hash make_state_change_vote_hash(uint64_t block_height, uint32_t masternode_index, new_state state)
   {
     uint16_t state_int = static_cast<uint16_t>(state);
 
-    auto buf = tools::memcpy_le(block_height, service_node_index, state_int);
+    auto buf = tools::memcpy_le(block_height, masternode_index, state_int);
 
     auto size = buf.size();
     if (state == new_state::deregister)
@@ -65,7 +65,7 @@ namespace service_nodes
     return result;
   }
 
-  crypto::signature make_signature_from_vote(quorum_vote_t const &vote, const service_node_keys &keys)
+  crypto::signature make_signature_from_vote(quorum_vote_t const &vote, const masternode_keys &keys)
   {
     crypto::signature result = {};
     switch(vote.type)
@@ -95,15 +95,15 @@ namespace service_nodes
     return result;
   }
 
-  crypto::signature make_signature_from_tx_state_change(cryptonote::tx_extra_service_node_state_change const &state_change, const service_node_keys &keys)
+  crypto::signature make_signature_from_tx_state_change(cryptonote::tx_extra_masternode_state_change const &state_change, const masternode_keys &keys)
   {
     crypto::signature result;
-    crypto::hash hash = make_state_change_vote_hash(state_change.block_height, state_change.service_node_index, state_change.state);
+    crypto::hash hash = make_state_change_vote_hash(state_change.block_height, state_change.masternode_index, state_change.state);
     crypto::generate_signature(hash, keys.pub, keys.key, result);
     return result;
   }
 
-  static bool bounds_check_worker_index(service_nodes::quorum const &quorum, uint32_t worker_index, cryptonote::vote_verification_context *vvc)
+  static bool bounds_check_worker_index(masternodes::quorum const &quorum, uint32_t worker_index, cryptonote::vote_verification_context *vvc)
   {
     if (worker_index >= quorum.workers.size())
     {
@@ -114,7 +114,7 @@ namespace service_nodes
     return true;
   }
 
-  static bool bounds_check_validator_index(service_nodes::quorum const &quorum, uint32_t validator_index, cryptonote::vote_verification_context *vvc)
+  static bool bounds_check_validator_index(masternodes::quorum const &quorum, uint32_t validator_index, cryptonote::vote_verification_context *vvc)
   {
     if (validator_index >= quorum.validators.size())
     {
@@ -130,10 +130,10 @@ namespace service_nodes
     return false;
   }
 
-  bool verify_tx_state_change(const cryptonote::tx_extra_service_node_state_change &state_change,
+  bool verify_tx_state_change(const cryptonote::tx_extra_masternode_state_change &state_change,
                               uint64_t latest_height,
                               cryptonote::tx_verification_context &tvc,
-                              const service_nodes::quorum &quorum,
+                              const masternodes::quorum &quorum,
                               const uint8_t hf_version)
   {
     auto &vvc = tvc.m_vote_ctx;
@@ -149,20 +149,20 @@ namespace service_nodes
       return bad_tx(tvc);
     }
 
-    if (state_change.votes.size() < service_nodes::STATE_CHANGE_MIN_VOTES_TO_CHANGE_STATE)
+    if (state_change.votes.size() < masternodes::STATE_CHANGE_MIN_VOTES_TO_CHANGE_STATE)
     {
       LOG_PRINT_L1("Not enough votes");
       vvc.m_not_enough_votes = true;
       return bad_tx(tvc);
     }
 
-    if (state_change.votes.size() > service_nodes::STATE_CHANGE_QUORUM_SIZE)
+    if (state_change.votes.size() > masternodes::STATE_CHANGE_QUORUM_SIZE)
     {
       LOG_PRINT_L1("Too many votes");
       return bad_tx(tvc);
     }
 
-    if (!bounds_check_worker_index(quorum, state_change.service_node_index, &vvc))
+    if (!bounds_check_worker_index(quorum, state_change.masternode_index, &vvc))
       return bad_tx(tvc);
 
     // Check if state_change is too old or too new to hold onto
@@ -170,7 +170,7 @@ namespace service_nodes
       if (state_change.block_height >= latest_height)
       {
         LOG_PRINT_L1("Received state change tx for height: " << state_change.block_height
-                     << " and service node: "              << state_change.service_node_index
+                     << " and service node: "              << state_change.masternode_index
                      << ", is newer than current height: " << latest_height
                      << " blocks and has been rejected.");
         vvc.m_invalid_block_height = true;
@@ -179,22 +179,22 @@ namespace service_nodes
         return false;
       }
 
-      if (latest_height >= state_change.block_height + service_nodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS)
+      if (latest_height >= state_change.block_height + masternodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS)
       {
         LOG_PRINT_L1("Received state change tx for height: "
-                     << state_change.block_height << " and service node: " << state_change.service_node_index
-                     << ", is older than: " << service_nodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS
+                     << state_change.block_height << " and service node: " << state_change.masternode_index
+                     << ", is older than: " << masternodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS
                      << " (current height: " << latest_height << ") "
                      << "blocks and has been rejected.");
         vvc.m_invalid_block_height = true;
-        if (latest_height >= state_change.block_height + (service_nodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS + VOTE_OR_TX_VERIFY_HEIGHT_BUFFER))
+        if (latest_height >= state_change.block_height + (masternodes::STATE_CHANGE_TX_LIFETIME_IN_BLOCKS + VOTE_OR_TX_VERIFY_HEIGHT_BUFFER))
           tvc.m_verifivation_failed = true;
         return false;
       }
     }
 
-    crypto::hash const hash = make_state_change_vote_hash(state_change.block_height, state_change.service_node_index, state_change.state);
-    std::array<int, service_nodes::STATE_CHANGE_QUORUM_SIZE> validator_set = {};
+    crypto::hash const hash = make_state_change_vote_hash(state_change.block_height, state_change.masternode_index, state_change.state);
+    std::array<int, masternodes::STATE_CHANGE_QUORUM_SIZE> validator_set = {};
     int validator_index_tracker                                            = -1;
     for (const auto &vote : state_change.votes)
     {
@@ -232,32 +232,32 @@ namespace service_nodes
     return true;
   }
 
-  bool verify_checkpoint(uint8_t hf_version, cryptonote::checkpoint_t const &checkpoint, service_nodes::quorum const &quorum)
+  bool verify_checkpoint(uint8_t hf_version, cryptonote::checkpoint_t const &checkpoint, masternodes::quorum const &quorum)
   {
-    if (checkpoint.type == cryptonote::checkpoint_type::service_node)
+    if (checkpoint.type == cryptonote::checkpoint_type::masternode)
     {
-      if ((checkpoint.height % service_nodes::CHECKPOINT_INTERVAL) != 0)
+      if ((checkpoint.height % masternodes::CHECKPOINT_INTERVAL) != 0)
       {
         LOG_PRINT_L1("Checkpoint given but not expecting a checkpoint at height: " << checkpoint.height);
         return false;
       }
 
-      if (checkpoint.signatures.size() < service_nodes::CHECKPOINT_MIN_VOTES)
+      if (checkpoint.signatures.size() < masternodes::CHECKPOINT_MIN_VOTES)
       {
         LOG_PRINT_L1("Checkpoint has insufficient signatures to be considered at height: " << checkpoint.height);
         return false;
       }
 
-      if (checkpoint.signatures.size() > service_nodes::CHECKPOINT_QUORUM_SIZE)
+      if (checkpoint.signatures.size() > masternodes::CHECKPOINT_QUORUM_SIZE)
       {
         LOG_PRINT_L1("Checkpoint has too many signatures to be considered at height: " << checkpoint.height);
         return false;
       }
 
-      std::array<size_t, service_nodes::CHECKPOINT_QUORUM_SIZE> unique_vote_set = {};
+      std::array<size_t, masternodes::CHECKPOINT_QUORUM_SIZE> unique_vote_set = {};
       for (size_t i = 0; i < checkpoint.signatures.size(); i++)
       {
-        service_nodes::voter_to_signature const &voter_to_signature = checkpoint.signatures[i];
+        masternodes::voter_to_signature const &voter_to_signature = checkpoint.signatures[i];
         if (hf_version >= cryptonote::network_version_13_enforce_checkpoints && i < (checkpoint.signatures.size() - 1))
         {
           auto curr = checkpoint.signatures[i].voter_index;
@@ -297,7 +297,7 @@ namespace service_nodes
     return true;
   }
 
-  quorum_vote_t make_state_change_vote(uint64_t block_height, uint16_t validator_index, uint16_t worker_index, new_state state, const service_node_keys &keys)
+  quorum_vote_t make_state_change_vote(uint64_t block_height, uint16_t validator_index, uint16_t worker_index, new_state state, const masternode_keys &keys)
   {
     quorum_vote_t result             = {};
     result.type                      = quorum_type::obligations;
@@ -310,7 +310,7 @@ namespace service_nodes
     return result;
   }
 
-  quorum_vote_t make_checkpointing_vote(uint8_t hf_version, crypto::hash const &block_hash, uint64_t block_height, uint16_t index_in_quorum, const service_node_keys &keys)
+  quorum_vote_t make_checkpointing_vote(uint8_t hf_version, crypto::hash const &block_hash, uint64_t block_height, uint16_t index_in_quorum, const masternode_keys &keys)
   {
     quorum_vote_t result         = {};
     result.type                  = quorum_type::checkpointing;
@@ -322,10 +322,10 @@ namespace service_nodes
     return result;
   }
 
-  cryptonote::checkpoint_t make_empty_service_node_checkpoint(crypto::hash const &block_hash, uint64_t height)
+  cryptonote::checkpoint_t make_empty_masternode_checkpoint(crypto::hash const &block_hash, uint64_t height)
   {
     cryptonote::checkpoint_t result = {};
-    result.type                     = cryptonote::checkpoint_type::service_node;
+    result.type                     = cryptonote::checkpoint_type::masternode;
     result.height                   = height;
     result.block_hash               = block_hash;
     return result;
@@ -359,7 +359,7 @@ namespace service_nodes
     return result;
   }
 
-  bool verify_vote_signature(uint8_t hf_version, const quorum_vote_t &vote, cryptonote::vote_verification_context &vvc, const service_nodes::quorum &quorum)
+  bool verify_vote_signature(uint8_t hf_version, const quorum_vote_t &vote, cryptonote::vote_verification_context &vvc, const masternodes::quorum &quorum)
   {
     bool result = true;
     if (vote.type > tools::enum_top<quorum_type>)
@@ -509,7 +509,7 @@ namespace service_nodes
     CRITICAL_REGION_LOCAL(m_lock);
 
     // TODO(doyle): Rate-limiting: A better threshold value that follows suite with transaction relay time back-off
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
     constexpr uint64_t TIME_BETWEEN_RELAY = 0;
 #else
     constexpr uint64_t TIME_BETWEEN_RELAY = 60 * 2;
@@ -573,8 +573,8 @@ namespace service_nodes
       if (tx.type != cryptonote::txtype::state_change)
         continue;
 
-      cryptonote::tx_extra_service_node_state_change state_change;
-      if (!get_service_node_state_change_from_tx_extra(tx.extra, state_change, hard_fork_version))
+      cryptonote::tx_extra_masternode_state_change state_change;
+      if (!get_masternode_state_change_from_tx_extra(tx.extra, state_change, hard_fork_version))
       {
         LOG_ERROR("Could not get state change from tx, possibly corrupt tx");
         continue;
@@ -681,5 +681,5 @@ namespace service_nodes
       std::memcpy(&st, &blob[86], 2); vote.state_change.state = static_cast<new_state>(boost::endian::little_to_native(st));
     }
   }
-}; // namespace service_nodes
+}; // namespace masternodes
 

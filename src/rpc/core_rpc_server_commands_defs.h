@@ -35,15 +35,15 @@
 #include "cryptonote_basic/difficulty.h"
 #include "crypto/hash.h"
 #include "cryptonote_config.h"
-#include "cryptonote_core/service_node_voting.h"
+#include "cryptonote_core/masternode_voting.h"
 #include "rpc/rpc_handler.h"
 #include "common/varint.h"
 #include "common/perf_timer.h"
 #include "checkpoints/checkpoints.h"
 
-#include "cryptonote_core/service_node_quorum_cop.h"
-#include "cryptonote_core/service_node_list.h"
-#include "common/loki.h"
+#include "cryptonote_core/masternode_quorum_cop.h"
+#include "cryptonote_core/masternode_list.h"
+#include "common/quenero.h"
 
 namespace
 {
@@ -98,7 +98,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 #define MAKE_CORE_RPC_VERSION(major,minor) (((major)<<16)|(minor))
 #define CORE_RPC_VERSION MAKE_CORE_RPC_VERSION(CORE_RPC_VERSION_MAJOR, CORE_RPC_VERSION_MINOR)
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the node's current height.
   struct COMMAND_RPC_GET_HEIGHT
   {
@@ -115,7 +115,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       std::string status;         // Generic RPC error code. "OK" is the success value.
       bool untrusted;             // If the result is obtained using bootstrap mode, and therefore not trusted `true`, or otherwise `false`.
       std::string hash;           // Hash of the block at the current height
-      uint64_t immutable_height;  // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Service Node, or 1 hardcoded checkpoint, 0 if N/A).
+      uint64_t immutable_height;  // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Masternode, or 1 hardcoded checkpoint, 0 if N/A).
       std::string immutable_hash; // Hash of the highest block in the chain that can not be reorganized.
 
       BEGIN_KV_SERIALIZE_MAP()
@@ -130,7 +130,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get all blocks info. Binary request.
   struct COMMAND_RPC_GET_BLOCKS_FAST
   {
@@ -190,7 +190,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get blocks by height. Binary request.
   struct COMMAND_RPC_GET_BLOCKS_BY_HEIGHT
   {
@@ -220,7 +220,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   };
 
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the known blocks hashes which are not on the main chain.
   struct COMMAND_RPC_GET_ALT_BLOCKS_HASHES
   {
@@ -246,7 +246,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get hashes. Binary request.
   struct COMMAND_RPC_GET_HASHES_FAST
   {
@@ -282,7 +282,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_GET_RANDOM_OUTS
   {
       struct request_t
@@ -334,7 +334,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // TODO: Undocumented light wallet RPC call
   struct COMMAND_RPC_SUBMIT_RAW_TX
   {
@@ -368,7 +368,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // TODO: Undocumented light wallet RPC call
   struct COMMAND_RPC_LOGIN
   {
@@ -401,7 +401,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // TODO: Undocumented light wallet RPC call
   struct COMMAND_RPC_IMPORT_WALLET_REQUEST
   {
@@ -438,7 +438,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up one or more transactions by hash.
   struct COMMAND_RPC_GET_TRANSACTIONS
   {
@@ -523,7 +523,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Check if outputs have been spent using the key image associated with the output.
   struct COMMAND_RPC_IS_KEY_IMAGE_SPENT
   {
@@ -561,7 +561,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   };
 
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get global outputs of transactions. Binary request.
   struct COMMAND_RPC_GET_TX_GLOBAL_OUTPUTS_INDEXES
   {
@@ -591,10 +591,10 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct get_outputs_out
   {
-    uint64_t amount; // Amount of Loki in TXID.
+    uint64_t amount; // Amount of Quenero in TXID.
     uint64_t index;  
 
     BEGIN_KV_SERIALIZE_MAP()
@@ -603,7 +603,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get outputs. Binary request.
   struct COMMAND_RPC_GET_OUTPUTS_BIN
   {
@@ -651,7 +651,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_GET_OUTPUTS
   {
     struct request_t
@@ -698,7 +698,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Broadcast a raw transaction to the network.
   struct COMMAND_RPC_SEND_RAW_TX
   {
@@ -741,7 +741,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Start mining on the daemon.
   struct COMMAND_RPC_START_MINING
   {
@@ -776,7 +776,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Retrieve general information about the state of your node and the network.
   struct COMMAND_RPC_GET_INFO
   {
@@ -792,7 +792,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       std::string status;                   // General RPC error code. "OK" means everything looks good.
       uint64_t height;                      // Current length of longest chain known to daemon.
       uint64_t target_height;               // The height of the next block in the chain.
-      uint64_t immutable_height;            // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Service Node, or 1 hardcoded checkpoint, 0 if N/A).
+      uint64_t immutable_height;            // The latest height in the blockchain that can not be reorganized from (backed by atleast 2 Masternode, or 1 hardcoded checkpoint, 0 if N/A).
       uint64_t difficulty;                  // Network difficulty (analogous to the strength of the network).
       uint64_t target;                      // Current target for next proof of work.
       uint64_t tx_count;                    // Total number of non-coinbase transaction in the chain.
@@ -816,7 +816,6 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       uint64_t block_weight_median;         // Median block weight of latest 100 blocks.
       uint64_t start_time;                  // Start time of the daemon, as UNIX time.
       uint64_t last_storage_server_ping;    // Last ping time of the storage server (0 if never or not running as a service node)
-      uint64_t last_lokinet_ping;           // Last ping time of lokinet (0 if never or not running as a service node)
       uint64_t free_space;                  // Available disk space on the node.
       bool offline;                         // States if the node is offline (`true`) or online (`false`).
       bool untrusted;                       // States if the result is obtained using the bootstrap mode, and is therefore not trusted (`true`), or when the daemon is fully synced (`false`).
@@ -855,7 +854,6 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
         KV_SERIALIZE_OPT(block_weight_median, (uint64_t)0)
         KV_SERIALIZE(start_time)
         KV_SERIALIZE(last_storage_server_ping)
-        KV_SERIALIZE(last_lokinet_ping)
         KV_SERIALIZE(free_space)
         KV_SERIALIZE(offline)
         KV_SERIALIZE(untrusted)
@@ -871,7 +869,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   };
 
   //-----------------------------------------------
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_GET_NET_STATS
   {
     struct request_t
@@ -904,7 +902,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Stop mining on the daemon.
   struct COMMAND_RPC_STOP_MINING
   {
@@ -926,7 +924,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the mining status of the daemon.
   struct COMMAND_RPC_MINING_STATUS
   {
@@ -975,7 +973,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Save the blockchain. The blockchain does not need saving and is always saved when modified, 
   // however it does a sync to flush the filesystem cache onto the disk for safety purposes against Operating System or Hardware crashes.
   struct COMMAND_RPC_SAVE_BC
@@ -998,7 +996,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up how many blocks are in the longest chain known to the node.
   struct COMMAND_RPC_GETBLOCKCOUNT
   {
@@ -1017,7 +1015,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up a block's hash by its height.
   struct COMMAND_RPC_GETBLOCKHASH
   {
@@ -1025,7 +1023,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef std::string response;          // Block hash (string).
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get a block template on which mining a new block.
   struct COMMAND_RPC_GETBLOCKTEMPLATE
   {
@@ -1074,7 +1072,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Submit a mined block to the network.
   struct COMMAND_RPC_SUBMITBLOCK
   {
@@ -1090,7 +1088,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Developer only.
   struct COMMAND_RPC_GENERATEBLOCKS
   {
@@ -1125,29 +1123,29 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct block_header_response
   {
-      uint8_t major_version;                  // The major version of the loki protocol at this block height.
-      uint8_t minor_version;                  // The minor version of the loki protocol at this block height.
+      uint8_t major_version;                  // The major version of the quenero protocol at this block height.
+      uint8_t minor_version;                  // The minor version of the quenero protocol at this block height.
       uint64_t timestamp;                     // The unix time at which the block was recorded into the blockchain.
       std::string prev_hash;                  // The hash of the block immediately preceding this block in the chain.
-      uint32_t nonce;                         // A cryptographic random one-time number used in mining a Loki block.
+      uint32_t nonce;                         // A cryptographic random one-time number used in mining a Quenero block.
       bool orphan_status;                     // Usually `false`. If `true`, this block is not part of the longest chain.
       uint64_t height;                        // The number of blocks preceding this block on the blockchain.
       uint64_t depth;                         // The number of blocks succeeding this block on the blockchain. A larger number means an older block.
       std::string hash;                       // The hash of this block.
-      difficulty_type difficulty;             // The strength of the Loki network based on mining power.
-      difficulty_type cumulative_difficulty;  // The cumulative strength of the Loki network based on mining power.
-      uint64_t reward;                        // The amount of new generated in this block and rewarded to the miner, foundation and service Nodes. Note: 1 LOKI = 1e12 atomic units.
-      uint64_t miner_reward;                  // The amount of new generated in this block and rewarded to the miner. Note: 1 LOKI = 1e12 atomic units. 
+      difficulty_type difficulty;             // The strength of the Quenero network based on mining power.
+      difficulty_type cumulative_difficulty;  // The cumulative strength of the Quenero network based on mining power.
+      uint64_t reward;                        // The amount of new generated in this block and rewarded to the miner, foundation and service Nodes. Note: 1 QUENERO = 1e12 atomic units.
+      uint64_t miner_reward;                  // The amount of new generated in this block and rewarded to the miner. Note: 1 QUENERO = 1e12 atomic units. 
       uint64_t block_size;                    // The block size in bytes.
       uint64_t block_weight;                  // The block weight in bytes.
       uint64_t num_txes;                      // Number of transactions in the block, not counting the coinbase tx.
       std::string pow_hash;                   // The hash of the block's proof of work.
       uint64_t long_term_weight;              // Long term weight of the block.
       std::string miner_tx_hash;              // The TX hash of the miner transaction
-      std::string service_node_winner;        // Service node that received a reward for this block
+      std::string masternode_winner;        // Service node that received a reward for this block
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(major_version)
@@ -1169,11 +1167,11 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
         KV_SERIALIZE(pow_hash)
         KV_SERIALIZE_OPT(long_term_weight, (uint64_t)0)
         KV_SERIALIZE(miner_tx_hash)
-        KV_SERIALIZE(service_node_winner)
+        KV_SERIALIZE(masternode_winner)
       END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Block header information for the most recent block is easily retrieved with this method. No inputs are needed.
   struct COMMAND_RPC_GET_LAST_BLOCK_HEADER
   {
@@ -1202,7 +1200,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Block header information can be retrieved using either a block's hash or height. This method includes a block's hash as an input parameter to retrieve basic information about the block.
   struct COMMAND_RPC_GET_BLOCK_HEADER_BY_HASH
   {
@@ -1233,7 +1231,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Similar to get_block_header_by_hash above, this method includes a block's height as an input parameter to retrieve basic information about the block.
   struct COMMAND_RPC_GET_BLOCK_HEADER_BY_HEIGHT
   {
@@ -1264,7 +1262,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Full block information can be retrieved by either block height or hash, like with the above block header calls. 
   // For full block information, both lookups use the same method, but with different input parameters.
   struct COMMAND_RPC_GET_BLOCK
@@ -1306,13 +1304,13 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct peer 
   {
     uint64_t id;           // Peer id.
     std::string host;      // IP address in string format.
     uint32_t ip;           // IP address in integer format.
-    uint16_t port;         // TCP port the peer is using to connect to loki network.
+    uint16_t port;         // TCP port the peer is using to connect to quenero network.
     uint16_t rpc_port;     // RPC port the peer is using
     uint64_t last_seen;    // Unix time at which the peer has been seen for the last time
     uint32_t pruning_seed; //
@@ -1340,7 +1338,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the known peers list.
   struct COMMAND_RPC_GET_PEER_LIST
   {
@@ -1366,7 +1364,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the log hash rate display mode.
   struct COMMAND_RPC_SET_LOG_HASH_RATE
   {
@@ -1390,7 +1388,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the daemon log level. By default, log level is set to `0`.
   struct COMMAND_RPC_SET_LOG_LEVEL
   {
@@ -1414,7 +1412,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set the daemon log categories. Categories are represented as a comma separated list of `<Category>:<level>` (similarly to syslog standard `<Facility>:<Severity-level>`), where:
   // Category is one of the following: * (all facilities), default, net, net.http, net.p2p, logging, net.trottle, blockchain.db, blockchain.db.lmdb, bcutil, checkpoints, net.dns, net.dl,
   // i18n, perf,stacktrace, updates, account, cn ,difficulty, hardfork, miner, blockchain, txpool, cn.block_queue, net.cn, daemon, debugtools.deserialize, debugtools.objectsizes, device.ledger, 
@@ -1449,7 +1447,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct tx_info
   {
     std::string id_hash;                // The transaction ID hash.
@@ -1490,7 +1488,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct spent_key_image_info
   {
     std::string id_hash;                 // Key image.
@@ -1502,7 +1500,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Show information about valid transactions seen by the node but not yet mined into a block, 
   // as well as spent key image information for the txpool in the node's memory.
   struct COMMAND_RPC_GET_TRANSACTION_POOL
@@ -1531,7 +1529,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get hashes from transaction pool. Binary request.
   struct COMMAND_RPC_GET_TRANSACTION_POOL_HASHES_BIN
   {
@@ -1561,7 +1559,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get hashes from transaction pool.
   struct COMMAND_RPC_GET_TRANSACTION_POOL_HASHES
   {
@@ -1587,15 +1585,15 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct tx_backlog_entry
   {
     uint64_t weight;       // 
-    uint64_t fee;          // Fee in Loki measured in atomic units.
+    uint64_t fee;          // Fee in Quenero measured in atomic units.
     uint64_t time_in_pool;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get all transaction pool backlog.
   struct COMMAND_RPC_GET_TRANSACTION_POOL_BACKLOG
   {
@@ -1621,7 +1619,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct txpool_histo
   {
     uint32_t txs;   // Number of transactions.
@@ -1633,7 +1631,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct txpool_stats
   {
     uint64_t bytes_total;            // Total size of all transactions in pool.
@@ -1669,7 +1667,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the transaction pool statistics.
   struct COMMAND_RPC_GET_TRANSACTION_POOL_STATS
   {
@@ -1695,7 +1693,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Retrieve information about incoming and outgoing connections to your node.
   struct COMMAND_RPC_GET_CONNECTIONS
   {
@@ -1719,7 +1717,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Similar to get_block_header_by_height above, but for a range of blocks. 
   // This method includes a starting block height and an ending block height as 
   // parameters to retrieve basic information about the range of blocks.
@@ -1754,7 +1752,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Send a command to the daemon to safely disconnect and shut down.
   struct COMMAND_RPC_STOP_DAEMON
   {
@@ -1776,7 +1774,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get daemon bandwidth limits.
   struct COMMAND_RPC_GET_LIMIT
   {
@@ -1804,7 +1802,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Set daemon bandwidth limits.
   struct COMMAND_RPC_SET_LIMIT
   {
@@ -1835,7 +1833,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Limit number of Outgoing peers.
   struct COMMAND_RPC_OUT_PEERS
   {
@@ -1859,7 +1857,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Limit number of Incoming peers.
   struct COMMAND_RPC_IN_PEERS
   {
@@ -1883,7 +1881,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Look up information regarding hard fork voting and readiness.
   struct COMMAND_RPC_HARD_FORK_INFO
   {
@@ -1926,7 +1924,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get list of banned IPs.
   struct COMMAND_RPC_GETBANS
   {
@@ -1963,7 +1961,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Ban another node by IP.
   struct COMMAND_RPC_SETBANS
   {
@@ -2003,7 +2001,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Determine whether a given IP address is banned
   struct COMMAND_RPC_BANNED
   {
@@ -2032,7 +2030,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Flush tx ids from transaction pool..
   struct COMMAND_RPC_FLUSH_TRANSACTION_POOL
   {
@@ -2057,7 +2055,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get a histogram of output amounts. For all amounts (possibly filtered by parameters), 
   // gives the number of outputs on the chain for that amount. RingCT outputs counts as 0 amount.
   struct COMMAND_RPC_GET_OUTPUT_HISTOGRAM
@@ -2114,7 +2112,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get node current version.
   struct COMMAND_RPC_GET_VERSION
   {
@@ -2140,7 +2138,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the coinbase amount and the fees amount for n last blocks starting at particular height.
   struct COMMAND_RPC_GET_COINBASE_TX_SUM
   {
@@ -2161,7 +2159,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       std::string status;       // General RPC error code. "OK" means everything looks good.
       uint64_t emission_amount; // Amount of coinbase reward in atomic units.
       uint64_t fee_amount;      // Amount of fees in atomic units.
-      uint64_t burn_amount;      // Amount of burnt loki.
+      uint64_t burn_amount;      // Amount of burnt quenero.
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(status)
@@ -2173,7 +2171,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Gives an estimation of per-output + per-byte fees
   struct COMMAND_RPC_GET_BASE_FEE_ESTIMATE
   {
@@ -2206,7 +2204,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Display alternative chains seen by the node.
   struct COMMAND_RPC_GET_ALTERNATE_CHAINS
   {
@@ -2249,7 +2247,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Update daemon.
   struct COMMAND_RPC_UPDATE
   {
@@ -2288,7 +2286,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Relay a list of transaction IDs.
   struct COMMAND_RPC_RELAY_TX
   {
@@ -2313,7 +2311,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get synchronisation information.
   struct COMMAND_RPC_SYNC_INFO
   {
@@ -2377,7 +2375,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_GET_OUTPUT_DISTRIBUTION
   {
     struct request_t
@@ -2457,7 +2455,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_POP_BLOCKS
   {
     struct request_t
@@ -2483,7 +2481,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_PRUNE_BLOCKCHAIN
   {
     struct request_t
@@ -2512,7 +2510,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   };
 
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the quorum state which is the list of public keys of the nodes who are voting, and the list of public keys of the nodes who are being tested.
   struct COMMAND_RPC_GET_QUORUM_STATE
   {
@@ -2552,7 +2550,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     {
       uint64_t height;          // The height the quorums are relevant for
       uint8_t  quorum_type;     // The quorum type
-      quorum_t quorum;          // Quorum of Service Nodes
+      quorum_t quorum;          // Quorum of Masternodes
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(height)
         KV_SERIALIZE(quorum_type)
@@ -2581,14 +2579,14 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  struct COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW
+  QUENERO_RPC_DOC_INTROSPECT
+  struct COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW
   {
     struct request_t
     {
       std::vector<std::string> args; // (Developer) The arguments used in raw registration, i.e. portions
       bool make_friendly;            // Provide information about how to use the command in the result.
-      uint64_t staking_requirement;  // The staking requirement to become a Service Node the registration command will be generated upon
+      uint64_t staking_requirement;  // The staking requirement to become a Masternode the registration command will be generated upon
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(args)
@@ -2601,7 +2599,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     struct response_t
     {
       std::string status;           // Generic RPC error code. "OK" is the success value.
-      std::string registration_cmd; // The command to execute in the wallet CLI to register the queried daemon as a Service Node.
+      std::string registration_cmd; // The command to execute in the wallet CLI to register the queried daemon as a Masternode.
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(status)
@@ -2611,13 +2609,13 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  struct COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD
+  QUENERO_RPC_DOC_INTROSPECT
+  struct COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD
   {
     struct contribution_t
     {
       std::string address; // The wallet address for the contributor
-      uint64_t amount;     // The amount that the contributor will reserve in Loki atomic units towards the staking requirement
+      uint64_t amount;     // The amount that the contributor will reserve in Quenero atomic units towards the staking requirement
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(address)
@@ -2628,8 +2626,8 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     struct request_t
     {
       std::string operator_cut;                  // The percentage of cut per reward the operator receives expressed as a string, i.e. "1.1%"
-      std::vector<contribution_t> contributions; // Array of contributors for this Service Node
-      uint64_t staking_requirement;              // The staking requirement to become a Service Node the registration command will be generated upon
+      std::vector<contribution_t> contributions; // Array of contributors for this Masternode
+      uint64_t staking_requirement;              // The staking requirement to become a Masternode the registration command will be generated upon
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(operator_cut)
@@ -2642,7 +2640,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     struct response_t
     {
       std::string status;           // Generic RPC error code. "OK" is the success value.
-      std::string registration_cmd; // The command to execute in the wallet CLI to register the queried daemon as a Service Node.
+      std::string registration_cmd; // The command to execute in the wallet CLI to register the queried daemon as a Masternode.
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(status)
@@ -2652,10 +2650,10 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the service node public keys of the queried daemon, encoded in hex.
   // The daemon must be started in --service-node mode otherwise this RPC command will fail.
-  struct COMMAND_RPC_GET_SERVICE_NODE_KEY
+  struct COMMAND_RPC_GET_MASTERNODE_KEY
   {
     struct request_t
     {
@@ -2666,26 +2664,26 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
     struct response_t
     {
-      std::string service_node_pubkey;         // The queried daemon's service node public key.
-      std::string service_node_ed25519_pubkey; // The daemon's service node ed25519 auxiliary public key.
-      std::string service_node_x25519_pubkey;  // The daemon's service node x25519 auxiliary public key.
+      std::string masternode_pubkey;         // The queried daemon's service node public key.
+      std::string masternode_ed25519_pubkey; // The daemon's service node ed25519 auxiliary public key.
+      std::string masternode_x25519_pubkey;  // The daemon's service node x25519 auxiliary public key.
       std::string status;                      // Generic RPC error code. "OK" is the success value.
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(service_node_pubkey)
-        KV_SERIALIZE(service_node_ed25519_pubkey)
-        KV_SERIALIZE(service_node_x25519_pubkey)
+        KV_SERIALIZE(masternode_pubkey)
+        KV_SERIALIZE(masternode_ed25519_pubkey)
+        KV_SERIALIZE(masternode_x25519_pubkey)
         KV_SERIALIZE(status)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get the service node private keys of the queried daemon, encoded in hex.  Do not ever share
   // these keys: they would allow someone to impersonate your service node.
   // The daemon must be started in --service-node mode otherwise this RPC command will fail.
-  struct COMMAND_RPC_GET_SERVICE_NODE_PRIVKEY
+  struct COMMAND_RPC_GET_MASTERNODE_PRIVKEY
   {
     struct request_t
     {
@@ -2696,22 +2694,22 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
     struct response_t
     {
-      std::string service_node_privkey;         // The queried daemon's service node private key.
-      std::string service_node_ed25519_privkey; // The daemon's service node ed25519 private key (note that this is in sodium's format, which consists of the private and public keys concatenated together)
-      std::string service_node_x25519_privkey;  // The daemon's service node x25519 private key.
+      std::string masternode_privkey;         // The queried daemon's service node private key.
+      std::string masternode_ed25519_privkey; // The daemon's service node ed25519 private key (note that this is in sodium's format, which consists of the private and public keys concatenated together)
+      std::string masternode_x25519_privkey;  // The daemon's service node x25519 private key.
       std::string status;                       // Generic RPC error code. "OK" is the success value.
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(service_node_privkey)
-        KV_SERIALIZE(service_node_ed25519_privkey)
-        KV_SERIALIZE(service_node_x25519_privkey)
+        KV_SERIALIZE(masternode_privkey)
+        KV_SERIALIZE(masternode_ed25519_privkey)
+        KV_SERIALIZE(masternode_x25519_privkey)
         KV_SERIALIZE(status)
       END_KV_SERIALIZE_MAP()
     };
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // TODO: Undocumented, -- unused
   struct COMMAND_RPC_PERFORM_BLOCKCHAIN_TEST
   {
@@ -2738,8 +2736,8 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     };
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  struct service_node_contribution
+  QUENERO_RPC_DOC_INTROSPECT
+  struct masternode_contribution
   {
     std::string key_image;         // The contribution's key image that is locked on the network.
     std::string key_image_pub_key; // The contribution's key image, public key component
@@ -2752,13 +2750,13 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  struct service_node_contributor
+  QUENERO_RPC_DOC_INTROSPECT
+  struct masternode_contributor
   {
-    uint64_t amount;                                             // The total amount of locked Loki in atomic units for this contributor.
-    uint64_t reserved;                                           // The amount of Loki in atomic units reserved by this contributor for this Service Node.
+    uint64_t amount;                                             // The total amount of locked Quenero in atomic units for this contributor.
+    uint64_t reserved;                                           // The amount of Quenero in atomic units reserved by this contributor for this Masternode.
     std::string address;                                         // The wallet address for this contributor rewards are sent to and contributions came from.
-    std::vector<service_node_contribution> locked_contributions; // Array of contributions from this contributor.
+    std::vector<masternode_contribution> locked_contributions; // Array of contributions from this contributor.
 
     BEGIN_KV_SERIALIZE_MAP()
       KV_SERIALIZE(amount)
@@ -2768,17 +2766,17 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     END_KV_SERIALIZE_MAP()
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  // Get information on Service Nodes.
-  struct COMMAND_RPC_GET_SERVICE_NODES
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on Masternodes.
+  struct COMMAND_RPC_GET_MASTERNODES
   {
     struct request_t
     {
-      std::vector<std::string> service_node_pubkeys; // Array of public keys of active Service Nodes to get information about. Pass the empty array to query all Service Nodes.
+      std::vector<std::string> masternode_pubkeys; // Array of public keys of active Masternodes to get information about. Pass the empty array to query all Masternodes.
       bool include_json;                             // When set, the response's as_json member is filled out.
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(service_node_pubkeys);
+        KV_SERIALIZE(masternode_pubkeys);
         KV_SERIALIZE(include_json);
       END_KV_SERIALIZE_MAP()
     };
@@ -2788,44 +2786,44 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     {
       struct entry
       {
-        std::string                           service_node_pubkey;           // The public key of the Service Node.
-        uint64_t                              registration_height;           // The height at which the registration for the Service Node arrived on the blockchain.
-        uint16_t                              registration_hf_version;       // The hard fork at which the registration for the Service Node arrived on the blockchain.
-        uint64_t                              requested_unlock_height;       // The height at which contributions will be released and the Service Node expires. 0 if not requested yet.
-        uint64_t                              last_reward_block_height;      // The last height at which this Service Node received a reward.
-        uint32_t                              last_reward_transaction_index; // When multiple Service Nodes register on the same height, the order the transaction arrive dictate the order you receive rewards.
+        std::string                           masternode_pubkey;           // The public key of the Masternode.
+        uint64_t                              registration_height;           // The height at which the registration for the Masternode arrived on the blockchain.
+        uint16_t                              registration_hf_version;       // The hard fork at which the registration for the Masternode arrived on the blockchain.
+        uint64_t                              requested_unlock_height;       // The height at which contributions will be released and the Masternode expires. 0 if not requested yet.
+        uint64_t                              last_reward_block_height;      // The last height at which this Masternode received a reward.
+        uint32_t                              last_reward_transaction_index; // When multiple Masternodes register on the same height, the order the transaction arrive dictate the order you receive rewards.
         bool                                  active;                        // True if fully funded and not currently decommissioned (and so `active && !funded` implicitly defines decommissioned)
-        bool                                  funded;                        // True if the required stakes have been submitted to activate this Service Node
+        bool                                  funded;                        // True if the required stakes have been submitted to activate this Masternode
         uint64_t                              state_height;                  // If active: the state at which registration was completed; if decommissioned: the decommissioning height; if awaiting: the last contribution (or registration) height
-        uint32_t                              decommission_count;            // The number of times the Service Node has been decommissioned since registration
+        uint32_t                              decommission_count;            // The number of times the Masternode has been decommissioned since registration
         int64_t                               earned_downtime_blocks;        // The number of blocks earned towards decommissioning, or the number of blocks remaining until deregistration if currently decommissioned
-        std::array<uint16_t, 3>               service_node_version;          // The major, minor, patch version of the Service Node respectively.
-        std::vector<service_node_contributor> contributors;                  // Array of contributors, contributing to this Service Node.
-        uint64_t                              total_contributed;             // The total amount of Loki in atomic units contributed to this Service Node.
-        uint64_t                              total_reserved;                // The total amount of Loki in atomic units reserved in this Service Node.
-        uint64_t                              staking_requirement;           // The staking requirement in atomic units that is required to be contributed to become a Service Node.
+        std::array<uint16_t, 3>               masternode_version;          // The major, minor, patch version of the Masternode respectively.
+        std::vector<masternode_contributor> contributors;                  // Array of contributors, contributing to this Masternode.
+        uint64_t                              total_contributed;             // The total amount of Quenero in atomic units contributed to this Masternode.
+        uint64_t                              total_reserved;                // The total amount of Quenero in atomic units reserved in this Masternode.
+        uint64_t                              staking_requirement;           // The staking requirement in atomic units that is required to be contributed to become a Masternode.
         uint64_t                              portions_for_operator;         // The operator percentage cut to take from each reward expressed in portions, see cryptonote_config.h's STAKING_PORTIONS.
-        uint64_t                              swarm_id;                      // The identifier of the Service Node's current swarm.
+        uint64_t                              swarm_id;                      // The identifier of the Masternode's current swarm.
         std::string                           operator_address;              // The wallet address of the operator to which the operator cut of the staking reward is sent to.
         std::string                           public_ip;                     // The public ip address of the service node
         uint16_t                              storage_port;                  // The port number associated with the storage server
-        uint16_t                              storage_lmq_port;              // The port number associated with the storage server (lokimq interface)
+        uint16_t                              storage_lmq_port;              // The port number associated with the storage server (queneromq interface)
         uint16_t                              quorumnet_port;                // The port for direct SN-to-SN communication
         std::string                           pubkey_ed25519;                // The service node's ed25519 public key for auxiliary services
         std::string                           pubkey_x25519;                 // The service node's x25519 public key for auxiliary services
 
 
-        // Service Node Testing
-        uint64_t                                           last_uptime_proof;                   // The last time this Service Node's uptime proof was relayed by at least 1 Service Node other than itself in unix epoch time.
+        // Masternode Testing
+        uint64_t                                           last_uptime_proof;                   // The last time this Masternode's uptime proof was relayed by at least 1 Masternode other than itself in unix epoch time.
         bool                                               storage_server_reachable;            // Whether the node's storage server has been reported as unreachable for a long time
-        uint64_t                                           storage_server_reachable_timestamp;  // The last time this Service Node's storage server was contacted
+        uint64_t                                           storage_server_reachable_timestamp;  // The last time this Masternode's storage server was contacted
         uint16_t                                           version_major;                       // Major version the node is currently running
         uint16_t                                           version_minor;                       // Minor version the node is currently running
         uint16_t                                           version_patch;                       // Patch version the node is currently running
-        std::vector<service_nodes::checkpoint_vote_record> votes;                               // Of the last N checkpoints the Service Node is in a checkpointing quorum, record whether or not the Service Node voted to checkpoint a block
+        std::vector<masternodes::checkpoint_vote_record> votes;                               // Of the last N checkpoints the Masternode is in a checkpointing quorum, record whether or not the Masternode voted to checkpoint a block
 
         BEGIN_KV_SERIALIZE_MAP()
-            KV_SERIALIZE(service_node_pubkey)
+            KV_SERIALIZE(masternode_pubkey)
             KV_SERIALIZE(registration_height)
             KV_SERIALIZE(registration_hf_version)
             KV_SERIALIZE(requested_unlock_height)
@@ -2836,7 +2834,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
             KV_SERIALIZE(state_height)
             KV_SERIALIZE(decommission_count)
             KV_SERIALIZE(earned_downtime_blocks)
-            KV_SERIALIZE(service_node_version)
+            KV_SERIALIZE(masternode_version)
             KV_SERIALIZE(contributors)
             KV_SERIALIZE(total_contributed)
             KV_SERIALIZE(total_reserved)
@@ -2861,7 +2859,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
         END_KV_SERIALIZE_MAP()
       };
 
-      std::vector<entry> service_node_states; // Array of service node registration information
+      std::vector<entry> masternode_states; // Array of service node registration information
       uint64_t    height;                     // Current block's height.
       std::string block_hash;                 // Current block's hash.
       std::string status;                     // Generic RPC error code. "OK" is the success value.
@@ -2869,7 +2867,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(service_node_states)
+        KV_SERIALIZE(masternode_states)
         KV_SERIALIZE(height)
         KV_SERIALIZE(block_hash)
         KV_SERIALIZE(status)
@@ -2879,9 +2877,9 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  // Get information on Service Node.
-  struct COMMAND_RPC_GET_SERVICE_NODE_STATUS
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on Masternode.
+  struct COMMAND_RPC_GET_MASTERNODE_STATUS
   {
     struct request_t
     {
@@ -2896,7 +2894,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     struct response_t
     {
 
-      cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response_t::entry service_node_state; // Service node registration information
+      cryptonote::COMMAND_RPC_GET_MASTERNODES::response_t::entry masternode_state; // Service node registration information
       uint64_t    height;                     // Current block's height.
       std::string block_hash;                 // Current block's hash.
       std::string status;                     // Generic RPC error code. "OK" is the success value.
@@ -2904,7 +2902,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(service_node_state)
+        KV_SERIALIZE(masternode_state)
         KV_SERIALIZE(height)
         KV_SERIALIZE(block_hash)
         KV_SERIALIZE(status)
@@ -2917,9 +2915,9 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   #define KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(var) \
   if (this_ref.requested_fields.var || !this_ref.requested_fields.explicitly_set) KV_SERIALIZE(var)
 
-  LOKI_RPC_DOC_INTROSPECT
-  // Get information on a all (or optionally a random subset) of Service Nodes.
-  struct COMMAND_RPC_GET_N_SERVICE_NODES
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on a all (or optionally a random subset) of Masternodes.
+  struct COMMAND_RPC_GET_N_MASTERNODES
   {
 
     // Boolean values indicate whether corresponding
@@ -2928,7 +2926,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
       bool explicitly_set = false;          // internal use only: incicates whether one of the other parameters has been explicitly set
 
-      bool service_node_pubkey;
+      bool masternode_pubkey;
       bool registration_height;
       bool registration_hf_version;
       bool requested_unlock_height;
@@ -2940,7 +2938,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       bool decommission_count;
       bool earned_downtime_blocks;
 
-      bool service_node_version;
+      bool masternode_version;
       bool contributors;
       bool total_contributed;
       bool total_reserved;
@@ -2969,7 +2967,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       bool hardfork;
 
       BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE_OPT2(service_node_pubkey, false)
+        KV_SERIALIZE_OPT2(masternode_pubkey, false)
         KV_SERIALIZE_OPT2(registration_height, false)
         KV_SERIALIZE_OPT2(registration_hf_version, false)
         KV_SERIALIZE_OPT2(requested_unlock_height, false)
@@ -2980,7 +2978,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
         KV_SERIALIZE_OPT2(state_height, false)
         KV_SERIALIZE_OPT2(decommission_count, false)
         KV_SERIALIZE_OPT2(earned_downtime_blocks, false)
-        KV_SERIALIZE_OPT2(service_node_version, false)
+        KV_SERIALIZE_OPT2(masternode_version, false)
         KV_SERIALIZE_OPT2(contributors, false)
         KV_SERIALIZE_OPT2(total_contributed, false)
         KV_SERIALIZE_OPT2(total_reserved, false)
@@ -3036,43 +3034,43 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
           : requested_fields(res)
         {}
 
-        std::string                           service_node_pubkey;           // The public key of the Service Node.
-        uint64_t                              registration_height;           // The height at which the registration for the Service Node arrived on the blockchain.
-        uint16_t                              registration_hf_version;       // The hard fork at which the registration for the Service Node arrived on the blockchain.
-        uint64_t                              requested_unlock_height;       // The height at which contributions will be released and the Service Node expires. 0 if not requested yet.
-        uint64_t                              last_reward_block_height;      // The last height at which this Service Node received a reward.
-        uint32_t                              last_reward_transaction_index; // When multiple Service Nodes register on the same height, the order the transaction arrive dictate the order you receive rewards.
+        std::string                           masternode_pubkey;           // The public key of the Masternode.
+        uint64_t                              registration_height;           // The height at which the registration for the Masternode arrived on the blockchain.
+        uint16_t                              registration_hf_version;       // The hard fork at which the registration for the Masternode arrived on the blockchain.
+        uint64_t                              requested_unlock_height;       // The height at which contributions will be released and the Masternode expires. 0 if not requested yet.
+        uint64_t                              last_reward_block_height;      // The last height at which this Masternode received a reward.
+        uint32_t                              last_reward_transaction_index; // When multiple Masternodes register on the same height, the order the transaction arrive dictate the order you receive rewards.
         bool                                  active;                        // True if fully funded and not currently decommissioned (and so `active && !funded` implicitly defines decommissioned)
-        bool                                  funded;                        // True if the required stakes have been submitted to activate this Service Node
+        bool                                  funded;                        // True if the required stakes have been submitted to activate this Masternode
         uint64_t                              state_height;                  // If active: the state at which registration was completed; if decommissioned: the decommissioning height; if awaiting: the last contribution (or registration) height
-        uint32_t                              decommission_count;            // The number of times the Service Node has been decommissioned since registration
+        uint32_t                              decommission_count;            // The number of times the Masternode has been decommissioned since registration
         int64_t                               earned_downtime_blocks;        // The number of blocks earned towards decommissioning, or the number of blocks remaining until deregistration if currently decommissioned
-        std::array<uint16_t, 3>               service_node_version;          // The major, minor, patch version of the Service Node respectively.
-        std::vector<service_node_contributor> contributors;                  // Array of contributors, contributing to this Service Node.
-        uint64_t                              total_contributed;             // The total amount of Loki in atomic units contributed to this Service Node.
-        uint64_t                              total_reserved;                // The total amount of Loki in atomic units reserved in this Service Node.
-        uint64_t                              staking_requirement;           // The staking requirement in atomic units that is required to be contributed to become a Service Node.
+        std::array<uint16_t, 3>               masternode_version;          // The major, minor, patch version of the Masternode respectively.
+        std::vector<masternode_contributor> contributors;                  // Array of contributors, contributing to this Masternode.
+        uint64_t                              total_contributed;             // The total amount of Quenero in atomic units contributed to this Masternode.
+        uint64_t                              total_reserved;                // The total amount of Quenero in atomic units reserved in this Masternode.
+        uint64_t                              staking_requirement;           // The staking requirement in atomic units that is required to be contributed to become a Masternode.
         uint64_t                              portions_for_operator;         // The operator percentage cut to take from each reward expressed in portions, see cryptonote_config.h's STAKING_PORTIONS.
-        uint64_t                              swarm_id;                      // The identifier of the Service Node's current swarm.
+        uint64_t                              swarm_id;                      // The identifier of the Masternode's current swarm.
         std::string                           operator_address;              // The wallet address of the operator to which the operator cut of the staking reward is sent to.
         std::string                           public_ip;                     // The public ip address of the service node
         uint16_t                              storage_port;                  // The port number associated with the storage server
-        uint16_t                              storage_lmq_port;              // The port number associated with the storage server (lokimq interface)
+        uint16_t                              storage_lmq_port;              // The port number associated with the storage server (queneromq interface)
         uint16_t                              quorumnet_port;                // The port for direct SN-to-SN communication
         std::string                           pubkey_ed25519;                // The service node's ed25519 public key for auxiliary services
         std::string                           pubkey_x25519;                 // The service node's x25519 public key for auxiliary services
 
-        // Service Node Testing
-        uint64_t                                           last_uptime_proof;                   // The last time this Service Node's uptime proof was relayed by at least 1 Service Node other than itself in unix epoch time.
+        // Masternode Testing
+        uint64_t                                           last_uptime_proof;                   // The last time this Masternode's uptime proof was relayed by at least 1 Masternode other than itself in unix epoch time.
         bool                                               storage_server_reachable;            // Whether the node's storage server has been reported as unreachable for a long time
-        uint64_t                                           storage_server_reachable_timestamp;  // The last time this Service Node's storage server was contacted
+        uint64_t                                           storage_server_reachable_timestamp;  // The last time this Masternode's storage server was contacted
         uint16_t                                           version_major;                       // Major version the node is currently running
         uint16_t                                           version_minor;                       // Minor version the node is currently running
         uint16_t                                           version_patch;                       // Patch version the node is currently running
-        std::vector<service_nodes::checkpoint_vote_record> votes;                               // Of the last N checkpoints the Service Node is in a checkpointing quorum, record whether or not the Service Node voted to checkpoint a block
+        std::vector<masternodes::checkpoint_vote_record> votes;                               // Of the last N checkpoints the Masternode is in a checkpointing quorum, record whether or not the Masternode voted to checkpoint a block
 
         BEGIN_KV_SERIALIZE_MAP()
-          KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(service_node_pubkey);
+          KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(masternode_pubkey);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(registration_height);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(registration_hf_version);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(requested_unlock_height);
@@ -3083,7 +3081,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(state_height);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(decommission_count);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(earned_downtime_blocks);
-          KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(service_node_version);
+          KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(masternode_version);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(contributors);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(total_contributed);
           KV_SERIALIZE_ENTRY_FIELD_IF_REQUESTED(total_reserved);
@@ -3108,20 +3106,20 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
         END_KV_SERIALIZE_MAP()
       };
 
-      requested_fields_t fields; // @NoLokiRPCDocGen Internal use only, not serialized
-      bool polling_mode;         // @NoLokiRPCDocGen Internal use only, not serialized
+      requested_fields_t fields; // @NoQueneroRPCDocGen Internal use only, not serialized
+      bool polling_mode;         // @NoQueneroRPCDocGen Internal use only, not serialized
 
-      std::vector<entry> service_node_states; // Array of service node registration information
+      std::vector<entry> masternode_states; // Array of service node registration information
       uint64_t    height;                     // Current block's height.
       uint64_t    target_height;              // Blockchain's target height.
       std::string block_hash;                 // Current block's hash.
-      bool        unchanged;                  // Will be true (and `service_node_states` omitted) if you gave the current block hash to poll_block_hash
+      bool        unchanged;                  // Will be true (and `masternode_states` omitted) if you gave the current block hash to poll_block_hash
       uint8_t     hardfork;                   // Current hardfork version.
       std::string status;                     // Generic RPC error code. "OK" is the success value.
 
       BEGIN_KV_SERIALIZE_MAP()
         if (!this_ref.unchanged) {
-          KV_SERIALIZE(service_node_states)
+          KV_SERIALIZE(masternode_states)
         }
         KV_SERIALIZE(status)
         if (this_ref.fields.height) {
@@ -3144,7 +3142,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_STORAGE_SERVER_PING
   {
     struct request
@@ -3170,28 +3168,8 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     };
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  struct COMMAND_RPC_LOKINET_PING
-  {
-    struct request
-    {
-      std::array<int, 3> version; // Lokinet version
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(version);
-      END_KV_SERIALIZE_MAP()
-    };
-
-    struct response
-    {
-      std::string status; // Generic RPC error code. "OK" is the success value.
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(status)
-      END_KV_SERIALIZE_MAP()
-    };
-  };
-
-  LOKI_RPC_DOC_INTROSPECT
-  // Get the required amount of Loki to become a Service Node at the queried height. 
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get the required amount of Quenero to become a Masternode at the queried height. 
   // For stagenet and testnet values, ensure the daemon is started with the 
   // `--stagenet` or `--testnet` flags respectively.
   struct COMMAND_RPC_GET_STAKING_REQUIREMENT
@@ -3208,7 +3186,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
     struct response_t
     {
-      uint64_t staking_requirement; // The staking requirement in Loki, in atomic units.
+      uint64_t staking_requirement; // The staking requirement in Quenero, in atomic units.
       uint64_t height;              // The height requested (or current height if 0 was requested)
       std::string status;           // Generic RPC error code. "OK" is the success value.
 
@@ -3221,9 +3199,9 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  // Get information on blacklisted Service Node key images.
-  struct COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get information on blacklisted Masternode key images.
+  struct COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES
   {
     struct request_t
     {
@@ -3256,7 +3234,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get information on output blacklist.
   struct COMMAND_RPC_GET_OUTPUT_BLACKLIST
   {
@@ -3282,7 +3260,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Query hardcoded/service node checkpoints stored for the blockchain. Omit all arguments to retrieve the latest "count" checkpoints.
   struct COMMAND_RPC_GET_CHECKPOINTS
   {
@@ -3308,7 +3286,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       std::string signature; // The signature generated by the voter in the quorum
 
       voter_to_signature_serialized() = default;
-      voter_to_signature_serialized(service_nodes::voter_to_signature const &entry)
+      voter_to_signature_serialized(masternodes::voter_to_signature const &entry)
       : voter_index(entry.voter_index)
       , signature(epee::string_tools::pod_to_hex(entry.signature)) { }
 
@@ -3326,10 +3304,10 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     struct checkpoint_serialized
     {
       uint8_t version;
-      std::string type;                                      // Either "Hardcoded" or "ServiceNode" for checkpoints generated by Service Nodes or declared in the code
+      std::string type;                                      // Either "Hardcoded" or "MasterNode" for checkpoints generated by Masternodes or declared in the code
       uint64_t height;                                       // The height the checkpoint is relevant for
       std::string block_hash;                                // The block hash the checkpoint is specifying
-      std::vector<voter_to_signature_serialized> signatures; // Signatures from Service Nodes who agree on the block hash
+      std::vector<voter_to_signature_serialized> signatures; // Signatures from Masternodes who agree on the block hash
       uint64_t prev_height;                                  // The previous height the checkpoint is based off
 
       checkpoint_serialized() = default;
@@ -3341,7 +3319,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
       , prev_height(checkpoint.prev_height)
       {
         signatures.reserve(checkpoint.signatures.size());
-        for (service_nodes::voter_to_signature const &entry : checkpoint.signatures)
+        for (masternodes::voter_to_signature const &entry : checkpoint.signatures)
           signatures.push_back(entry);
       }
 
@@ -3379,7 +3357,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     typedef epee::misc_utils::struct_init<response_t> response;
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Query hardcoded/service node checkpoints stored for the blockchain. Omit all arguments to retrieve the latest "count" checkpoints.
   struct COMMAND_RPC_GET_SN_STATE_CHANGES
   {
@@ -3425,7 +3403,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
   };
 
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   struct COMMAND_RPC_REPORT_PEER_SS_STATUS
   {
     struct request
@@ -3462,8 +3440,8 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     };
   };
 
-  LOKI_RPC_DOC_INTROSPECT
-  // Get the name mapping for a Loki Name Service entry. Loki currently supports mappings
+  QUENERO_RPC_DOC_INTROSPECT
+  // Get the name mapping for a Quenero Name Service entry. Quenero currently supports mappings
   // for Session.
   struct COMMAND_RPC_LNS_NAMES_TO_OWNERS
   {
@@ -3471,7 +3449,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     static size_t const MAX_TYPE_REQUEST_ENTRIES = 8;
     struct request_entry
     {
-      std::string name_hash; // The name hashed using libsodium's crypto_generichash_blake2b in base64 to resolve to a public key via Loki Name Service
+      std::string name_hash; // The name hashed using libsodium's crypto_generichash_blake2b in base64 to resolve to a public key via Quenero Name Service
       std::vector<uint16_t> types; // If empty, query all types. Currently only Session(0). In future updates more mapping types will be available.
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(name_hash)
@@ -3489,13 +3467,13 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
     struct response_entry
     {
-      uint64_t entry_index;     // The index in request_entry's `entries` array that was resolved via Loki Name Service.
-      uint16_t type;            // The type of Loki Name Service entry that the owner owns.
+      uint64_t entry_index;     // The index in request_entry's `entries` array that was resolved via Quenero Name Service.
+      uint16_t type;            // The type of Quenero Name Service entry that the owner owns.
       std::string name_hash;    // The hash of the name that was queried in base64
-      std::string owner;        // The public key that purchased the Loki Name Service entry.
-      std::string backup_owner; // The backup public key that the owner specified when purchasing the Loki Name Service entry.
+      std::string owner;        // The public key that purchased the Quenero Name Service entry.
+      std::string backup_owner; // The backup public key that the owner specified when purchasing the Quenero Name Service entry.
       std::string encrypted_value; // The encrypted value that the name maps to. This value is encrypted using the name (not the hash) as the secret.
-      uint64_t register_height; // The height that this Loki Name Service entry was purchased on the Blockchain.
+      uint64_t register_height; // The height that this Quenero Name Service entry was purchased on the Blockchain.
       std::string txid;         // The txid of who purchased the mapping, null hash if not applicable.
       std::string prev_txid;    // The previous txid that purchased the mapping, null hash if not applicable.
       BEGIN_KV_SERIALIZE_MAP()
@@ -3522,7 +3500,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     };
   };
 
-  LOKI_RPC_DOC_INTROSPECT
+  QUENERO_RPC_DOC_INTROSPECT
   // Get all the name mappings for the queried owner. The owner can be either a ed25519 public key or Monero style
   // public key; by default purchases are owned by the spend public key of the purchasing wallet.
   struct COMMAND_RPC_LNS_OWNERS_TO_NAMES
@@ -3530,7 +3508,7 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
     static size_t const MAX_REQUEST_ENTRIES = 256;
     struct request
     {
-      std::vector<std::string> entries; // The owner's public key to find all Loki Name Service entries for.
+      std::vector<std::string> entries; // The owner's public key to find all Quenero Name Service entries for.
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(entries)
       END_KV_SERIALIZE_MAP()
@@ -3538,12 +3516,12 @@ constexpr char const CORE_RPC_STATUS_TX_LONG_POLL_MAX_CONNECTIONS[] = "Daemon ma
 
     struct response_entry
     {
-      uint64_t    request_index;   // The index in request's `entries` array that was resolved via Loki Name Service.
-      uint16_t    type;            // The category the Loki Name Service entry belongs to, currently only Session whose value is 0.
-      std::string name_hash;       // The hash of the name that the owner purchased via Loki Name Service in base64
-      std::string backup_owner;    // The backup public key specified by the owner that purchased the Loki Name Service entry.
+      uint64_t    request_index;   // The index in request's `entries` array that was resolved via Quenero Name Service.
+      uint16_t    type;            // The category the Quenero Name Service entry belongs to, currently only Session whose value is 0.
+      std::string name_hash;       // The hash of the name that the owner purchased via Quenero Name Service in base64
+      std::string backup_owner;    // The backup public key specified by the owner that purchased the Quenero Name Service entry.
       std::string encrypted_value; // The encrypted value that the name maps to. This value is encrypted using the name (not the hash) as the secret.
-      uint64_t    register_height; // The height that this Loki Name Service entry was purchased on the Blockchain.
+      uint64_t    register_height; // The height that this Quenero Name Service entry was purchased on the Blockchain.
       std::string txid;            // The txid of who purchases the mapping.
       std::string prev_txid;       // The previous txid that purchased the mapping, null hash if not applicable.
       BEGIN_KV_SERIALIZE_MAP()

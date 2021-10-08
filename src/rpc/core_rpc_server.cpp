@@ -41,7 +41,7 @@ using namespace epee;
 #include "common/command_line.h"
 #include "common/updates.h"
 #include "common/download.h"
-#include "common/loki.h"
+#include "common/quenero.h"
 #include "common/util.h"
 #include "common/perf_timer.h"
 #include "common/random.h"
@@ -60,8 +60,8 @@ using namespace epee;
 #include "p2p/net_node.h"
 #include "version.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "daemon.rpc"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon.rpc"
 
 #define MAX_RESTRICTED_FAKE_OUTS_COUNT 40
 #define MAX_RESTRICTED_GLOBAL_FAKE_OUTS_COUNT 5000
@@ -246,7 +246,6 @@ namespace cryptonote
     res.block_size_median = res.block_weight_median = m_core.get_blockchain_storage().get_current_cumulative_block_weight_median();
     res.start_time = restricted ? 0 : (uint64_t)m_core.get_start_time();
     res.last_storage_server_ping = restricted ? 0 : (uint64_t)m_core.m_last_storage_server_ping;
-    res.last_lokinet_ping = restricted ? 0 : (uint64_t)m_core.m_last_lokinet_ping;
     res.free_space = restricted ? std::numeric_limits<uint64_t>::max() : m_core.get_free_space();
     res.offline = m_core.offline();
     res.bootstrap_daemon_address = restricted ? "" : m_bootstrap_daemon_address;
@@ -262,7 +261,7 @@ namespace cryptonote
     if (restricted)
       res.database_size = round_up(res.database_size, 5ull* 1024 * 1024 * 1024);
     res.update_available = restricted ? false : m_core.is_update_available();
-    res.version = restricted ? std::to_string(LOKI_VERSION[0]) : LOKI_VERSION_STR;
+    res.version = restricted ? std::to_string(QUENERO_VERSION[0]) : QUENERO_VERSION_STR;
     res.status = CORE_RPC_STATUS_OK;
     return true;
   }
@@ -1001,7 +1000,7 @@ namespace cryptonote
     const uint8_t major_version = m_core.get_blockchain_storage().get_current_hard_fork_version();
 
     res.pow_algorithm =
-        major_version >= network_version_12_checkpointing    ? "RandomX (LOKI variant)"               :
+        major_version >= network_version_12_checkpointing    ? "RandomX (QUENERO variant)"               :
         major_version == network_version_11_infinite_staking ? "Cryptonight Turtle Light (Variant 2)" :
                                                                "Cryptonight Heavy (Variant 2)";
 
@@ -1220,7 +1219,7 @@ namespace cryptonote
   //------------------------------------------------------------------------------------------------------------------------------
 
   //
-  // Loki
+  // Quenero
   //
   bool core_rpc_server::on_get_output_blacklist_bin(const COMMAND_RPC_GET_OUTPUT_BLACKLIST::request& req, COMMAND_RPC_GET_OUTPUT_BLACKLIST::response& res, const connection_context *ctx)
   {
@@ -1566,7 +1565,7 @@ namespace cryptonote
     response.pow_hash = fill_pow_hash ? string_tools::pod_to_hex(get_block_longhash(&(m_core.get_blockchain_storage()), blk, height, 0)) : "";
     response.long_term_weight = m_core.get_blockchain_storage().get_db().get_block_long_term_weight(height);
     response.miner_tx_hash = string_tools::pod_to_hex(cryptonote::get_transaction_hash(blk.miner_tx));
-    response.service_node_winner = string_tools::pod_to_hex(cryptonote::get_service_node_winner_from_tx_extra(blk.miner_tx.extra));
+    response.masternode_winner = string_tools::pod_to_hex(cryptonote::get_masternode_winner_from_tx_extra(blk.miner_tx.extra));
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
@@ -2102,33 +2101,33 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_node_status(const COMMAND_RPC_GET_SERVICE_NODE_STATUS::request& req, COMMAND_RPC_GET_SERVICE_NODE_STATUS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_masternode_status(const COMMAND_RPC_GET_MASTERNODE_STATUS::request& req, COMMAND_RPC_GET_MASTERNODE_STATUS::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_node_status);
-    cryptonote::COMMAND_RPC_GET_SERVICE_NODE_KEY::response get_service_node_key_res = {};
-    cryptonote::COMMAND_RPC_GET_SERVICE_NODE_KEY::request get_service_node_key_req = {};
+    PERF_TIMER(on_get_masternode_status);
+    cryptonote::COMMAND_RPC_GET_MASTERNODE_KEY::response get_masternode_key_res = {};
+    cryptonote::COMMAND_RPC_GET_MASTERNODE_KEY::request get_masternode_key_req = {};
 
-    if (!on_get_service_node_key(get_service_node_key_req, get_service_node_key_res, error_resp, ctx))
+    if (!on_get_masternode_key(get_masternode_key_req, get_masternode_key_res, error_resp, ctx))
     {
       return false;
     }
 
-    cryptonote::COMMAND_RPC_GET_SERVICE_NODES::request get_service_nodes_req;
-    cryptonote::COMMAND_RPC_GET_SERVICE_NODES::response get_service_nodes_res;
+    cryptonote::COMMAND_RPC_GET_MASTERNODES::request get_masternodes_req;
+    cryptonote::COMMAND_RPC_GET_MASTERNODES::response get_masternodes_res;
 
-    get_service_nodes_req.include_json = req.include_json;
-    get_service_nodes_req.service_node_pubkeys.push_back(get_service_node_key_res.service_node_pubkey);
+    get_masternodes_req.include_json = req.include_json;
+    get_masternodes_req.masternode_pubkeys.push_back(get_masternode_key_res.masternode_pubkey);
 
-    if (!on_get_service_nodes(get_service_nodes_req, get_service_nodes_res, error_resp, ctx))
+    if (!on_get_masternodes(get_masternodes_req, get_masternodes_res, error_resp, ctx))
     {
       return false;
     }
 
-    res.service_node_state = get_service_nodes_res.service_node_states[0];
-    res.height = get_service_nodes_res.height;
-    res.block_hash = get_service_nodes_res.block_hash;
-    res.status = get_service_nodes_res.status;
-    res.as_json = get_service_nodes_res.as_json;
+    res.masternode_state = get_masternodes_res.masternode_states[0];
+    res.height = get_masternodes_res.height;
+    res.block_hash = get_masternodes_res.block_hash;
+    res.status = get_masternodes_res.status;
+    res.as_json = get_masternodes_res.as_json;
 
     return true;
   }
@@ -2266,7 +2265,7 @@ namespace cryptonote
       return true;
     }
 
-    static const char software[] = "loki";
+    static const char software[] = "quenero";
 #ifdef BUILD_TAG
     static const char buildtag[] = BOOST_PP_STRINGIZE(BUILD_TAG);
     static const char subdir[] = "cli";
@@ -2287,7 +2286,7 @@ namespace cryptonote
       res.status = "Error checking for updates";
       return true;
     }
-    if (tools::vercmp(version.c_str(), LOKI_VERSION_STR) <= 0)
+    if (tools::vercmp(version.c_str(), QUENERO_VERSION_STR) <= 0)
     {
       res.update = false;
       res.status = CORE_RPC_STATUS_OK;
@@ -2596,7 +2595,7 @@ namespace cryptonote
     };
 
   //
-  // Loki
+  // Quenero
   //
   const command_line::arg_descriptor<int> core_rpc_server::arg_rpc_long_poll_connections = {
       "rpc-long-poll-connections"
@@ -2608,7 +2607,7 @@ namespace cryptonote
   {
     PERF_TIMER(on_get_quorum_state);
 
-    if (req.quorum_type >= tools::enum_count<service_nodes::quorum_type> &&
+    if (req.quorum_type >= tools::enum_count<masternodes::quorum_type> &&
         req.quorum_type != COMMAND_RPC_GET_QUORUM_STATE::ALL_QUORUMS_SENTINEL_VALUE)
     {
       error_resp.code    = CORE_RPC_ERROR_CODE_WRONG_PARAM;
@@ -2669,19 +2668,19 @@ namespace cryptonote
       uint8_t hf_version = m_core.get_hard_fork_version(height);
       if (hf_version != HardFork::INVALID_HF_VERSION_FOR_HEIGHT)
       {
-        auto start_quorum_iterator = static_cast<service_nodes::quorum_type>(0);
-        auto end_quorum_iterator   = service_nodes::max_quorum_type_for_hf(hf_version);
+        auto start_quorum_iterator = static_cast<masternodes::quorum_type>(0);
+        auto end_quorum_iterator   = masternodes::max_quorum_type_for_hf(hf_version);
 
         if (req.quorum_type != COMMAND_RPC_GET_QUORUM_STATE::ALL_QUORUMS_SENTINEL_VALUE)
         {
-          start_quorum_iterator = static_cast<service_nodes::quorum_type>(req.quorum_type);
+          start_quorum_iterator = static_cast<masternodes::quorum_type>(req.quorum_type);
           end_quorum_iterator   = start_quorum_iterator;
         }
 
         for (int quorum_int = (int)start_quorum_iterator; quorum_int <= (int)end_quorum_iterator; quorum_int++)
         {
-          auto type = static_cast<service_nodes::quorum_type>(quorum_int);
-          if (std::shared_ptr<const service_nodes::quorum> quorum = m_core.get_quorum(type, height, true /*include_old*/))
+          auto type = static_cast<masternodes::quorum_type>(quorum_int);
+          if (std::shared_ptr<const masternodes::quorum> quorum = m_core.get_quorum(type, height, true /*include_old*/))
           {
             COMMAND_RPC_GET_QUORUM_STATE::quorum_for_height entry = {};
             entry.height                                          = height;
@@ -2715,14 +2714,14 @@ namespace cryptonote
     return at_least_one_succeeded;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_node_registration_cmd_raw(const COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request& req,
-                                                                 COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response& res,
+  bool core_rpc_server::on_get_masternode_registration_cmd_raw(const COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW::request& req,
+                                                                 COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW::response& res,
                                                                  epee::json_rpc::error& error_resp,
                                                                  const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_node_registration_cmd_raw);
+    PERF_TIMER(on_get_masternode_registration_cmd_raw);
 
-    auto keys = m_core.get_service_node_keys();
+    auto keys = m_core.get_masternode_keys();
     if (!keys)
     {
       error_resp.code    = CORE_RPC_ERROR_CODE_WRONG_PARAM;
@@ -2732,7 +2731,7 @@ namespace cryptonote
 
     std::string err_msg;
     uint8_t hf_version = m_core.get_hard_fork_version(m_core.get_current_blockchain_height());
-    if (!service_nodes::make_registration_cmd(m_core.get_nettype(), hf_version, req.staking_requirement, req.args, *keys, res.registration_cmd, req.make_friendly, err_msg))
+    if (!masternodes::make_registration_cmd(m_core.get_nettype(), hf_version, req.staking_requirement, req.args, *keys, res.registration_cmd, req.make_friendly, err_msg))
     {
       error_resp.code    = CORE_RPC_ERROR_CODE_WRONG_PARAM;
       error_resp.message = "Failed to make registration command";
@@ -2745,21 +2744,21 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_node_registration_cmd(const COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD::request& req,
-                                                             COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD::response& res,
+  bool core_rpc_server::on_get_masternode_registration_cmd(const COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD::request& req,
+                                                             COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD::response& res,
                                                              epee::json_rpc::error& error_resp,
                                                              const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_node_registration_cmd);
+    PERF_TIMER(on_get_masternode_registration_cmd);
 
     std::vector<std::string> args;
 
     uint64_t const curr_height   = m_core.get_current_blockchain_height();
-    uint64_t staking_requirement = service_nodes::get_staking_requirement(m_core.get_nettype(), curr_height, m_core.get_hard_fork_version(curr_height));
+    uint64_t staking_requirement = masternodes::get_staking_requirement(m_core.get_nettype(), curr_height, m_core.get_hard_fork_version(curr_height));
 
     {
       uint64_t portions_cut;
-      if (!service_nodes::get_portions_from_percent_str(req.operator_cut, portions_cut))
+      if (!masternodes::get_portions_from_percent_str(req.operator_cut, portions_cut))
       {
         MERROR("Invalid value: " << req.operator_cut << ". Should be between [0-100]");
         return false;
@@ -2770,19 +2769,19 @@ namespace cryptonote
 
     for (const auto contrib : req.contributions)
     {
-        uint64_t num_portions = service_nodes::get_portions_to_make_amount(staking_requirement, contrib.amount);
+        uint64_t num_portions = masternodes::get_portions_to_make_amount(staking_requirement, contrib.amount);
         args.push_back(contrib.address);
         args.push_back(std::to_string(num_portions));
     }
 
-    COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW::request req_old;
-    COMMAND_RPC_GET_SERVICE_NODE_REGISTRATION_CMD_RAW::response res_old;
+    COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW::request req_old;
+    COMMAND_RPC_GET_MASTERNODE_REGISTRATION_CMD_RAW::response res_old;
 
     req_old.staking_requirement = req.staking_requirement;
     req_old.args = std::move(args);
     req_old.make_friendly = false;
 
-    const bool success = on_get_service_node_registration_cmd_raw(req_old, res_old, error_resp);
+    const bool success = on_get_masternode_registration_cmd_raw(req_old, res_old, error_resp);
 
     res.status = res_old.status;
     res.registration_cmd = res_old.registration_cmd;
@@ -2790,14 +2789,14 @@ namespace cryptonote
     return success;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_node_blacklisted_key_images(const COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::request& req, COMMAND_RPC_GET_SERVICE_NODE_BLACKLISTED_KEY_IMAGES::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_masternode_blacklisted_key_images(const COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::request& req, COMMAND_RPC_GET_MASTERNODE_BLACKLISTED_KEY_IMAGES::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_node_blacklisted_key_images);
-    auto &blacklist = m_core.get_service_node_blacklisted_key_images();
+    PERF_TIMER(on_get_masternode_blacklisted_key_images);
+    auto &blacklist = m_core.get_masternode_blacklisted_key_images();
 
     res.status = CORE_RPC_STATUS_OK;
     res.blacklist.reserve(blacklist.size());
-    for (const service_nodes::key_image_blacklist_entry &entry : blacklist)
+    for (const masternodes::key_image_blacklist_entry &entry : blacklist)
     {
       res.blacklist.emplace_back();
       auto &new_entry = res.blacklist.back();
@@ -2807,15 +2806,15 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_node_key(const COMMAND_RPC_GET_SERVICE_NODE_KEY::request& req, COMMAND_RPC_GET_SERVICE_NODE_KEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_masternode_key(const COMMAND_RPC_GET_MASTERNODE_KEY::request& req, COMMAND_RPC_GET_MASTERNODE_KEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_node_key);
+    PERF_TIMER(on_get_masternode_key);
 
-    if (auto keys = m_core.get_service_node_keys())
+    if (auto keys = m_core.get_masternode_keys())
     {
-      res.service_node_pubkey = string_tools::pod_to_hex(keys->pub);
-      res.service_node_ed25519_pubkey = string_tools::pod_to_hex(keys->pub_ed25519);
-      res.service_node_x25519_pubkey = string_tools::pod_to_hex(keys->pub_x25519);
+      res.masternode_pubkey = string_tools::pod_to_hex(keys->pub);
+      res.masternode_ed25519_pubkey = string_tools::pod_to_hex(keys->pub_ed25519);
+      res.masternode_x25519_pubkey = string_tools::pod_to_hex(keys->pub_x25519);
       res.status = CORE_RPC_STATUS_OK;
       return true;
     }
@@ -2825,15 +2824,15 @@ namespace cryptonote
     return false;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_node_privkey(const COMMAND_RPC_GET_SERVICE_NODE_PRIVKEY::request& req, COMMAND_RPC_GET_SERVICE_NODE_PRIVKEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_masternode_privkey(const COMMAND_RPC_GET_MASTERNODE_PRIVKEY::request& req, COMMAND_RPC_GET_MASTERNODE_PRIVKEY::response& res, epee::json_rpc::error &error_resp, const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_node_key);
+    PERF_TIMER(on_get_masternode_key);
 
-    if (auto keys = m_core.get_service_node_keys())
+    if (auto keys = m_core.get_masternode_keys())
     {
-      res.service_node_privkey = string_tools::pod_to_hex(keys->key.data);
-      res.service_node_ed25519_privkey = string_tools::pod_to_hex(keys->key_ed25519.data);
-      res.service_node_x25519_privkey = string_tools::pod_to_hex(keys->key_x25519.data);
+      res.masternode_privkey = string_tools::pod_to_hex(keys->key.data);
+      res.masternode_ed25519_privkey = string_tools::pod_to_hex(keys->key_ed25519.data);
+      res.masternode_x25519_privkey = string_tools::pod_to_hex(keys->key_x25519.data);
       res.status = CORE_RPC_STATUS_OK;
       return true;
     }
@@ -2844,10 +2843,10 @@ namespace cryptonote
   }
   //------------------------------------------------------------------------------------------------------------------------------
   template<typename response>
-  void core_rpc_server::fill_sn_response_entry(response &entry, const service_nodes::service_node_pubkey_info &sn_info, uint64_t current_height) {
+  void core_rpc_server::fill_sn_response_entry(response &entry, const masternodes::masternode_pubkey_info &sn_info, uint64_t current_height) {
 
     const auto &info = *sn_info.info;
-    entry.service_node_pubkey           = string_tools::pod_to_hex(sn_info.pubkey);
+    entry.masternode_pubkey           = string_tools::pod_to_hex(sn_info.pubkey);
     entry.registration_height           = info.registration_height;
     entry.requested_unlock_height       = info.requested_unlock_height;
     entry.last_reward_block_height      = info.last_reward_block_height;
@@ -2856,11 +2855,11 @@ namespace cryptonote
     entry.funded                        = info.is_fully_funded();
     entry.state_height                  = info.is_fully_funded()
         ? (info.is_decommissioned() ? info.last_decommission_height : info.active_since_height) : info.last_reward_block_height;
-    entry.earned_downtime_blocks        = service_nodes::quorum_cop::calculate_decommission_credit(info, current_height);
+    entry.earned_downtime_blocks        = masternodes::quorum_cop::calculate_decommission_credit(info, current_height);
     entry.decommission_count            = info.decommission_count;
 
-    m_core.get_service_node_list().access_proof(sn_info.pubkey, [&entry](const auto &proof) {
-        entry.service_node_version     = proof.version;
+    m_core.get_masternode_list().access_proof(sn_info.pubkey, [&entry](const auto &proof) {
+        entry.masternode_version     = proof.version;
         entry.public_ip                = string_tools::get_ip_string_from_int32(proof.public_ip);
         entry.storage_port             = proof.storage_port;
         entry.storage_lmq_port         = proof.storage_lmq_port;
@@ -2869,20 +2868,20 @@ namespace cryptonote
         entry.pubkey_x25519            = proof.pubkey_x25519 ? string_tools::pod_to_hex(proof.pubkey_x25519) : "";
         entry.quorumnet_port           = proof.quorumnet_port;
 
-        // NOTE: Service Node Testing
+        // NOTE: Masternode Testing
         entry.last_uptime_proof                  = proof.timestamp;
         entry.storage_server_reachable           = proof.storage_server_reachable;
         entry.storage_server_reachable_timestamp = proof.storage_server_reachable_timestamp;
         entry.version_major                      = proof.version[0];
         entry.version_minor                      = proof.version[1];
         entry.version_patch                      = proof.version[2];
-        entry.votes = std::vector<service_nodes::checkpoint_vote_record>(proof.votes.begin(), proof.votes.end());
+        entry.votes = std::vector<masternodes::checkpoint_vote_record>(proof.votes.begin(), proof.votes.end());
     });
 
     entry.contributors.reserve(info.contributors.size());
 
-    using namespace service_nodes;
-    for (service_node_info::contributor_t const &contributor : info.contributors)
+    using namespace masternodes;
+    for (masternode_info::contributor_t const &contributor : info.contributors)
     {
       entry.contributors.push_back({});
       auto &new_contributor = entry.contributors.back();
@@ -2891,7 +2890,7 @@ namespace cryptonote
       new_contributor.address  = cryptonote::get_account_address_as_str(m_core.get_nettype(), false/*is_subaddress*/, contributor.address);
 
       new_contributor.locked_contributions.reserve(contributor.locked_contributions.size());
-      for (service_node_info::contribution_t const &src : contributor.locked_contributions)
+      for (masternode_info::contribution_t const &src : contributor.locked_contributions)
       {
         new_contributor.locked_contributions.push_back({});
         auto &dest = new_contributor.locked_contributions.back();
@@ -2911,28 +2910,28 @@ namespace cryptonote
 
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_nodes(const COMMAND_RPC_GET_SERVICE_NODES::request& req, COMMAND_RPC_GET_SERVICE_NODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_masternodes(const COMMAND_RPC_GET_MASTERNODES::request& req, COMMAND_RPC_GET_MASTERNODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
-    PERF_TIMER(on_get_service_nodes);
+    PERF_TIMER(on_get_masternodes);
 
-    std::vector<crypto::public_key> pubkeys(req.service_node_pubkeys.size());
-    for (size_t i = 0; i < req.service_node_pubkeys.size(); i++)
+    std::vector<crypto::public_key> pubkeys(req.masternode_pubkeys.size());
+    for (size_t i = 0; i < req.masternode_pubkeys.size(); i++)
     {
-      if (!string_tools::hex_to_pod(req.service_node_pubkeys[i], pubkeys[i]))
+      if (!string_tools::hex_to_pod(req.masternode_pubkeys[i], pubkeys[i]))
       {
         error_resp.code    = CORE_RPC_ERROR_CODE_WRONG_PARAM;
         error_resp.message = "Could not convert to a public key, arg: ";
         error_resp.message += std::to_string(i);
         error_resp.message += " which is pubkey: ";
-        error_resp.message += req.service_node_pubkeys[i];
+        error_resp.message += req.masternode_pubkeys[i];
         return false;
       }
     }
 
-    auto pubkey_info_list = m_core.get_service_node_list_state(pubkeys);
+    auto pubkey_info_list = m_core.get_masternode_list_state(pubkeys);
 
     res.status = CORE_RPC_STATUS_OK;
-    res.service_node_states.reserve(pubkey_info_list.size());
+    res.masternode_states.reserve(pubkey_info_list.size());
 
     if (req.include_json)
     {
@@ -2949,16 +2948,16 @@ namespace cryptonote
     
     for (auto &pubkey_info : pubkey_info_list)
     {
-      COMMAND_RPC_GET_SERVICE_NODES::response::entry entry = {};
+      COMMAND_RPC_GET_MASTERNODES::response::entry entry = {};
       fill_sn_response_entry(entry, pubkey_info, height);
-      res.service_node_states.push_back(entry);
+      res.masternode_states.push_back(entry);
     }
 
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_n_service_nodes(const COMMAND_RPC_GET_N_SERVICE_NODES::request& req,
-                                               COMMAND_RPC_GET_N_SERVICE_NODES::response& res,
+  bool core_rpc_server::on_get_n_masternodes(const COMMAND_RPC_GET_N_MASTERNODES::request& req,
+                                               COMMAND_RPC_GET_N_MASTERNODES::response& res,
                                                epee::json_rpc::error&,
                                                const connection_context*)
   {
@@ -2978,11 +2977,11 @@ namespace cryptonote
       }
     }
 
-    std::vector<service_nodes::service_node_pubkey_info> sn_infos = m_core.get_service_node_list_state();
+    std::vector<masternodes::masternode_pubkey_info> sn_infos = m_core.get_masternode_list_state();
 
     if (req.active_only) {
       const auto end =
-        std::remove_if(sn_infos.begin(), sn_infos.end(), [](const service_nodes::service_node_pubkey_info& snpk_info) {
+        std::remove_if(sn_infos.begin(), sn_infos.end(), [](const masternodes::masternode_pubkey_info& snpk_info) {
           return !snpk_info.info->is_active();
         });
       
@@ -2998,26 +2997,26 @@ namespace cryptonote
       sn_infos.resize(limit);
     }
 
-    res.service_node_states.reserve(sn_infos.size());
+    res.masternode_states.reserve(sn_infos.size());
 
 
     for (auto &pubkey_info : sn_infos) {
-      COMMAND_RPC_GET_N_SERVICE_NODES::response::entry entry = {res.fields};
+      COMMAND_RPC_GET_N_MASTERNODES::response::entry entry = {res.fields};
 
       fill_sn_response_entry(entry, pubkey_info, height);
 
-      res.service_node_states.push_back(entry);
+      res.masternode_states.push_back(entry);
     }
 
     res.fields = req.fields;
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_all_service_nodes(const COMMAND_RPC_GET_SERVICE_NODES::request& req, COMMAND_RPC_GET_SERVICE_NODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_all_masternodes(const COMMAND_RPC_GET_MASTERNODES::request& req, COMMAND_RPC_GET_MASTERNODES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
     auto req_all = req;
-    req_all.service_node_pubkeys.clear();
-    return on_get_service_nodes(req_all, res, error_resp);
+    req_all.masternode_pubkeys.clear();
+    return on_get_masternodes(req_all, res, error_resp);
   }
   //------------------------------------------------------------------------------------------------------------------------------
   /// Start with seed and perform a series of computation arriving at the answer
@@ -3147,7 +3146,7 @@ namespace cryptonote
                                                epee::json_rpc::error&,
                                                const connection_context*)
   {
-    if (handle_ping({req.version_major, req.version_minor, req.version_patch}, service_nodes::MIN_STORAGE_SERVER_VERSION,
+    if (handle_ping({req.version_major, req.version_minor, req.version_patch}, masternodes::MIN_STORAGE_SERVER_VERSION,
           "Storage Server", m_core.m_last_storage_server_ping, STORAGE_SERVER_PING_LIFETIME, res))
     {
       m_core.reset_proof_interval();
@@ -3157,24 +3156,14 @@ namespace cryptonote
 
     return true;
   }
-  //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_lokinet_ping(const COMMAND_RPC_LOKINET_PING::request& req,
-                                        COMMAND_RPC_LOKINET_PING::response& res,
-                                        epee::json_rpc::error&,
-                                        const connection_context*)
-  {
-    if (handle_ping(req.version, service_nodes::MIN_LOKINET_VERSION,
-          "Lokinet", m_core.m_last_lokinet_ping, LOKINET_PING_LIFETIME, res))
-      m_core.reset_proof_interval();
-    return true;
-  }
+
   //------------------------------------------------------------------------------------------------------------------------------
   bool core_rpc_server::on_get_staking_requirement(const COMMAND_RPC_GET_STAKING_REQUIREMENT::request& req, COMMAND_RPC_GET_STAKING_REQUIREMENT::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
     PERF_TIMER(on_get_staking_requirement);
     res.height = req.height > 0 ? req.height : m_core.get_current_blockchain_height();
 
-    res.staking_requirement = service_nodes::get_staking_requirement(m_core.get_nettype(), res.height, m_core.get_hard_fork_version(res.height));
+    res.staking_requirement = masternodes::get_staking_requirement(m_core.get_nettype(), res.height, m_core.get_hard_fork_version(res.height));
     res.status = CORE_RPC_STATUS_OK;
     return true;
   }
@@ -3244,7 +3233,7 @@ namespace cryptonote
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
-  bool core_rpc_server::on_get_service_nodes_state_changes(const COMMAND_RPC_GET_SN_STATE_CHANGES::request& req, COMMAND_RPC_GET_SN_STATE_CHANGES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
+  bool core_rpc_server::on_get_masternodes_state_changes(const COMMAND_RPC_GET_SN_STATE_CHANGES::request& req, COMMAND_RPC_GET_SN_STATE_CHANGES::response& res, epee::json_rpc::error& error_resp, const connection_context *ctx)
   {
     using blob_t = cryptonote::blobdata;
     using block_pair_t = std::pair<blob_t, block>;
@@ -3297,32 +3286,32 @@ namespace cryptonote
         }
         if (tx.type == cryptonote::txtype::state_change)
         {
-          cryptonote::tx_extra_service_node_state_change state_change;
-          if (!cryptonote::get_service_node_state_change_from_tx_extra(tx.extra, state_change, hard_fork_version))
+          cryptonote::tx_extra_masternode_state_change state_change;
+          if (!cryptonote::get_masternode_state_change_from_tx_extra(tx.extra, state_change, hard_fork_version))
           {
             LOG_ERROR("Could not get state change from tx, possibly corrupt tx, hf_version "<< std::to_string(hard_fork_version));
             continue;
           }
 
           switch(state_change.state) {
-            case service_nodes::new_state::deregister:
+            case masternodes::new_state::deregister:
               res.total_deregister++;
               break;
 
-            case service_nodes::new_state::decommission:
+            case masternodes::new_state::decommission:
               res.total_decommission++;
               break;
 
-            case service_nodes::new_state::recommission:
+            case masternodes::new_state::recommission:
               res.total_recommission++;
               break;
 
-            case service_nodes::new_state::ip_change_penalty:
+            case masternodes::new_state::ip_change_penalty:
               res.total_ip_change_penalty++;
               break;
 
             default:
-              MERROR("Unhandled state in on_get_service_nodes_state_changes");
+              MERROR("Unhandled state in on_get_masternodes_state_changes");
               break;
           }
         }

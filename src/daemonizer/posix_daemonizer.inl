@@ -101,7 +101,7 @@ namespace daemonizer
     }
     else
     {
-      //LOG_PRINT_L0("Loki '" << LOKI_RELEASE_NAME << "' (v" << LOKI_VERSION_FULL);
+      //LOG_PRINT_L0("Quenero '" << QUENERO_RELEASE_NAME << "' (v" << QUENERO_VERSION_FULL);
       return executor.run_interactive(vm);
     }
   }

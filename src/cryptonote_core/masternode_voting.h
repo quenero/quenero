@@ -50,7 +50,7 @@ namespace cryptonote
   struct checkpoint_t;
 };
 
-namespace service_nodes
+namespace masternodes
 {
   struct quorum;
 
@@ -80,7 +80,7 @@ namespace service_nodes
   {
     // Note: This type has various padding and alignment and was mistakingly serialized as a blob
     // (padding and all, and not portable).  To remain compatible, we have to reproduce the blob
-    // data byte-for-byte as expected in the loki 5.x struct memory layout on AMD64, via the
+    // data byte-for-byte as expected in the quenero 5.x struct memory layout on AMD64, via the
     // vote_to_blob functions below.
 
     uint8_t           version = 0;
@@ -114,7 +114,7 @@ namespace service_nodes
       }
     END_KV_SERIALIZE_MAP()
 
-   // TODO(loki): idk exactly if I want to implement this, but need for core tests to compile. Not sure I care about serializing for core tests at all.
+   // TODO(quenero): idk exactly if I want to implement this, but need for core tests to compile. Not sure I care about serializing for core tests at all.
    private:
     friend class boost::serialization::access;
     template <class Archive>
@@ -138,18 +138,18 @@ namespace service_nodes
     END_SERIALIZE()
   };
 
-  struct service_node_keys;
+  struct masternode_keys;
 
-  quorum_vote_t            make_state_change_vote(uint64_t block_height, uint16_t index_in_group, uint16_t worker_index, new_state state, const service_node_keys &keys);
-  quorum_vote_t            make_checkpointing_vote(uint8_t hf_version, crypto::hash const &block_hash, uint64_t block_height, uint16_t index_in_quorum, const service_node_keys &keys);
-  cryptonote::checkpoint_t make_empty_service_node_checkpoint(crypto::hash const &block_hash, uint64_t height);
+  quorum_vote_t            make_state_change_vote(uint64_t block_height, uint16_t index_in_group, uint16_t worker_index, new_state state, const masternode_keys &keys);
+  quorum_vote_t            make_checkpointing_vote(uint8_t hf_version, crypto::hash const &block_hash, uint64_t block_height, uint16_t index_in_quorum, const masternode_keys &keys);
+  cryptonote::checkpoint_t make_empty_masternode_checkpoint(crypto::hash const &block_hash, uint64_t height);
 
-  bool               verify_checkpoint                  (uint8_t hf_version, cryptonote::checkpoint_t const &checkpoint, service_nodes::quorum const &quorum);
-  bool               verify_tx_state_change             (const cryptonote::tx_extra_service_node_state_change& state_change, uint64_t latest_height, cryptonote::tx_verification_context& vvc, const service_nodes::quorum &quorum, uint8_t hf_version);
+  bool               verify_checkpoint                  (uint8_t hf_version, cryptonote::checkpoint_t const &checkpoint, masternodes::quorum const &quorum);
+  bool               verify_tx_state_change             (const cryptonote::tx_extra_masternode_state_change& state_change, uint64_t latest_height, cryptonote::tx_verification_context& vvc, const masternodes::quorum &quorum, uint8_t hf_version);
   bool               verify_vote_age                    (const quorum_vote_t& vote, uint64_t latest_height, cryptonote::vote_verification_context &vvc);
-  bool               verify_vote_signature              (uint8_t hf_version, const quorum_vote_t& vote, cryptonote::vote_verification_context &vvc, const service_nodes::quorum &quorum);
-  crypto::signature  make_signature_from_vote           (quorum_vote_t const &vote, const service_node_keys &keys);
-  crypto::signature  make_signature_from_tx_state_change(cryptonote::tx_extra_service_node_state_change const &state_change, const service_node_keys &keys);
+  bool               verify_vote_signature              (uint8_t hf_version, const quorum_vote_t& vote, cryptonote::vote_verification_context &vvc, const masternodes::quorum &quorum);
+  crypto::signature  make_signature_from_vote           (quorum_vote_t const &vote, const masternode_keys &keys);
+  crypto::signature  make_signature_from_tx_state_change(cryptonote::tx_extra_masternode_state_change const &state_change, const masternode_keys &keys);
 
   // NOTE: This preserves the deregister vote format pre-checkpointing so that
   // up to the hardfork, we can still deserialize and serialize until we switch
@@ -157,7 +157,7 @@ namespace service_nodes
   struct legacy_deregister_vote
   {
     uint64_t          block_height;
-    uint32_t          service_node_index;
+    uint32_t          masternode_index;
     uint32_t          voters_quorum_index;
     crypto::signature signature;
   };
@@ -173,7 +173,7 @@ namespace service_nodes
     // return: The vector of votes if the vote is valid (and even if it is not unique) otherwise nullptr
     std::vector<pool_vote_entry> add_pool_vote_if_unique(const quorum_vote_t &vote, cryptonote::vote_verification_context &vvc);
 
-    // TODO(loki): Review relay behaviour and all the cases when it should be triggered
+    // TODO(quenero): Review relay behaviour and all the cases when it should be triggered
     void                         set_relayed         (const std::vector<quorum_vote_t>& votes);
     void                         remove_expired_votes(uint64_t height);
     void                         remove_used_votes   (std::vector<cryptonote::transaction> const &txs, uint8_t hard_fork_version);
@@ -191,8 +191,8 @@ namespace service_nodes
     {
       explicit obligations_pool_entry(const quorum_vote_t &vote)
           : height{vote.block_height}, worker_index{vote.state_change.worker_index}, state{vote.state_change.state} {}
-      obligations_pool_entry(const cryptonote::tx_extra_service_node_state_change &sc)
-          : height{sc.block_height}, worker_index{sc.service_node_index}, state{sc.state} {}
+      obligations_pool_entry(const cryptonote::tx_extra_masternode_state_change &sc)
+          : height{sc.block_height}, worker_index{sc.masternode_index}, state{sc.state} {}
 
       uint64_t                     height;
       uint32_t                     worker_index;
@@ -217,5 +217,5 @@ namespace service_nodes
 
     mutable epee::critical_section m_lock;
   };
-}; // namespace service_nodes
+}; // namespace masternodes
 

@@ -1,15 +1,15 @@
 #include "cryptonote_config.h"
-#include "common/loki.h"
+#include "common/quenero.h"
 #include "int-util.h"
 #include <vector>
 #include <boost/lexical_cast.hpp>
 #include <cfenv>
 
-#include "service_node_rules.h"
+#include "masternode_rules.h"
 
-namespace service_nodes {
+namespace masternodes {
 
-// TODO(loki): Move to loki_economy, this will also need access to loki::exp2
+// TODO(quenero): Move to quenero_economy, this will also need access to quenero::exp2
 uint64_t get_staking_requirement(cryptonote::network_type m_nettype, uint64_t height, uint8_t hf_version)
 {
   if (m_nettype == cryptonote::TESTNET || m_nettype == cryptonote::FAKECHAIN)
@@ -50,13 +50,13 @@ uint64_t get_staking_requirement(cryptonote::network_type m_nettype, uint64_t he
     };
 
     assert(height >= heights[0]);
-    constexpr uint64_t LAST_HEIGHT      = heights[loki::array_count(heights) - 1];
-    constexpr uint64_t LAST_REQUIREMENT = lsr    [loki::array_count(lsr) - 1];
+    constexpr uint64_t LAST_HEIGHT      = heights[quenero::array_count(heights) - 1];
+    constexpr uint64_t LAST_REQUIREMENT = lsr    [quenero::array_count(lsr) - 1];
     if (height >= LAST_HEIGHT)
         return LAST_REQUIREMENT;
 
     size_t i = 0;
-    for (size_t index = 1; index < loki::array_count(heights); index++)
+    for (size_t index = 1; index < quenero::array_count(heights); index++)
     {
       if (heights[index] > static_cast<int64_t>(height))
       {
@@ -79,12 +79,12 @@ uint64_t get_staking_requirement(cryptonote::network_type m_nettype, uint64_t he
   if (hf_version >= cryptonote::network_version_11_infinite_staking)
   {
     base     = 15000 * COIN;
-    variable = (25007.0 * COIN) / loki::exp2(height_adjusted/129600.0);
+    variable = (25007.0 * COIN) / quenero::exp2(height_adjusted/129600.0);
   }
   else
   {
     base      = 10000 * COIN;
-    variable  = (35000.0 * COIN) / loki::exp2(height_adjusted/129600.0);
+    variable  = (35000.0 * COIN) / quenero::exp2(height_adjusted/129600.0);
   }
 
   uint64_t result = base + variable;
@@ -99,7 +99,7 @@ uint64_t portions_to_amount(uint64_t portions, uint64_t staking_requirement)
   return resultlo;
 }
 
-bool check_service_node_portions(uint8_t hf_version, const std::vector<uint64_t>& portions)
+bool check_masternode_portions(uint8_t hf_version, const std::vector<uint64_t>& portions)
 {
   if (portions.size() > MAX_NUMBER_OF_CONTRIBUTORS) return false;
 
@@ -176,7 +176,7 @@ uint64_t get_portions_to_make_amount(uint64_t staking_requirement, uint64_t amou
 static bool get_portions_from_percent(double cur_percent, uint64_t& portions) {
   if(cur_percent < 0.0 || cur_percent > 100.0) return false;
 
-  // Fix for truncation issue when operator cut = 100 for a pool Service Node.
+  // Fix for truncation issue when operator cut = 100 for a pool Masternode.
   if (cur_percent == 100.0)
   {
     portions = STAKING_PORTIONS;
@@ -209,4 +209,4 @@ bool get_portions_from_percent_str(std::string cut_str, uint64_t& portions) {
   return get_portions_from_percent(cut_percent, portions);
 }
 
-} // namespace service_nodes
+} // namespace masternodes

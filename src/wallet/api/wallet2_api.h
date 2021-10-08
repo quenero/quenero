@@ -171,7 +171,7 @@ struct TransactionInfo
     };
 
     virtual ~TransactionInfo() = 0;
-    virtual bool isServiceNodeReward() const = 0;
+    virtual bool isMasterNodeReward() const = 0;
     virtual bool isMinerReward() const = 0;
     virtual int  direction() const = 0;
     virtual bool isPending() const = 0;
@@ -1000,7 +1000,7 @@ struct Wallet
     virtual Device getDeviceType() const = 0;
 
     /// Prepare a staking transaction; return nullptr on failure
-    virtual PendingTransaction* stakePending(const std::string& service_node_key, const std::string& address, const std::string& amount, std::string& error_msg) = 0;
+    virtual PendingTransaction* stakePending(const std::string& masternode_key, const std::string& address, const std::string& amount, std::string& error_msg) = 0;
 
     //! cold-device protocol key image sync
     virtual uint64_t coldKeyImageSync(uint64_t &spent, uint64_t &unspent) = 0;

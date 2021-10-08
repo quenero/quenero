@@ -47,8 +47,8 @@
 #include "net/net_fwd.h"
 #include "rpc/core_rpc_server.h"
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "daemon"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "daemon"
 
 namespace daemonize {
 
@@ -72,7 +72,7 @@ public:
 
   bool print_checkpoints(uint64_t start_height, uint64_t end_height, bool print_json);
 
-  bool print_sn_state_changes(uint64_t start_height, uint64_t end_height);
+  bool print_masternode_state_changes(uint64_t start_height, uint64_t end_height);
 
   bool print_peer_list(bool white = true, bool gray = true, size_t limit = 0);
 
@@ -164,15 +164,15 @@ public:
 
   bool pop_blocks(uint64_t num_blocks);
 
-  bool print_sn_key();
+  bool print_masternode_key();
 
-  bool print_sn_status(const std::vector<std::string>& args);
+  bool print_masternode_status(const std::vector<std::string>& args);
 
   bool print_sr(uint64_t height);
 
-  bool prepare_registration();
+  bool masternode_registration();
 
-  bool print_sn(const std::vector<std::string> &args);
+  bool print_masternode(const std::vector<std::string> &args);
 
   bool prune_blockchain();
 

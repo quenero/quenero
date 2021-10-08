@@ -56,8 +56,8 @@
 #include "ringct/rctSigs.h"
 #include "common/perf_timer.h"
 #include "common/notify.h"
-#include "service_node_voting.h"
-#include "service_node_list.h"
+#include "masternode_voting.h"
+#include "masternode_list.h"
 #include "common/varint.h"
 #include "common/pruning.h"
 #include "common/lock.h"
@@ -68,8 +68,8 @@ extern "C" {
 }
 #endif
 
-#undef LOKI_DEFAULT_LOG_CATEGORY
-#define LOKI_DEFAULT_LOG_CATEGORY "blockchain"
+#undef QUENERO_DEFAULT_LOG_CATEGORY
+#define QUENERO_DEFAULT_LOG_CATEGORY "blockchain"
 
 #define FIND_BLOCKCHAIN_SUPPLEMENT_MAX_SIZE (100*1024*1024) // 100 MB
 
@@ -107,7 +107,7 @@ Blockchain::block_extended_info::block_extended_info(const alt_block_data_t &src
 }
 
 //------------------------------------------------------------------
-Blockchain::Blockchain(tx_memory_pool& tx_pool, service_nodes::service_node_list& service_node_list):
+Blockchain::Blockchain(tx_memory_pool& tx_pool, masternodes::masternode_list& masternode_list):
   m_db(), m_tx_pool(tx_pool), m_hardfork(NULL), m_timestamps_and_difficulties_height(0), m_current_block_cumul_weight_limit(0), m_current_block_cumul_weight_median(0),
   m_max_prepare_blocks_threads(4), m_db_sync_on_blocks(true), m_db_sync_threshold(1), m_db_sync_mode(db_async), m_db_default_sync(false), m_fast_sync(true), m_show_time_stats(false), m_sync_counter(0), m_bytes_to_sync(0), m_cancel(false),
   m_long_term_block_weights_window(CRYPTONOTE_LONG_TERM_BLOCK_WEIGHT_WINDOW_SIZE),
@@ -116,7 +116,7 @@ Blockchain::Blockchain(tx_memory_pool& tx_pool, service_nodes::service_node_list
   m_long_term_block_weights_cache_rolling_median(CRYPTONOTE_LONG_TERM_BLOCK_WEIGHT_WINDOW_SIZE),
   m_difficulty_for_next_block_top_hash(crypto::null_hash),
   m_difficulty_for_next_block(1),
-  m_service_node_list(service_node_list),
+  m_masternode_list(masternode_list),
   m_btc_valid(false),
   m_batch_success(true),
   m_prepare_height(0)
@@ -295,9 +295,9 @@ uint64_t Blockchain::get_current_blockchain_height() const
   return m_db->height();
 }
 //------------------------------------------------------------------
-bool Blockchain::load_missing_blocks_into_loki_subsystems()
+bool Blockchain::load_missing_blocks_into_quenero_subsystems()
 {
-  uint64_t const snl_height   = std::max(m_hardfork->get_earliest_ideal_height_for_version(network_version_9_service_nodes), m_service_node_list.height() + 1);
+  uint64_t const snl_height   = std::max(m_hardfork->get_earliest_ideal_height_for_version(network_version_9_masternodes), m_masternode_list.height() + 1);
   uint64_t const lns_height   = std::max(m_hardfork->get_earliest_ideal_height_for_version(network_version_15_lns),          m_lns_db.height() + 1);
   uint64_t const end_height   = m_db->height();
   uint64_t const start_height = std::min(end_height, std::min(lns_height, snl_height));
@@ -305,7 +305,7 @@ bool Blockchain::load_missing_blocks_into_loki_subsystems()
   int64_t const total_blocks = static_cast<int64_t>(end_height) - static_cast<int64_t>(start_height);
   if (total_blocks <= 0) return true;
   if (total_blocks > 1)
-    MGINFO("Loading blocks into loki subsystems, scanning blockchain from height: " << start_height << " to: " << end_height);
+    MGINFO("Loading blocks into quenero subsystems, scanning blockchain from height: " << start_height << " to: " << end_height);
 
   using clock                   = std::chrono::steady_clock;
   using work_time               = std::chrono::duration<float>;
@@ -325,7 +325,7 @@ bool Blockchain::load_missing_blocks_into_loki_subsystems()
   {
     if (index > 0 && (index % 10 == 0))
     {
-      m_service_node_list.store();
+      m_masternode_list.store();
       auto duration = work_time{clock::now() - work_start};
       MGINFO("... scanning height " << start_height + (index * BLOCK_COUNT) << " (" << duration.count() << "s) (snl: " << snl_iteration_duration.count() << "s; lns: " << lns_iteration_duration.count() << "s)");
 #ifdef ENABLE_SYSTEMD
@@ -344,7 +344,7 @@ bool Blockchain::load_missing_blocks_into_loki_subsystems()
     uint64_t height = start_height + (index * BLOCK_COUNT);
     if (!get_blocks(height, static_cast<uint64_t>(BLOCK_COUNT), blocks))
     {
-      LOG_ERROR("Unable to get checkpointed historical blocks for updating loki subsystems");
+      LOG_ERROR("Unable to get checkpointed historical blocks for updating quenero subsystems");
       return false;
     }
 
@@ -370,7 +370,7 @@ bool Blockchain::load_missing_blocks_into_loki_subsystems()
         if (blk.major_version >= cryptonote::network_version_13_enforce_checkpoints && get_checkpoint(block_height, checkpoint))
             checkpoint_ptr = &checkpoint;
 
-        if (!m_service_node_list.block_added(blk, txs, checkpoint_ptr))
+        if (!m_masternode_list.block_added(blk, txs, checkpoint_ptr))
         {
           MERROR("Unable to process block for updating service node list: " << cryptonote::get_block_hash(blk));
           return false;
@@ -394,11 +394,11 @@ bool Blockchain::load_missing_blocks_into_loki_subsystems()
   if (total_blocks > 1)
   {
     auto duration = work_time{clock::now() - scan_start};
-    MGINFO("Done recalculating loki subsystems (" << duration.count() << "s) (snl: " << snl_duration.count() << "s; lns: " << lns_duration.count() << "s)");
+    MGINFO("Done recalculating quenero subsystems (" << duration.count() << "s) (snl: " << snl_duration.count() << "s; lns: " << lns_duration.count() << "s)");
   }
 
   if (total_blocks > 0)
-    m_service_node_list.store();
+    m_masternode_list.store();
 
   return true;
 }
@@ -427,7 +427,7 @@ bool Blockchain::init(BlockchainDB* db, sqlite3 *lns_db, const network_type nett
 
   m_db = db;
 
-#if defined(LOKI_ENABLE_INTEGRATION_TEST_HOOKS)
+#if defined(QUENERO_ENABLE_INTEGRATION_TEST_HOOKS)
   // NOTE(doyle): Passing in test options in integration mode means we're
   // overriding fork heights for any nettype in our integration tests using
   // a command line argument. So m_nettype should just be nettype. In
@@ -593,9 +593,9 @@ bool Blockchain::init(BlockchainDB* db, sqlite3 *lns_db, const network_type nett
   for (InitHook* hook : m_init_hooks)
     hook->init();
 
-  if (!load_missing_blocks_into_loki_subsystems())
+  if (!load_missing_blocks_into_quenero_subsystems())
   {
-    MERROR("Failed to load blocks into loki subsystems");
+    MERROR("Failed to load blocks into quenero subsystems");
     return false;
   }
 
@@ -721,7 +721,7 @@ void Blockchain::pop_blocks(uint64_t nblocks)
   auto split_height = m_db->height();
   for (BlockchainDetachedHook* hook : m_blockchain_detached_hooks)
     hook->blockchain_detached(split_height, true /*by_pop_blocks*/);
-  load_missing_blocks_into_loki_subsystems();
+  load_missing_blocks_into_quenero_subsystems();
 
   if (stop_batch)
     m_db->batch_stop();
@@ -1030,7 +1030,7 @@ difficulty_type Blockchain::get_difficulty_for_next_block()
   // difficulty for the first difficulty window blocks:
   uint64_t hf12_height = m_hardfork->get_earliest_ideal_height_for_version(network_version_12_checkpointing);
 
-  difficulty_type diff = next_difficulty_v2(timestamps, difficulties, target, version <= cryptonote::network_version_9_service_nodes,
+  difficulty_type diff = next_difficulty_v2(timestamps, difficulties, target, version <= cryptonote::network_version_9_masternodes,
           height >= hf12_height && height < hf12_height + DIFFICULTY_WINDOW_V2);
 
   auto diff_lock = tools::unique_lock(m_difficulty_lock);
@@ -1075,7 +1075,7 @@ bool Blockchain::rollback_blockchain_switching(const std::list<block_and_checkpo
   // Revert all changes from switching to the alt chain before adding the original chain back in
   for (BlockchainDetachedHook* hook : m_blockchain_detached_hooks)
     hook->blockchain_detached(rollback_height, false /*by_pop_blocks*/);
-  load_missing_blocks_into_loki_subsystems();
+  load_missing_blocks_into_quenero_subsystems();
 
   // make sure the hard fork object updates its current version
   m_hardfork->reorganize_from_chain_height(rollback_height);
@@ -1129,7 +1129,7 @@ bool Blockchain::switch_to_alternative_blockchain(const std::list<block_extended
 
   // pop blocks from the blockchain until the top block is the parent
   // of the front block of the alt chain.
-  std::list<block_and_checkpoint> disconnected_chain; // TODO(loki): use a vector and rbegin(), rend() because we don't have push_front
+  std::list<block_and_checkpoint> disconnected_chain; // TODO(quenero): use a vector and rbegin(), rend() because we don't have push_front
   while (m_db->top_block_hash() != alt_chain.front().bl.prev_id)
   {
     block_and_checkpoint entry = {};
@@ -1141,7 +1141,7 @@ bool Blockchain::switch_to_alternative_blockchain(const std::list<block_extended
   auto split_height = m_db->height();
   for (BlockchainDetachedHook* hook : m_blockchain_detached_hooks)
     hook->blockchain_detached(split_height, false /*by_pop_blocks*/);
-  load_missing_blocks_into_loki_subsystems();
+  load_missing_blocks_into_quenero_subsystems();
 
   //connecting new alternative chain
   for(auto alt_ch_iter = alt_chain.begin(); alt_ch_iter != alt_chain.end(); alt_ch_iter++)
@@ -1284,7 +1284,7 @@ difficulty_type Blockchain::get_next_difficulty_for_alternative_chain(const std:
   uint64_t height = (alt_chain.size() ? alt_chain.front().height : alt_block_height) + alt_chain.size() + 1;
 
   // calculate the difficulty target for the block and return it
-  return next_difficulty_v2(timestamps, cumulative_difficulties, target, get_current_hard_fork_version() <= cryptonote::network_version_9_service_nodes,
+  return next_difficulty_v2(timestamps, cumulative_difficulties, target, get_current_hard_fork_version() <= cryptonote::network_version_9_masternodes,
       height >= hf12_height && height < hf12_height + DIFFICULTY_WINDOW_V2);
 }
 //------------------------------------------------------------------
@@ -1337,7 +1337,7 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
   std::vector<uint64_t> last_blocks_weights;
   get_last_n_blocks_weights(last_blocks_weights, CRYPTONOTE_REWARD_BLOCKS_WINDOW);
 
-  loki_block_reward_context block_reward_context = {};
+  quenero_block_reward_context block_reward_context = {};
   block_reward_context.fee                       = fee;
   block_reward_context.height                    = height;
   if (!calc_batched_governance_reward(height, block_reward_context.batched_governance))
@@ -1347,7 +1347,7 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
   }
 
   block_reward_parts reward_parts;
-  if (!get_loki_block_reward(epee::misc_utils::median(last_blocks_weights), cumulative_block_weight, already_generated_coins, version, reward_parts, block_reward_context))
+  if (!get_quenero_block_reward(epee::misc_utils::median(last_blocks_weights), cumulative_block_weight, already_generated_coins, version, reward_parts, block_reward_context))
   {
     MERROR_VER("block weight " << cumulative_block_weight << " is bigger than allowed for this blockchain");
     return false;
@@ -1398,8 +1398,8 @@ bool Blockchain::validate_miner_transaction(const block& b, size_t cumulative_bl
   }
 
   // +1 here to allow a 1 atomic unit error in the calculation (which can happen because of floating point errors or rounding)
-  // TODO(loki): eliminate all floating point math in reward calculations.
-  uint64_t max_base_reward = reward_parts.base_miner + reward_parts.governance_paid + reward_parts.service_node_paid + 1;
+  // TODO(quenero): eliminate all floating point math in reward calculations.
+  uint64_t max_base_reward = reward_parts.base_miner + reward_parts.governance_paid + reward_parts.masternode_paid + 1;
   uint64_t max_money_in_use = max_base_reward + fee;
   if (money_in_use > max_money_in_use)
   {
@@ -1613,7 +1613,7 @@ bool Blockchain::create_block_template(block& b, const crypto::hash *from_block,
    */
   //make blocks coin-base tx looks close to real coinbase tx to get truthful blob weight
   uint8_t hf_version = b.major_version;
-  loki_miner_tx_context miner_tx_context(m_nettype, m_service_node_list.get_block_winner());
+  quenero_miner_tx_context miner_tx_context(m_nettype, m_masternode_list.get_block_winner());
   if (!calc_batched_governance_reward(height, miner_tx_context.batched_governance))
   {
     LOG_ERROR("Failed to calculate batched governance reward");
@@ -1790,7 +1790,7 @@ bool Blockchain::build_alt_chain(const crypto::hash &prev_id,
         failed = true;
       }
 
-      if (!failed && !m_checkpoints.is_alternative_block_allowed(blockchain_height, alt_chain.front().height, nullptr /*service_node_checkpoint*/))
+      if (!failed && !m_checkpoints.is_alternative_block_allowed(blockchain_height, alt_chain.front().height, nullptr /*masternode_checkpoint*/))
       {
         LOG_PRINT_L2("alternative chain is too old to consider: " << h);
         failed = true;
@@ -1841,11 +1841,11 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
     return false;
   }
 
-  bool service_node_checkpoint = false;
-  if (!m_checkpoints.is_alternative_block_allowed(get_current_blockchain_height(), block_height, &service_node_checkpoint))
+  bool masternode_checkpoint = false;
+  if (!m_checkpoints.is_alternative_block_allowed(get_current_blockchain_height(), block_height, &masternode_checkpoint))
   {
     // NOTE: The only case where we want to override this is_alternative_block_allowed failing is when you are in the soft forking period
-    bool soft_fork_checkpoint = (b.major_version <= cryptonote::network_version_12_checkpointing && service_node_checkpoint);
+    bool soft_fork_checkpoint = (b.major_version <= cryptonote::network_version_12_checkpointing && masternode_checkpoint);
     if (!soft_fork_checkpoint)
     {
       MERROR_VER("Block with id: " << id << std::endl << " can't be accepted for alternative chain, block height: " << block_height << std::endl << " blockchain height: " << get_current_blockchain_height());
@@ -1958,7 +1958,7 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
       }
 
       alt_data.height                   = block_height;
-      // TODO(loki): Block cumulative weight wasn't being set in the fist place in bei?
+      // TODO(quenero): Block cumulative weight wasn't being set in the fist place in bei?
       // alt_data.cumulative_weight       = bei.block_cumulative_weight;
       alt_data.already_generated_coins  = get_outs_money_amount(b.miner_tx);
       alt_data.already_generated_coins += (alt_chain.size() ? prev_data.already_generated_coins : m_db->get_block_already_generated_coins(block_height - 1));
@@ -1977,12 +1977,12 @@ bool Blockchain::handle_alternative_block(const block& b, const crypto::hash& id
 
     // NOTE: Block is within the allowable service node reorg window due to passing is_alternative_block_allowed().
     // So we don't need to check that this block matches the checkpoint unless it's a hardcoded checkpoint, in which
-    // case it must. Otherwise if it fails a Service Node checkpoint that's fine because we're allowed to replace it in
+    // case it must. Otherwise if it fails a Masternode checkpoint that's fine because we're allowed to replace it in
     // this window
-    bool service_node_checkpoint = false;
-    if (!checkpoint && !m_checkpoints.check_block(block_height, id, nullptr, &service_node_checkpoint))
+    bool masternode_checkpoint = false;
+    if (!checkpoint && !m_checkpoints.check_block(block_height, id, nullptr, &masternode_checkpoint))
     {
-      if (!service_node_checkpoint)
+      if (!masternode_checkpoint)
       {
         LOG_ERROR("CHECKPOINT VALIDATION FAILED FOR ALT BLOCK");
         bvc.m_verifivation_failed = true;
@@ -2134,9 +2134,9 @@ bool Blockchain::handle_get_blocks(NOTIFY_REQUEST_GET_BLOCKS::request& arg, NOTI
 
   uint64_t const top_height = (m_db->height() - 1);
   uint64_t const earliest_height_to_sync_checkpoints_granularly =
-      (top_height < service_nodes::CHECKPOINT_STORE_PERSISTENTLY_INTERVAL)
+      (top_height < masternodes::CHECKPOINT_STORE_PERSISTENTLY_INTERVAL)
           ? 0
-          : top_height - service_nodes::CHECKPOINT_STORE_PERSISTENTLY_INTERVAL;
+          : top_height - masternodes::CHECKPOINT_STORE_PERSISTENTLY_INTERVAL;
 
   for (auto& bl: blocks)
   {
@@ -2147,9 +2147,9 @@ bool Blockchain::handle_get_blocks(NOTIFY_REQUEST_GET_BLOCKS::request& arg, NOTI
     block_complete_entry& block_entry = rsp.blocks.back();
 
     uint64_t const block_height  = get_block_height(block);
-    uint64_t checkpoint_interval = service_nodes::CHECKPOINT_STORE_PERSISTENTLY_INTERVAL;
+    uint64_t checkpoint_interval = masternodes::CHECKPOINT_STORE_PERSISTENTLY_INTERVAL;
     if (block_height >= earliest_height_to_sync_checkpoints_granularly)
-      checkpoint_interval = service_nodes::CHECKPOINT_INTERVAL;
+      checkpoint_interval = masternodes::CHECKPOINT_INTERVAL;
 
     if ((block_height % checkpoint_interval) == 0)
     {
@@ -2338,7 +2338,7 @@ void Blockchain::get_output_key_mask_unlocked(const uint64_t& amount, const uint
 //------------------------------------------------------------------
 bool Blockchain::get_output_distribution(uint64_t amount, uint64_t from_height, uint64_t to_height, uint64_t &start_height, std::vector<uint64_t> &distribution, uint64_t &base) const
 {
-  // rct outputs don't exist before v4, NOTE(loki): we started from v7 so our start is always 0
+  // rct outputs don't exist before v4, NOTE(quenero): we started from v7 so our start is always 0
   start_height = 0;
   base = 0;
 
@@ -2922,12 +2922,12 @@ bool Blockchain::check_tx_outputs(const transaction& tx, tx_verification_context
   auto lock = tools::unique_lock(*this);
 
   for (const auto &o: tx.vout) {
-    if (o.amount != 0) { // in a v2 tx, all outputs must have 0 amount NOTE(loki): All loki tx's are atleast v2 from the beginning
+    if (o.amount != 0) { // in a v2 tx, all outputs must have 0 amount NOTE(quenero): All quenero tx's are atleast v2 from the beginning
       tvc.m_invalid_output = true;
       return false;
     }
 
-    // from hardfork v4, forbid invalid pubkeys NOTE(loki): We started from hf7 so always execute branch
+    // from hardfork v4, forbid invalid pubkeys NOTE(quenero): We started from hf7 so always execute branch
     if (o.target.type() == typeid(txout_to_key)) {
       const txout_to_key& out_to_key = boost::get<txout_to_key>(o.target);
       if (!crypto::check_key(out_to_key.key)) {
@@ -2957,7 +2957,7 @@ bool Blockchain::check_tx_outputs(const transaction& tx, tx_verification_context
       uint64_t curr_height = this->get_current_blockchain_height();
       if (curr_height == hf10_height)
       {
-        // NOTE(loki): Allow the hardforking block to contain a borromean proof
+        // NOTE(quenero): Allow the hardforking block to contain a borromean proof
         // incase there were some transactions in the TX Pool that were
         // generated pre-HF10 rules. Note, this isn't bulletproof. If there were
         // more than 1 blocks worth of borromean proof TX's sitting in the pool
@@ -3183,11 +3183,11 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
       }
 
       //
-      // Service Node Checks
+      // Masternode Checks
       //
       if (hf_version >= cryptonote::network_version_11_infinite_staking)
       {
-        const auto &blacklist = m_service_node_list.get_blacklisted_key_images();
+        const auto &blacklist = m_masternode_list.get_blacklisted_key_images();
         for (const auto &entry : blacklist)
         {
           if (in_to_key.k_image == entry.key_image) // Check if key image is on the blacklist
@@ -3199,7 +3199,7 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
         }
 
         uint64_t unlock_height = 0;
-        if (m_service_node_list.is_key_image_locked(in_to_key.k_image, &unlock_height))
+        if (m_masternode_list.is_key_image_locked(in_to_key.k_image, &unlock_height))
         {
           MERROR_VER("Key image: " << epee::string_tools::pod_to_hex(in_to_key.k_image) << " is locked in a stake until height: " << unlock_height);
           tvc.m_key_image_locked_by_snode = true;
@@ -3361,9 +3361,9 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
       }
     }
 
-    if (tx.type == txtype::loki_name_system)
+    if (tx.type == txtype::quenero_name_system)
     {
-      cryptonote::tx_extra_loki_name_system data;
+      cryptonote::tx_extra_quenero_name_system data;
       std::string fail_reason;
       if (!m_lns_db.validate_lns_tx(hf_version, get_current_blockchain_height(), tx, &data, &fail_reason))
       {
@@ -3387,15 +3387,15 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
 
     if (tx.type == txtype::state_change)
     {
-      tx_extra_service_node_state_change state_change;
-      if (!get_service_node_state_change_from_tx_extra(tx.extra, state_change, hf_version))
+      tx_extra_masternode_state_change state_change;
+      if (!get_masternode_state_change_from_tx_extra(tx.extra, state_change, hf_version))
       {
         MERROR_VER("TX did not have the state change metadata in the tx_extra");
         return false;
       }
 
-      auto const quorum_type  = service_nodes::quorum_type::obligations;
-      auto const quorum       = m_service_node_list.get_quorum(quorum_type, state_change.block_height);
+      auto const quorum_type  = masternodes::quorum_type::obligations;
+      auto const quorum       = m_masternode_list.get_quorum(quorum_type, state_change.block_height);
       {
         if (!quorum)
         {
@@ -3403,7 +3403,7 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
           return false;
         }
 
-        if (!service_nodes::verify_tx_state_change(state_change, get_current_blockchain_height(), tvc, *quorum, hf_version))
+        if (!masternodes::verify_tx_state_change(state_change, get_current_blockchain_height(), tvc, *quorum, hf_version))
         {
           // will be set by the above on serious failures (i.e. illegal value), but not for less
           // serious ones like state change heights slightly outside of allowed bounds:
@@ -3413,21 +3413,21 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
         }
       }
 
-      crypto::public_key const &state_change_service_node_pubkey = quorum->workers[state_change.service_node_index];
+      crypto::public_key const &state_change_masternode_pubkey = quorum->workers[state_change.masternode_index];
       //
-      // NOTE: Query the Service Node List for the in question Service Node the state change is for and disallow if conflicting
+      // NOTE: Query the Masternode List for the in question Masternode the state change is for and disallow if conflicting
       //
-      std::vector<service_nodes::service_node_pubkey_info> service_node_array = m_service_node_list.get_service_node_list_state({state_change_service_node_pubkey});
-      if (service_node_array.empty())
+      std::vector<masternodes::masternode_pubkey_info> masternode_array = m_masternode_list.get_masternode_list_state({state_change_masternode_pubkey});
+      if (masternode_array.empty())
       {
-        MERROR_VER("Service Node no longer exists on the network, state change can be ignored");
+        MERROR_VER("Masternode no longer exists on the network, state change can be ignored");
         return hf_version < cryptonote::network_version_12_checkpointing; // NOTE: Used to be allowed pre HF12.
       }
 
-      service_nodes::service_node_info const &service_node_info = *service_node_array[0].info;
-      if (!service_node_info.can_transition_to_state(hf_version, state_change.block_height, state_change.state))
+      masternodes::masternode_info const &masternode_info = *masternode_array[0].info;
+      if (!masternode_info.can_transition_to_state(hf_version, state_change.block_height, state_change.state))
       {
-        MERROR_VER("State change trying to vote Service Node into the same state it already is in, (aka double spend)");
+        MERROR_VER("State change trying to vote Masternode into the same state it already is in, (aka double spend)");
         tvc.m_double_spend = true;
         return false;
       }
@@ -3441,16 +3441,16 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
         return false;
       }
 
-      service_nodes::service_node_info::contribution_t contribution = {};
+      masternodes::masternode_info::contribution_t contribution = {};
       uint64_t unlock_height = 0;
-      if (!m_service_node_list.is_key_image_locked(unlock.key_image, &unlock_height, &contribution))
+      if (!m_masternode_list.is_key_image_locked(unlock.key_image, &unlock_height, &contribution))
       {
         MERROR_VER("Requested key image: " << epee::string_tools::pod_to_hex(unlock.key_image) << " to unlock is not locked");
         tvc.m_invalid_input = true;
         return false;
       }
 
-      crypto::hash const hash = service_nodes::generate_request_stake_unlock_hash(unlock.nonce);
+      crypto::hash const hash = masternodes::generate_request_stake_unlock_hash(unlock.nonce);
       if (!crypto::check_signature(hash, contribution.key_image_pub_key, unlock.signature))
       {
         MERROR("Could not verify key image unlock transaction signature for tx: " << get_transaction_hash(tx));
@@ -3458,7 +3458,7 @@ bool Blockchain::check_tx_inputs(transaction& tx, tx_verification_context &tvc, 
       }
 
       // Otherwise is a locked key image, if the unlock_height is set, it has been previously requested to unlock
-      if (unlock_height != service_nodes::KEY_IMAGE_AWAITING_UNLOCK_HEIGHT)
+      if (unlock_height != masternodes::KEY_IMAGE_AWAITING_UNLOCK_HEIGHT)
       {
         tvc.m_double_spend = true;
         return false;
@@ -3953,10 +3953,10 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   // is correct.
   if(m_checkpoints.is_in_checkpoint_zone(blockchain_height))
   {
-    bool service_node_checkpoint = false;
-    if(!m_checkpoints.check_block(blockchain_height, id, nullptr, &service_node_checkpoint))
+    bool masternode_checkpoint = false;
+    if(!m_checkpoints.check_block(blockchain_height, id, nullptr, &masternode_checkpoint))
     {
-      if (!service_node_checkpoint || (service_node_checkpoint && bl.major_version >= cryptonote::network_version_13_enforce_checkpoints))
+      if (!masternode_checkpoint || (masternode_checkpoint && bl.major_version >= cryptonote::network_version_13_enforce_checkpoints))
       {
         LOG_ERROR("CHECKPOINT VALIDATION FAILED");
         bvc.m_verifivation_failed = true;
@@ -4164,15 +4164,15 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
     LOG_ERROR("Blocks that failed verification should not reach here");
   }
 
-  auto abort_block = loki::defer([&]() {
+  auto abort_block = quenero::defer([&]() {
       pop_block_from_blockchain();
       auto old_height = m_db->height();
       for (BlockchainDetachedHook* hook : m_blockchain_detached_hooks)
         hook->blockchain_detached(old_height, false /*by_pop_blocks*/);
   });
 
-  // TODO(loki): Not nice, making the hook take in a vector of pair<transaction,
-  // blobdata> messes with service_node_list::init which only constructs
+  // TODO(quenero): Not nice, making the hook take in a vector of pair<transaction,
+  // blobdata> messes with masternode_list::init which only constructs
   // a vector of transactions and then subsequently calls block_added, so the
   // init step would have to intentionally allocate the blobs or retrieve them
   // from the DB.
@@ -4183,7 +4183,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
   for (std::pair<transaction, blobdata> const &tx_pair : txs)
     only_txs.push_back(tx_pair.first);
 
-  m_service_node_list.block_added(bl, only_txs, checkpoint);
+  m_masternode_list.block_added(bl, only_txs, checkpoint);
   m_lns_db.add_block(bl, only_txs);
 
   for (BlockAddedHook* hook : m_block_added_hooks)
@@ -4197,7 +4197,7 @@ bool Blockchain::handle_block_to_main_chain(const block& bl, const crypto::hash&
 
   TIME_MEASURE_FINISH(addblock);
 
-  // TODO(loki): Temporary forking code.
+  // TODO(quenero): Temporary forking code.
   {
     // Rescan difficulty every N block we have a reocurring difficulty bug that causes daemons to miscalculate difficulty
     uint64_t block_height = get_block_height(bl);
@@ -4696,7 +4696,7 @@ bool Blockchain::calc_batched_governance_reward(uint64_t height, uint64_t &rewar
 {
   reward = 0;
   auto hard_fork_version = get_ideal_hard_fork_version(height);
-  if (hard_fork_version <= network_version_9_service_nodes)
+  if (hard_fork_version <= network_version_9_masternodes)
   {
     return true;
   }
@@ -5257,7 +5257,7 @@ void Blockchain::cancel()
 }
 
 #if defined(PER_BLOCK_CHECKPOINT)
-static const char expected_block_hashes_hash[] = "8754309c4501f4b1c547c5c14d41dca30e0836a2942b09584ccc43b287040d07";
+static const char expected_block_hashes_hash[] = "1369e88de393e37a8447dc3ed008c5986632f922eed5d2837d4a1199691e8b2b";
 void Blockchain::load_compiled_in_block_hashes(const GetCheckpointsCallback& get_checkpoints)
 {
   if (get_checkpoints == nullptr || !m_fast_sync)
