@@ -12,9 +12,9 @@
 [submodule "external/trezor-common"]
 	path = external/trezor-common
 	url = https://github.com/trezor/trezor-common.git
-[submodule "external/randomx"]
-	path = external/randomx
-	url = https://github.com/loki-project/RandomX
 [submodule "external/quenero-mq"]
 	path = external/quenero-mq
 	url = https://github.com/Xmonero/oxen-mq
+[submodule "external/randomx"]
+	path = external/randomx
+	url = https://github.com/Xmonero/RandomX
