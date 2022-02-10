@@ -1,5 +1,0 @@
-/usr/bin/quenerod /usr/bin/lokid
-/usr/bin/quenero-sn-keys /usr/bin/loki-sn-keys
-/usr/bin/quenerod-download-lmdb /usr/bin/lokid-download-lmdb
-/lib/systemd/system/quenero-node.service /lib/systemd/system/loki-node.service
-/lib/systemd/system/quenero-testnet-node.service /lib/systemd/system/loki-testnet-node.service

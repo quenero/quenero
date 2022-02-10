@@ -28,30 +28,15 @@ Package: quenerod
 Architecture: any
 Depends: libquenero9.2.0 (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}, debconf
 Suggests: quenero-blockchain-tools, quenero-wallet-cli
-Replaces: lokid (<< 8.1.5-1~)
-Breaks: lokid (<< 8.1.5-1~)
 Description: Quenero network daemon
  This package contains the Quenero network daemon, quenerod, for running an Quenero node
  or Quenero service node.
-
-Package: lokid
-Depends: quenerod, ${misc:Depends}
-Architecture: all
-Section: oldlibs
-Description: transitional package
- Transitional package for LOKI to QUENERO rename.
- .
- This package provides the lokid -> quenerod compatibility symlink for
- transitional purposes.  It can be safely removed if the lokid symlink is no
- longer needed.
 
 Package: quenero-wallet-cli
 Architecture: any
 Depends: libquenero-wallet9.2.0 (= ${binary:Version}), libquenero9.2.0 (= ${binary:Version}),
     ${shlibs:Depends}, ${misc:Depends}
 Suggests: quenerod
-Replaces: loki-wallet-cli (<< 8.1.5-1~)
-Breaks: loki-wallet-cli (<< 8.1.5-1~)
 Description: Quenero command-line wallet and JSON RPC wallet
  This package contains the Quenero command-line wallet for accessing a wallet
  stored on the Quenero blockchain.
@@ -59,24 +44,11 @@ Description: Quenero command-line wallet and JSON RPC wallet
  The wallets require a quenerod node to work, such as the one provided in the
  quenerod package, but can also work with a remote Quenero node.
 
-Package: loki-wallet-cli
-Depends: quenero-wallet-cli, ${misc:Depends}
-Architecture: all
-Section: oldlibs
-Description: transitional package
- Transitional package for LOKI to QUENERO rename.
- .
- This package provides the loki-wallet-cli -> quenero-wallet-cli compatibility
- symlink for transitional purposes.  It can be safely removed if
- loki-wallet-cli symlink is no longer needed.
-
 Package: quenero-wallet-rpc
 Architecture: any
 Depends: libquenero-wallet9.2.0 (= ${binary:Version}), libquenero9.2.0 (= ${binary:Version}),
     ${shlibs:Depends}, ${misc:Depends}
 Suggests: quenerod
-Replaces: loki-wallet-rpc (<< 8.1.5-1~)
-Breaks: loki-wallet-rpc (<< 8.1.5-1~)
 Description: Quenero RPC wallet
  This package contains the Quenero JSON RPC wallet interface to accessing a wallet
  on the Quenero blockchain.  This wallet interface is typically used by external
@@ -85,39 +57,15 @@ Description: Quenero RPC wallet
  The wallet requires a quenerod node to work, such as the one provided in the
  quenerod package, but can also work with a remote Quenero node.
 
-Package: loki-wallet-rpc
-Depends: quenero-wallet-rpc, ${misc:Depends}
-Architecture: all
-Section: oldlibs
-Description: transitional package
- Transitional package for LOKI to QUENERO rename.
- .
- This package provides the loki-wallet-rpc -> quenero-wallet-rpc compatibility
- symlink for transitional purposes.  It can be safely removed if
- loki-wallet-rpc symlink is no longer needed.
-
 Package: quenero-blockchain-tools
 Architecture: any
 Depends: libquenero-wallet9.2.0 (= ${binary:Version}), libquenero9.2.0 (= ${binary:Version}),
     ${shlibs:Depends}, ${misc:Depends}
 Recommends: quenerod
-Replaces: loki-blockchain-tools (<< 8.1.5-1~)
-Breaks: loki-blockchain-tools (<< 8.1.5-1~)
 Description: Quenero blockchain utilities
  This contains the quenero-blockchain-* binaries for managing and querying the
  quenerod blockchain database.  These tools are used for blockchain diagnostics
  and are not typically needed to run an ordinary node or service node.
-
-Package: loki-blockchain-tools
-Depends: quenero-blockchain-tools, ${misc:Depends}
-Architecture: all
-Section: oldlibs
-Description: transitional package
- Transitional package for LOKI to QMR rename.
- .
- This package provides the loki-blockchain-* -> quenero-blockchain-* compatibility
- symlinks for transitional purposes.  It can be safely removed if
- loki-blockchain-* symlinks are no longer needed.
 
 Package: libquenero-dev
 Architecture: any
@@ -127,15 +75,5 @@ Depends: libquenero-wallet9.2.0 (= ${binary:Version}), libquenero9.2.0 (= ${bina
  libboost-dev (>= 1.58), libboost-thread-dev, libboost-serialization-dev, libboost-program-options-dev,
  libunbound-dev (>= 1.4.16), libminiupnpc-dev, libssl-dev, libsodium-dev, libreadline-dev, libhidapi-dev, liboxenmq-dev (>= 1.2.3~),
  libsqlite3-dev, libcurl4-dev, ${misc:Depends}
-Replaces: libloki-core-dev (<< 8.1.5-1~)
-Breaks: libloki-core-dev (<< 8.1.5-1~)
 Description: Quenero development files
  This contains the headers needed to compile code that uses the quenero libraries.
-
-Package: libloki-core-dev
-Depends: libquenero-dev, ${misc:Depends}
-Architecture: all
-Section: oldlibs
-Description: transitional package
- This is a transitional package. It can safely be removed.
-

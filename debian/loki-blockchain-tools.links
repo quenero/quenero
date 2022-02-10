@@ -1,7 +1,0 @@
-/usr/bin/quenero-blockchain-ancestry /usr/bin/loki-blockchain-ancestry
-/usr/bin/quenero-blockchain-depth /usr/bin/loki-blockchain-depth
-/usr/bin/quenero-blockchain-export /usr/bin/loki-blockchain-export
-/usr/bin/quenero-blockchain-import /usr/bin/loki-blockchain-import
-/usr/bin/quenero-blockchain-mark-spent-outputs /usr/bin/loki-blockchain-mark-spent-outputs
-/usr/bin/quenero-blockchain-stats /usr/bin/loki-blockchain-stats
-/usr/bin/quenero-blockchain-usage /usr/bin/loki-blockchain-usage

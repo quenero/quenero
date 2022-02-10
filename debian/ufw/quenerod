@@ -1,4 +1,4 @@
 [quenerod]
 title=Quenero network daemon
 description=Quenero daemon for running a local node or masternode
-ports=19990,19993,29990,29993/tcp
+ports=19990,19991,19993,29990,29993/tcp
